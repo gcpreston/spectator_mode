@@ -9,6 +9,7 @@ defmodule SpectatorModeWeb.UserSocket do
   ## Channels
 
   channel "bridges", SpectatorModeWeb.BridgesChannel
+  channel "view:*", SpectatorModeWeb.ViewerChannel
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After

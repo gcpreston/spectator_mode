@@ -6,7 +6,7 @@ import {Socket} from "phoenix"
 
 // And connect to the path in "lib/spectator_mode_web/endpoint.ex". We pass the
 // token for authentication. Read below how it should be used.
-let socket = new Socket("/socket", {params: {token: window.userToken}})
+let socket = new Socket("/socket")
 
 // When you connect, you'll often need to authenticate the client.
 // For example, imagine you have an authentication plug, `MyAuth`,
@@ -53,12 +53,20 @@ let socket = new Socket("/socket", {params: {token: window.userToken}})
 // Finally, connect to the socket:
 socket.connect()
 
+const bridgeId = "4e8cf127-c89e-434b-bd67-a5ab6a479df9"
+
 // Now that you are connected, you can join channels with a topic.
 // Let's assume you have a channel with a topic named `room` and the
 // subtopic is its id - in this case 42:
-let channel = socket.channel("room:42", {})
+let channel = socket.channel("view:" + bridgeId, {})
 channel.join()
-  .receive("ok", resp => { console.log("Joined successfully", resp) })
+  .receive("ok", resp => {
+    console.log("Joined successfully", resp)
+
+    channel.on("game_data", resp => {
+      console.log("Received game data", resp)
+    })
+  })
   .receive("error", resp => { console.log("Unable to join", resp) })
 
 export default socket

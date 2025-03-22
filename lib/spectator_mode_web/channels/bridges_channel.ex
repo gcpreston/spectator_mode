@@ -1,23 +1,20 @@
 defmodule SpectatorModeWeb.BridgesChannel do
   use SpectatorModeWeb, :channel
 
+  alias SpectatorMode.BridgeRelay
+
   @impl true
-  def join("bridges", payload, socket) do
-    if authorized?(payload) do
-      {:ok, socket}
-    else
-      {:error, %{reason: "unauthorized"}}
-    end
+  def join("bridges", _payload, socket) do
+    uuid = Ecto.UUID.generate()
+    # TODO: monitor and shutdown handling
+    {:ok, pid} = BridgeRelay.start_link(uuid)
+    IO.inspect(uuid, label: "Started bridge relay")
+    {:ok, %{bridge_id: uuid}, socket |> assign(:bridge_relay, pid)}
   end
 
   @impl true
   def handle_in("game_data", payload, socket) do
-    IO.inspect(payload, label: "game_data event got payload")
+    BridgeRelay.forward(socket.assigns.bridge_relay, payload)
     {:noreply, socket}
-  end
-
-  # Add authorization logic here as required.
-  defp authorized?(_payload) do
-    true
   end
 end

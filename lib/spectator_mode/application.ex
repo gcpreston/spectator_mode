@@ -16,6 +16,7 @@ defmodule SpectatorMode.Application do
       {Finch, name: SpectatorMode.Finch},
       # Start a worker by calling: SpectatorMode.Worker.start_link(arg)
       # {SpectatorMode.Worker, arg},
+      {Registry, name: SpectatorMode.BridgeRegistry, keys: :unique},
       # Start to serve requests, typically the last entry
       SpectatorModeWeb.Endpoint
     ]
