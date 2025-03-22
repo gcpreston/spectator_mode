@@ -6,7 +6,7 @@ The current version of the visualizer is implemented directly within Slippi Lab,
 
 <p align="center">
   <a href="https://slippilab.com" target="_blank" rel="noopener noreferrer">
-    <img src="public/logo.png" width="25%"/>
+    <img src="logo.png" width="25%"/>
   </a>
 </p>
 

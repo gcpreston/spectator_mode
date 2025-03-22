@@ -7,7 +7,6 @@ import {
 } from "~/common/ids";
 import { createComputed, createEffect, createSignal, on } from "solid-js";
 import { fileStore } from "~/state/fileStore";
-import { listCloudReplays, loadFromCloud } from "~/cloudClient";
 
 export type Filter =
   | { type: "character"; label: ExternalCharacterName }
@@ -200,25 +199,6 @@ function wrap(index: number, limit: number): number {
   return (index + limit) % limit;
 }
 
-const [cloudStubs, setCloudStubs] = createSignal<ReplayStub[]>([]);
-export const cloudLibrary = createSelectionStore({
-  stubs: cloudStubs,
-  getFile(stub) {
-    return loadFromCloud(stub.fileName.toString());
-  },
-});
-
-listCloudReplays().then((rows) => {
-  setCloudStubs(rows);
-  const path = location.pathname.slice(1);
-  if (path !== "") {
-    const stub = cloudStubs().find((s) => s.fileName === `${path}.slp`);
-    if (stub !== undefined) {
-      cloudLibrary.select(stub);
-    }
-  }
-});
-
 export const localLibrary = createSelectionStore({
   stubs: () => fileStore.stubs,
   async getFile(stub) {
@@ -227,11 +207,11 @@ export const localLibrary = createSelectionStore({
 });
 
 export const [currentSelectionStore, setCurrentSelectionStore] =
-  createSignal<SelectionStore>(cloudLibrary);
+  createSignal<SelectionStore>(localLibrary);
 createComputed(
   on(
-    () => cloudLibrary.data.selectedFileAndStub,
-    () => setCurrentSelectionStore(cloudLibrary)
+    () => localLibrary.data.selectedFileAndStub,
+    () => setCurrentSelectionStore(localLibrary)
   )
 );
 createComputed(

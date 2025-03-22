@@ -53,7 +53,7 @@ let socket = new Socket("/socket")
 // Finally, connect to the socket:
 socket.connect()
 
-const bridgeId = "4e8cf127-c89e-434b-bd67-a5ab6a479df9"
+const bridgeId = "none"
 
 // Now that you are connected, you can join channels with a topic.
 // Let's assume you have a channel with a topic named `room` and the

@@ -11,4 +11,7 @@ defmodule SpectatorModeWeb.Layouts do
   use SpectatorModeWeb, :html
 
   embed_templates "layouts/*"
+
+  @env Mix.env() # remember value at compile time
+  def dev_env?, do: @env == :dev
 end

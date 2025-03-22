@@ -29,6 +29,13 @@ defmodule SpectatorModeWeb.Endpoint do
     gzip: false,
     only: SpectatorModeWeb.static_paths()
 
+  if Mix.env() == :dev do
+    plug Plug.Static,
+      at: "/",
+      from: "assets/public",
+      gzip: false
+  end
+
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do

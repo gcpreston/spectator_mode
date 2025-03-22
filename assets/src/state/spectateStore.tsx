@@ -144,6 +144,7 @@ createEffect(() => setReplayState("running", running()));
 // TODO: Error handling
 
 export function connectWS(): void {
+  console.log('connection attempt');
   const PHOENIX_URL = '/socket';
   const socket = new Socket(PHOENIX_URL);
 
@@ -157,9 +158,12 @@ export function connectWS(): void {
   */
 
   socket.connect();
+  console.log('after socket connect', socket);
 
   // Now that you are connected, you can join channels with a topic:
-  const phoenixChannel = socket.channel("view:none");
+  const bridgeId = "08740a33-1cfc-4daa-9a86-dafdbba3e5ec";
+  const phoenixChannel = socket.channel("view:" + bridgeId);
+  console.log('channel', phoenixChannel);
   phoenixChannel.join()
     .receive("ok", (resp: any) => {
       console.log("Joined successfully", resp);
@@ -173,8 +177,8 @@ export function connectWS(): void {
         placement: "top-end",
       });
 
-      phoenixChannel.on("game_data", (data: any) => {
-        console.log('Received game_data event:', data);
+      phoenixChannel.on("game_data", (event: { data: ArrayBuffer, type: "Buffer" }) => {
+        setReplayState("packetBuffer", [...replayState.packetBuffer, event.data]);
       })
     })
     .receive("error", (resp: any) => {
@@ -376,23 +380,20 @@ createRoot(() => {
   createEffect(() => {
     // TODO: This could be some kind of forEach instead maybe
     if (replayState.packetBuffer.length > 0) {
-      const data = replayState.packetBuffer[0];
+      const buf = replayState.packetBuffer[0];
       const bufferRest = replayState.packetBuffer.slice(1);
       setReplayState("packetBuffer", bufferRest);
 
-      data.arrayBuffer()
-        .then((buf) => {
-          const gameEvents = parsePacket(
-            new Uint8Array(buf),
-            replayState.playbackData
-          );
+      const gameEvents = parsePacket(
+        new Uint8Array(buf),
+        replayState.playbackData
+      );
 
-          batch(() => {
-            gameEvents.forEach((gameEvent) => {
-              setReplayStateFromGameEvent(gameEvent)
-            });
-          });
+      batch(() => {
+        gameEvents.forEach((gameEvent) => {
+          setReplayStateFromGameEvent(gameEvent)
         });
+      });
     }
   });
 

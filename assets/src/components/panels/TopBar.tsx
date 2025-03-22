@@ -1,7 +1,6 @@
 import { Show } from "solid-js";
 import { ArrowLeft, ArrowRight, DownloadIcon } from "~/components/common/icons";
 import { OpenMenu } from "~/components/common/OpenMenu";
-import { UploadDialog } from "~/components/panels/UploadDialog";
 import { currentSelectionStore } from "~/state/selectionStore";
 
 export function TopBar() {
@@ -54,7 +53,6 @@ export function TopBar() {
             }}
             title="download .slp"
           />
-          <UploadDialog />
         </div>
       </Show>
     </div>

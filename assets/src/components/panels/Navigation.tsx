@@ -16,14 +16,6 @@ export function Navigation() {
         <div class="flex flex-col items-center gap-8">
           <img class="w-16" title="logo" src="logo.png" />
           <div class="flex w-10 flex-col">
-            <CloudIcon
-              title="Cloud Replays"
-              classList={{
-                "py-4 cursor-pointer -mx-7 px-7": true,
-                "bg-slippi-50": currentSidebar() === "cloud replays",
-              }}
-              onClick={() => setSidebar("cloud replays")}
-            />
             <VideoLibraryIcon
               title="Local Replays"
               classList={{

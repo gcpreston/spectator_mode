@@ -1,17 +1,29 @@
 <!DOCTYPE html>
-<html lang="en" class="[scrollbar-gutter:stable]">
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, minimum-scale=1"
+    />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="SpectatorMode" suffix=" · Phoenix Framework">
-      {assigns[:page_title]}
-    </.live_title>
-    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
-    </script>
+    <%= live_title_tag assigns[:page_title] || "SpectatorMode" %>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined"
+      rel="stylesheet"
+    />
+    <link type="text/css" rel="stylesheet" href="http://localhost:5173/src/index.css" />
+
+    <%= if dev_env?() do %>
+      <script type="module" src="http://localhost:5173/@vite/client"></script>
+      <script type="module" src="http://localhost:5173/src/root.tsx"></script>
+    <% else %>
+      <%!-- <link phx-track-static rel="stylesheet" href={Routes.static_path(@conn, "/assets/main.css")}/> --%>
+      <script defer phx-track-static type="text/javascript" src={Routes.static_path(@conn, "/assets/root.js")}></script>
+    <% end %>
   </head>
-  <body class="bg-white">
-    {@inner_content}
+  <body class="lg:overflow-hidden">
+    <div id="root"></div>
+    <%!-- <script src="/src/root.tsx" type="module"></script> --%>
   </body>
 </html>

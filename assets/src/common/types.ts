@@ -42,7 +42,7 @@ export type ReplayStore = PlaybackStore & {
 
 export type SpectateStore = PlaybackStore & {
   playbackData?: SpectateData;
-  packetBuffer: Blob[];
+  packetBuffer: ArrayBuffer[];
 };
 
 export type PlaybackData = {
