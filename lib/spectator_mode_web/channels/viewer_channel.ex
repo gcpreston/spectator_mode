@@ -18,7 +18,7 @@ defmodule SpectatorModeWeb.ViewerChannel do
 
   @impl true
   def handle_info({:game_data, payload}, socket) do
-    push(socket, "game_data", payload)
+    push(socket, "game_data", {:binary, payload})
     {:noreply, socket}
   end
 end

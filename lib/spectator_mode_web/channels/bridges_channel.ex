@@ -13,7 +13,7 @@ defmodule SpectatorModeWeb.BridgesChannel do
   end
 
   @impl true
-  def handle_in("game_data", payload, socket) do
+  def handle_in("game_data", {:binary, payload}, socket) do
     BridgeRelay.forward(socket.assigns.bridge_relay, payload)
     {:noreply, socket}
   end

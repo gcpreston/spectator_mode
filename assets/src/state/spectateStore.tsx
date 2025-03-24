@@ -177,9 +177,9 @@ export function connectWS(): void {
         placement: "top-end",
       });
 
-      phoenixChannel.on("game_data", (event: { data: ArrayBuffer, type: "Buffer" }) => {
-        setReplayState("packetBuffer", [...replayState.packetBuffer, event.data]);
-      })
+      phoenixChannel.on("game_data", (payload: ArrayBuffer) => {
+        setReplayState("packetBuffer", [...replayState.packetBuffer, payload]);
+      });
     })
     .receive("error", (resp: any) => {
       console.log('WebSocket error:', resp);
