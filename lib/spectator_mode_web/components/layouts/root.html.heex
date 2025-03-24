@@ -7,7 +7,9 @@
       content="width=device-width, initial-scale=1, minimum-scale=1"
     />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <%= live_title_tag assigns[:page_title] || "SpectatorMode" %>
+    <.live_title>
+      {assigns[:page_title] || "SpectatorMode"}
+    </.live_title>
     <link
       href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined"
       rel="stylesheet"
