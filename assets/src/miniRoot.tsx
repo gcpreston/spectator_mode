@@ -3,5 +3,8 @@ import { MiniApp } from "~/components/MiniApp";
 
 const root = document.querySelector("#root");
 if (root !== null) {
-  render(MiniApp, root);
+  const bridgeId = root.getAttribute("bridgeid");
+  if (bridgeId !== null) {
+    render(() => <MiniApp bridgeId={bridgeId} />, root);
+  }
 }

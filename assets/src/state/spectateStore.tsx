@@ -143,17 +143,12 @@ createEffect(() => setReplayState("running", running()));
 // ------------------------------------
 // TODO: Error handling
 
-export function connectWS(): void {
-  console.log('connection attempt');
+export function connectWS(bridgeId: string): void {
+  console.log('connecting to bridge', bridgeId);
   const PHOENIX_URL = '/socket';
   const socket = new Socket(PHOENIX_URL);
 
   socket.connect();
-
-  // TODO: Make dynamic, handle errors
-  const hrefSplit = window.location.href.split('/');
-  const bridgeId = hrefSplit[hrefSplit.length - 1];
-  console.log('bridge id', bridgeId);
 
   const phoenixChannel = socket.channel("view:" + bridgeId);
   phoenixChannel.join()

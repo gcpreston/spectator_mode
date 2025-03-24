@@ -9,7 +9,7 @@ import "~/state/spectateStore";
 import "~/state/playback";
 import "~/state/selectionStore";
 
-export function MiniApp() {
+export function MiniApp({ bridgeId }: { bridgeId: string }) {
   // Get started fetching the most popular characters
   void fetchAnimations(20); // Falco
   void fetchAnimations(2); // Fox
@@ -17,7 +17,7 @@ export function MiniApp() {
   void fetchAnimations(9); // Marth
 
   setPlaybackType("spectate");
-  connectWS();
+  connectWS(bridgeId);
 
   return (
     <div class="flex max-h-screen flex-grow flex-col gap-2 pt-2 pr-4 pl-4 lg:pl-0">
