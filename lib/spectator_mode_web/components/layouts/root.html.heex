@@ -18,14 +18,13 @@
 
     <%= if dev_env?() do %>
       <script type="module" src="http://localhost:5173/@vite/client"></script>
-      <script type="module" src="http://localhost:5173/src/root.tsx"></script>
+      <script type="module" src="http://localhost:5173/src/miniRoot.tsx"></script>
     <% else %>
       <%!-- <link phx-track-static rel="stylesheet" href={Routes.static_path(@conn, "/assets/main.css")}/> --%>
       <script defer phx-track-static type="text/javascript" src={Routes.static_path(@conn, "/assets/root.js")}></script>
     <% end %>
   </head>
   <body class="lg:overflow-hidden">
-    <div id="root"></div>
-    <%!-- <script src="/src/root.tsx" type="module"></script> --%>
+    {@inner_content}
   </body>
 </html>

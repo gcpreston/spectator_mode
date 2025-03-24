@@ -148,22 +148,14 @@ export function connectWS(): void {
   const PHOENIX_URL = '/socket';
   const socket = new Socket(PHOENIX_URL);
 
-  // TODO: Move to createRoot
-  /*
-  createEffect(() => {
-    ws.onmessage = ({ data }: { data: Blob }) => {
-      setReplayState("packetBuffer", [...replayState.packetBuffer, data]);
-    }
-  });
-  */
-
   socket.connect();
-  console.log('after socket connect', socket);
 
-  // Now that you are connected, you can join channels with a topic:
-  const bridgeId = "08740a33-1cfc-4daa-9a86-dafdbba3e5ec";
+  // TODO: Make dynamic, handle errors
+  const hrefSplit = window.location.href.split('/');
+  const bridgeId = hrefSplit[hrefSplit.length - 1];
+  console.log('bridge id', bridgeId);
+
   const phoenixChannel = socket.channel("view:" + bridgeId);
-  console.log('channel', phoenixChannel);
   phoenixChannel.join()
     .receive("ok", (resp: any) => {
       console.log("Joined successfully", resp);
@@ -193,15 +185,6 @@ export function connectWS(): void {
         placement: "top-end",
       });
     });
-}
-
-export function closeWS(): void {
-  /* TODO: Switch for phoenix
-  const maybeWs = replayState.ws;
-  if (maybeWs) {
-    maybeWs.close();
-  }
-  */
 }
 
 declare global {

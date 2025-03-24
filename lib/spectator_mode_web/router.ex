@@ -17,7 +17,7 @@ defmodule SpectatorModeWeb.Router do
   scope "/", SpectatorModeWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    get "/watch/*bridge_id", SpectateController, :show
   end
 
   # Other scopes may use custom stacks.
