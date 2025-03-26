@@ -35,7 +35,7 @@ export default defineConfig(({ command }: any) => {
       manifest: false, // do not generate manifest.json
       rollupOptions: {
         input: {
-          main: "./src/root.tsx"
+          main: "./src/miniRoot.tsx"
         },
         output: {
           entryFileNames: "assets/[name].js", // remove hash
