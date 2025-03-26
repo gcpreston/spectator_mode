@@ -24,19 +24,19 @@ defmodule SpectatorModeWeb.StreamsLive do
       Streams.subscribe()
     end
 
-    {:ok, socket |> assign(:relays, Streams.list_relays())}
+    {:ok, socket |> assign(:relays, MapSet.new(Streams.list_relays()))}
   end
 
   @impl true
   def handle_info({:relay_created, bridge_id}, socket) do
-    {:noreply, update(socket, :relays, fn old_relays -> [bridge_id | old_relays] end)}
+    {:noreply, update(socket, :relays, fn old_relays -> MapSet.put(old_relays, bridge_id) end)}
   end
 
   def handle_info({:relay_destroyed, bridge_id}, socket) do
     {
       :noreply,
       update(socket, :relays, fn old_relays ->
-        Enum.filter(old_relays, fn b -> b != bridge_id end)
+        MapSet.delete(old_relays, bridge_id)
       end)
     }
   end

@@ -1,5 +1,5 @@
 defmodule SpectatorMode.BridgeRelay do
-  use GenServer
+  use GenServer, restart: :transient
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.StreamsManager
 
