@@ -1,12 +1,12 @@
 import { createMemo } from "solid-js";
 import { For } from "solid-js/web";
-import { playbackStore } from "~/state/playback";
+import { spectateStore } from "~/state/spectateStore";
 import { PlayerHUD } from "~/components/viewer/PlayerHUD";
 import { Timer } from "~/components/viewer/Timer";
 
 export function HUD() {
   const playerIndexes = createMemo(() =>
-    playbackStore()
+    spectateStore
       .playbackData!.settings.playerSettings.filter(Boolean)
       .map((playerSettings) => playerSettings.playerIndex)
   );

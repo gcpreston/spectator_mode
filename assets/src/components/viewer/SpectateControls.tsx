@@ -17,6 +17,7 @@ import {
   zoomIn,
   zoomOut,
   jumpToLive,
+  nonReactiveState,
 } from "~/state/spectateStore";
 import { currentSelectionStore } from "~/state/selectionStore";
 
@@ -197,7 +198,7 @@ export function SpectateControls() {
         type="range"
         ref={seekbarInput}
         value={spectateStore.frame}
-        max={globalThis.gameFrames.length - 1}
+        max={nonReactiveState.gameFrames.length - 1}
         onInput={() => jump(seekbarInput.valueAsNumber)}
       />
       <div

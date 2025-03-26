@@ -1,7 +1,7 @@
 import { createMemo, For, Match, Switch } from "solid-js";
 import { itemNamesById } from "~/common/ids";
-import { ItemUpdate, PlaybackStore, PlayerUpdate } from "~/common/types";
-import { playbackStore } from "~/state/playback";
+import { ItemUpdate, PlayerUpdate } from "~/common/types";
+import { nonReactiveState, NonReactiveState } from "~/state/spectateStore";
 
 // TODO: characters projectiles
 
@@ -119,7 +119,7 @@ function LuigiFireball(props: { item: ItemUpdate }) {
 
 function YoshiEgg(props: { item: ItemUpdate }) {
   // states: 0 = held, 1 = thrown, 2 = exploded
-  const ownerState = createMemo(() => getOwner(playbackStore(), props.item).state);
+  const ownerState = createMemo(() => getOwner(nonReactiveState, props.item).state);
   return (
     <>
       <circle
@@ -142,7 +142,7 @@ function YoshiEgg(props: { item: ItemUpdate }) {
 function Turnip(props: { item: ItemUpdate }) {
   // states: 0 = held, 1 = bouncing?, 2 = thrown
   // face: props.item.peachTurnipFace
-  const ownerState = createMemo(() => getOwner(playbackStore(), props.item).state);
+  const ownerState = createMemo(() => getOwner(nonReactiveState, props.item).state);
   return (
     <>
       <circle
@@ -280,6 +280,6 @@ function FlyGuy(props: { item: ItemUpdate }) {
   );
 }
 
-function getOwner(playbackStore: PlaybackStore, item: ItemUpdate): PlayerUpdate {
-  return globalThis.gameFrames[item.frameNumber].players[item.owner];
+function getOwner(nonReactiveState: NonReactiveState, item: ItemUpdate): PlayerUpdate {
+  return nonReactiveState.gameFrames[item.frameNumber].players[item.owner];
 }

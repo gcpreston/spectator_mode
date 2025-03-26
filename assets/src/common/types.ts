@@ -45,18 +45,24 @@ export type SpectateStore = PlaybackStore & {
   packetBuffer: ArrayBuffer[];
 };
 
-export type PlaybackData = {
-  readonly settings: GameSettings;
+export type NonReactiveState = {
+  payloadSizes: CommandPayloadSizes | undefined;
   /**
    * Player control starts at 84. Timer starts at 123.
    */
-  readonly frames: Frame[];
+  gameFrames: Frame[];
+}
+
+export type PlaybackData = {
+  readonly settings: GameSettings;
+
   /** Cause of game end. To determine winner you must examine the last frame. */
   readonly ending?: GameEnding;
 }
 
 /** */
 export type ReplayData = PlaybackData & {
+  readonly frames: Frame[];
   readonly ending: GameEnding;
 }
 /**

@@ -1,15 +1,14 @@
 import type {
-  Frame,
   GameEnding,
   GameSettings,
   ItemUpdate,
   PlayerInputs,
   PlayerState,
-  ReplayData,
   CommandPayloadSizes,
   SpectateData,
   GameEvent,
 } from "~/common/types";
+import { nonReactiveState } from "~/state/spectateStore";
 
 // This is a basic parser for use in the browser. It is based off of the replay
 // format spec up to 3.9.0.0. It is incomplete, I have left out things I don't
@@ -68,16 +67,16 @@ function parseEvent(
   offset: number,
   maybeSpectateData: SpectateData | undefined
 ): [number, GameEvent | null] {
-
+  console.log('parsing event, spectatedata', maybeSpectateData);
   const replayVersion = maybeSpectateData?.settings.replayFormatVersion  ?? '3.18.0.0'; // TODO: replayVersion
-  const payloadSizes = globalThis.payloadSizes;
+  const payloadSizes = nonReactiveState.payloadSizes;
 
   const command = readUint(rawData, 8, replayVersion, firstVersion, offset);
   let gameEvent: GameEvent | null = null;
   switch (command) {
     case 0x35:
       const commandPayloadSizes = parseEventPayloadsEvent(rawData, offset); // this offset will always be 0
-      globalThis.payloadSizes = commandPayloadSizes;
+      nonReactiveState.payloadSizes = commandPayloadSizes;
       gameEvent = { type: "event_payloads", data: null };
       return [offset + commandPayloadSizes[command] + 0x01, gameEvent];
     case 0x36:

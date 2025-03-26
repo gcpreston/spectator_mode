@@ -1,18 +1,18 @@
 import { createEffect, createMemo, createSignal, ParentProps } from "solid-js";
-import { playbackStore } from "~/state/playback";
+import { spectateStore, nonReactiveState } from "~/state/spectateStore";
 
 export function Camera(props: ParentProps) {
   const [center, setCenter] = createSignal<[number, number] | undefined>();
   const [scale, setScale] = createSignal<number | undefined>();
 
   createEffect(() => {
-    const store = playbackStore();
+    const store = spectateStore;
 
     const followSpeeds = [0.04, 0.04];
     const padding = [25, 25];
     const minimums = [100, 100];
 
-    const currentFrame = globalThis.gameFrames[store.frame];
+    const currentFrame = nonReactiveState.gameFrames[store.frame];
     if (!currentFrame) return;
     const focuses = currentFrame.players.filter(Boolean).map((player) => ({
       x: player.state.xPosition,

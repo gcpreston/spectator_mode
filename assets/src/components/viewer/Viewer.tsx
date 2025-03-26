@@ -4,24 +4,25 @@ import { HUD } from "~/components/viewer/HUD";
 import { Players } from "~/components/viewer/Player";
 import { Stage } from "~/components/viewer/Stage";
 import { Item } from "~/components/viewer/Item";
-import { ReplayControls } from "~/components/viewer/ReplayControls";
 import { SpectateControls } from "./SpectateControls";
-import { playbackStore, playbackType } from "~/state/playback";
+import { nonReactiveState, spectateStore } from "~/state/spectateStore";
 
 export function Viewer() {
   const items = createMemo(
-    () => globalThis.gameFrames[playbackStore().frame]?.items ?? []
+    () => nonReactiveState.gameFrames[spectateStore.frame]?.items ?? []
   );
   const showState = () => {
-    console.log('playbackStore', playbackStore());
-    console.log('global frames', globalThis.gameFrames);
+    console.log('spectateStore', spectateStore);
+    console.log('nonReactiveState', nonReactiveState);
   };
-  console.log('evaluating viewer, frames', globalThis.gameFrames);
+  console.log('evaluating viewer, frames', nonReactiveState.gameFrames);
   return (
     <div class="flex flex-col overflow-y-auto pb-4">
-      Frame: {playbackStore().frame}
-      {playbackStore().isDebug && <button onClick={showState}>Debug</button>}
-      <Show when={playbackStore().playbackData?.settings} fallback={<div class="italic">Waiting for game...</div>}>
+      {spectateStore.isDebug && <button onClick={showState}>Debug</button>}
+      <Show
+        when={spectateStore.playbackData?.settings && nonReactiveState.gameFrames.length > spectateStore.frame}
+        fallback={<div class="flex justify-center italic">Waiting for game...</div>}
+      >
         <svg class="rounded-t border bg-slate-50" viewBox="-365 -300 730 600">
           {/* up = positive y axis */}
           <g class="-scale-y-100">
@@ -33,7 +34,7 @@ export function Viewer() {
             <HUD />
           </g>
         </svg>
-        {playbackType() === "replay" ? <ReplayControls /> : <SpectateControls />}
+        <SpectateControls />
       </Show>
     </div>
   );

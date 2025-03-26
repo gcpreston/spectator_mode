@@ -23,7 +23,7 @@ import {
   GameEndEvent,
   ItemUpdateEvent,
   GameStartEvent,
-  CommandPayloadSizes,
+  NonReactiveState,
 } from "~/common/types";
 import { queries } from "~/search/queries";
 import { CharacterAnimations, fetchAnimations } from "~/viewer/animationCache";
@@ -57,14 +57,10 @@ const [replayState, setReplayState] = createStore<SpectateStore>(
 
 export const spectateStore = replayState;
 
-
-declare global {
-  var payloadSizes: CommandPayloadSizes | undefined;
-  var gameFrames: Frame[];
+export const nonReactiveState: NonReactiveState = {
+  payloadSizes: undefined,
+  gameFrames: []
 }
-
-globalThis.payloadSizes = undefined;
-globalThis.gameFrames = [];
 
 // Highlight code removed
 
@@ -115,18 +111,18 @@ export function jump(target: number): void {
 export function jumpPercent(percent: number): void {
   setReplayState(
     "frame",
-    Math.round((globalThis.gameFrames.length ?? 0) * percent)
+    Math.round((nonReactiveState.gameFrames.length ?? 0) * percent)
   );
 }
 
 export function jumpToLive(): void {
-  setReplayState("frame", globalThis.gameFrames.length - 2);
+  setReplayState("frame", nonReactiveState.gameFrames.length - 2);
 }
 
 export function adjust(delta: number): void {
   // TODO: Computed frame count signal
   setReplayState("frame", (f) =>
-    Math.min(f + delta, globalThis.gameFrames.length - 2));
+    Math.min(f + delta, nonReactiveState.gameFrames.length - 2));
 }
 
 // TODO: Figure out how to put this in createRoot
@@ -134,7 +130,7 @@ const [running, start, stop] = createRAF(
   targetFPS(
     () => {
       const tryFrame = replayState.frame + replayState.framesPerTick;
-      if (tryFrame < globalThis.gameFrames.length - 2) {
+      if (tryFrame < nonReactiveState.gameFrames.length - 2) {
         setReplayState("frame", tryFrame);
       }
     },
@@ -232,7 +228,7 @@ function handleEventPayloadsEvent() {
 
 function handleGameStartEvent(settings: GameStartEvent) {
   setReplayState("playbackData", { ...replayState.playbackData!, settings });
-  globalThis.gameFrames = [];
+  nonReactiveState.gameFrames = [];
   start();
 }
 
@@ -270,19 +266,19 @@ function isRollbackFromFrameUpdate(frames: Frame[], frameNumber: number): boolea
 }
 
 function handlePreFrameUpdateEvent(playerInputs: PreFrameUpdateEvent): void {
-  if (isRollbackFromFrameUpdate(globalThis.gameFrames, playerInputs.frameNumber)) {
+  if (isRollbackFromFrameUpdate(nonReactiveState.gameFrames, playerInputs.frameNumber)) {
     // Cut off stale frames, and roll back to the new playback point.
     // Relies on updates being batched, as otherwise the frame would
     // not yet be finished at this point.
-    const frames = globalThis.gameFrames.slice(0, playerInputs.frameNumber + 1);
+    const frames = nonReactiveState.gameFrames.slice(0, playerInputs.frameNumber + 1);
     // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    globalThis.gameFrames = frames;
+    nonReactiveState.gameFrames = frames;
     setReplayState("frame", playerInputs.frameNumber);
   }
 
   // Some older versions don't have the Frame Start Event so we have to
   // potentially initialize the frame in both places.
-  let frame = initFrameIfNeeded(globalThis.gameFrames /* replayState.playbackData!.frames */, playerInputs.frameNumber);
+  let frame = initFrameIfNeeded(nonReactiveState.gameFrames /* replayState.playbackData!.frames */, playerInputs.frameNumber);
   frame = initPlayerIfNeeded(
     frame,
     playerInputs.playerIndex
@@ -295,7 +291,7 @@ function handlePreFrameUpdateEvent(playerInputs: PreFrameUpdateEvent): void {
     // const frames = replayState.playbackData!.frames.slice();
     // frames[playerInputs.frameNumber] = frame;
     // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    globalThis.gameFrames[playerInputs.frameNumber] = frame;
+    nonReactiveState.gameFrames[playerInputs.frameNumber] = frame;
   } else {
     const players = frame.players.slice();
     const player: PlayerUpdate = { ...frame.players[playerInputs.playerIndex], inputs: playerInputs };
@@ -304,23 +300,23 @@ function handlePreFrameUpdateEvent(playerInputs: PreFrameUpdateEvent): void {
     // const frames = replayState.playbackData!.frames.slice();
     // frames[playerInputs.frameNumber] = frame;
     // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    globalThis.gameFrames[playerInputs.frameNumber] = frame;
+    nonReactiveState.gameFrames[playerInputs.frameNumber] = frame;
   }
 }
 
 function handlePostFrameUpdateEvent(playerState: PostFrameUpdateEvent): void {
-  if (isRollbackFromFrameUpdate(replayState.playbackData!.frames, playerState.frameNumber)) {
+  if (isRollbackFromFrameUpdate(nonReactiveState.gameFrames, playerState.frameNumber)) {
     // Cut off stale frames, and roll back to the new playback point.
     // Relies on updates being batched, as otherwise the frame would
     // not yet be finished at this point.
     // const frames = replayState.playbackData!.frames.slice(0, playerState.frameNumber + 1);
     // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    globalThis.gameFrames = globalThis.gameFrames.slice(0, playerState.frameNumber + 1);
+    nonReactiveState.gameFrames = nonReactiveState.gameFrames.slice(0, playerState.frameNumber + 1);
     setReplayState("frame", playerState.frameNumber);
   }
 
   // const frame = replayState.playbackData!.frames[playerState.frameNumber];
-  const frame = globalThis.gameFrames[playerState.frameNumber];
+  const frame = nonReactiveState.gameFrames[playerState.frameNumber];
   if (playerState.isNana) {
     const players = frame.players.slice();
     const player: PlayerUpdate = { ...players[playerState.playerIndex], nanaState: playerState };
@@ -329,7 +325,7 @@ function handlePostFrameUpdateEvent(playerState: PostFrameUpdateEvent): void {
     // const frames = replayState.playbackData!.frames.slice();
     // frames[playerState.frameNumber] = { ...frame, players };
     // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    globalThis.gameFrames[playerState.frameNumber] = { ...frame, players };
+    nonReactiveState.gameFrames[playerState.frameNumber] = { ...frame, players };
   } else {
     const players = frame.players.slice();
     const player: PlayerUpdate = { ...players[playerState.playerIndex], state: playerState };
@@ -338,7 +334,7 @@ function handlePostFrameUpdateEvent(playerState: PostFrameUpdateEvent): void {
     // const frames = replayState.playbackData!.frames.slice();
     // frames[playerState.frameNumber] = { ...frame, players };
     // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    globalThis.gameFrames[playerState.frameNumber] = { ...frame, players };
+    nonReactiveState.gameFrames[playerState.frameNumber] = { ...frame, players };
   }
 }
 
@@ -348,24 +344,24 @@ function handleGameEndEvent(gameEnding: GameEndEvent) {
 
 function handleFrameStartEvent(frameStart: FrameStartEvent): void {
   const { frameNumber, randomSeed } = frameStart;
-  const frame = initFrameIfNeeded(replayState.playbackData!.frames, frameNumber);
+  const frame = initFrameIfNeeded(nonReactiveState.gameFrames, frameNumber);
   // @ts-ignore not sure what to do about this
   frame.randomSeed = randomSeed;
   // const frames = replayState.playbackData!.frames.slice();
   // frames[frame.frameNumber] = frame;
   // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-  globalThis.gameFrames[frame.frameNumber] = frame;
+  nonReactiveState.gameFrames[frame.frameNumber] = frame;
 }
 
 function handleItemUpdateEvent(itemUpdate: ItemUpdateEvent): void {
   // const frames = replayState.playbackData!.frames.slice();
-  let frame = globalThis.gameFrames[itemUpdate.frameNumber];
+  let frame = nonReactiveState.gameFrames[itemUpdate.frameNumber];
   const items = frame.items.slice();
   items.push(itemUpdate);
   frame = { ...frame, items };
   // frames[itemUpdate.frameNumber] = frame;
   // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-  globalThis.gameFrames[itemUpdate.frameNumber] = frame;
+  nonReactiveState.gameFrames[itemUpdate.frameNumber] = frame;
 }
 
 createRoot(() => {
@@ -406,12 +402,12 @@ createRoot(() => {
           if (playerSettings === undefined) {
             return undefined;
           }
-          if (globalThis.gameFrames[replayState.frame] === undefined) {
+          if (nonReactiveState.gameFrames[replayState.frame] === undefined) {
             return undefined;
           }
 
           const playerUpdate =
-          globalThis.gameFrames[replayState.frame].players[playerIndex];
+          nonReactiveState.gameFrames[replayState.frame].players[playerIndex];
           if (playerUpdate === undefined) {
             return playerSettings.externalCharacterId;
           }
@@ -451,10 +447,10 @@ createRoot(() => {
     if (replayState.playbackData === undefined) {
       return;
     }
-    console.log('trying to set render datas', globalThis.gameFrames.length, replayState.frame)
+    console.log('trying to set render datas', nonReactiveState.gameFrames.length, replayState.frame)
     setReplayState(
       "renderDatas",
-      globalThis.gameFrames.length <= replayState.frame ? [] : globalThis.gameFrames[replayState.frame].players
+      nonReactiveState.gameFrames.length <= replayState.frame ? [] : nonReactiveState.gameFrames[replayState.frame].players
         .filter((playerUpdate) => playerUpdate)
         .flatMap((playerUpdate) => {
           const animations = replayState.animations[playerUpdate.playerIndex];
@@ -493,8 +489,8 @@ function computeRenderData(
   const startOfActionPlayerState: PlayerState = (
     getPlayerOnFrame(
       playerUpdate.playerIndex,
-      getStartOfAction(playerState, replayState.playbackData!),
-      replayState.playbackData!
+      getStartOfAction(playerState, nonReactiveState),
+      nonReactiveState
     ) as PlayerUpdateWithNana
   )[isNana ? "nanaState" : "state"];
   const actionName = actionNameById[playerState.actionStateId];
@@ -580,7 +576,7 @@ function getDamageFlyRollRotation(
     getPlayerOnFrame(
       playerState.playerIndex,
       playerState.frameNumber - 1,
-      replayState.playbackData!
+      nonReactiveState
     ) as PlayerUpdateWithNana
   )[playerState.isNana ? "nanaState" : "state"];
   const deltaX = playerState.xPosition - previousState.xPosition;
@@ -600,8 +596,8 @@ function getSpacieUpBRotation(
 ): number {
   const startOfActionPlayer = getPlayerOnFrame(
     playerState.playerIndex,
-    getStartOfAction(playerState, replayState.playbackData!),
-    replayState.playbackData!
+    getStartOfAction(playerState, nonReactiveState),
+    nonReactiveState
   );
   const joystickDegrees =
     ((startOfActionPlayer.inputs.processed.joystickY === 0 &&
@@ -644,8 +640,8 @@ function isSpacieUpB(playerState: PlayerState): boolean {
 function wrapFrame(replayState: SpectateStore, frame: number): number {
   if (!replayState.playbackData) return frame;
   return (
-    (frame + globalThis.gameFrames.length) %
-    globalThis.gameFrames.length
+    (frame + nonReactiveState.gameFrames.length) %
+    nonReactiveState.gameFrames.length
   );
 }
 
