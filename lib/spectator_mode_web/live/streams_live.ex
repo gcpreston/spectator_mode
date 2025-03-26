@@ -1,7 +1,7 @@
 defmodule SpectatorModeWeb.StreamsLive do
   use SpectatorModeWeb, :live_view
 
-  alias SpectatorMode.BridgeUtils
+  alias SpectatorMode.Streams
 
   @impl true
   def render(assigns) do
@@ -9,7 +9,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     <div>
       <p>Streams:</p>
       <ul>
-        <li :for={bridge_id <- @bridges}>
+        <li :for={bridge_id <- @relays}>
           <a href={~p"/watch/#{bridge_id}"}>{bridge_id}</a>
         </li>
       </ul>
@@ -19,6 +19,25 @@ defmodule SpectatorModeWeb.StreamsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket |> assign(:bridges, BridgeUtils.list_bridges())}
+    if connected?(socket) do
+      IO.puts("Subscribing to streams")
+      Streams.subscribe()
+    end
+
+    {:ok, socket |> assign(:relays, Streams.list_relays())}
+  end
+
+  @impl true
+  def handle_info({:relay_created, bridge_id}, socket) do
+    {:noreply, update(socket, :relays, fn old_relays -> [bridge_id | old_relays] end)}
+  end
+
+  def handle_info({:relay_destroyed, bridge_id}, socket) do
+    {
+      :noreply,
+      update(socket, :relays, fn old_relays ->
+        Enum.filter(old_relays, fn b -> b != bridge_id end)
+      end)
+    }
   end
 end

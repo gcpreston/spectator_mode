@@ -17,6 +17,8 @@ defmodule SpectatorMode.Application do
       # Start a worker by calling: SpectatorMode.Worker.start_link(arg)
       # {SpectatorMode.Worker, arg},
       {Registry, name: SpectatorMode.BridgeRegistry, keys: :unique},
+      {DynamicSupervisor, name: SpectatorMode.RelaySupervisor, strategy: :one_for_one},
+      SpectatorMode.StreamsManager,
       # Start to serve requests, typically the last entry
       SpectatorModeWeb.Endpoint
     ]

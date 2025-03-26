@@ -1,11 +1,17 @@
 defmodule SpectatorMode.BridgeRelay do
   use GenServer
   alias SpectatorMode.BridgeRegistry
+  alias SpectatorMode.StreamsManager
 
   defstruct bridge_id: nil, subscribers: MapSet.new(), game_metadata: nil
 
   ## API
 
+  # TODO: optional name pass
+  # TODO: call StreamsManager after initialization to
+  #   set up monitoring. This allows monitoring to be
+  #   set on crash restart, outside of the :start_relay flow
+  #   - also look into module-based dynamicsupervisor for this
   def start_link(bridge_id) do
     GenServer.start_link(__MODULE__, bridge_id,
       name: {:via, Registry, {BridgeRegistry, bridge_id}}
@@ -28,7 +34,7 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def init(bridge_id) do
-    {:ok, %__MODULE__{bridge_id: bridge_id}}
+    {:ok, %__MODULE__{bridge_id: bridge_id}, {:continue, :notify_streams_manager}}
   end
 
   @impl true
@@ -46,6 +52,12 @@ defmodule SpectatorMode.BridgeRelay do
       send(subscriber_pid, {:game_data, data})
     end
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_continue(:notify_streams_manager, state) do
+    StreamsManager.start_monitor(state.bridge_id)
     {:noreply, state}
   end
 end

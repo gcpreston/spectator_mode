@@ -2,14 +2,14 @@ defmodule SpectatorModeWeb.BridgesChannel do
   use SpectatorModeWeb, :channel
 
   alias SpectatorMode.BridgeRelay
+  alias SpectatorMode.Streams
 
   @impl true
-  def join("bridges", _payload, socket) do
-    uuid = Ecto.UUID.generate()
+  def join("bridges", %{"bridge_id" => bridge_id}, socket) do
     # TODO: monitor and shutdown handling
-    {:ok, pid} = BridgeRelay.start_link(uuid)
-    IO.inspect(uuid, label: "Started bridge relay")
-    {:ok, %{bridge_id: uuid}, socket |> assign(:bridge_relay, pid)}
+    {:ok, pid} = Streams.start_relay(bridge_id)
+    IO.inspect(bridge_id, label: "Started bridge relay")
+    {:ok, %{bridge_id: bridge_id}, socket |> assign(:bridge_relay, pid)}
   end
 
   @impl true
