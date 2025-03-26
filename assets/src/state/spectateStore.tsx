@@ -170,7 +170,6 @@ export function connectWS(bridgeId: string): void {
       });
 
       phoenixChannel.on("game_data", (payload: ArrayBuffer) => {
-        console.log('got game data', payload);
         setReplayState("packetBuffer", [...replayState.packetBuffer, payload]);
       });
     })
@@ -215,19 +214,13 @@ function setReplayStateFromGameEvent(gameEvent: GameEvent): void {
 }
 
 function handleEventPayloadsEvent() {
-  const initialPlaybackData: SpectateData = {
-    // @ts-expect-error: settings will be populated on game start
-    settings: undefined,
-    frames: [],
-    ending: undefined
-  }
-  // New game, reset spectate data
-  // TODO: Why does frame get mutated in defaultSpectateStoreState?
-  setReplayState({ ...defaultSpectateStoreState, playbackData: initialPlaybackData, frame: 0 });
+  // New game, unset spectate data.
+  // It will get reset on game start, when settings are available.
+  setReplayState({ ...defaultSpectateStoreState, playbackData: undefined, frame: 0 });
 }
 
 function handleGameStartEvent(settings: GameStartEvent) {
-  setReplayState("playbackData", { ...replayState.playbackData!, settings });
+  setReplayState("playbackData", { settings });
   nonReactiveState.gameFrames = [];
   start();
 }
@@ -340,6 +333,7 @@ function handlePostFrameUpdateEvent(playerState: PostFrameUpdateEvent): void {
 
 function handleGameEndEvent(gameEnding: GameEndEvent) {
   setReplayState("playbackData", { ...replayState.playbackData!, ending: gameEnding });
+  stop();
 }
 
 function handleFrameStartEvent(frameStart: FrameStartEvent): void {
@@ -447,7 +441,6 @@ createRoot(() => {
     if (replayState.playbackData === undefined) {
       return;
     }
-    console.log('trying to set render datas', nonReactiveState.gameFrames.length, replayState.frame)
     setReplayState(
       "renderDatas",
       nonReactiveState.gameFrames.length <= replayState.frame ? [] : nonReactiveState.gameFrames[replayState.frame].players
