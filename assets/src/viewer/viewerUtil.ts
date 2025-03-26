@@ -40,5 +40,5 @@ export function getPlayerOnFrame(
   frameNumber: number,
   replayData: ReplayData | SpectateData
 ): PlayerUpdate {
-  return replayData.frames[frameNumber]?.players[playerIndex];
+  return globalThis.gameFrames[frameNumber]?.players[playerIndex];
 }

@@ -12,7 +12,8 @@ export function Camera(props: ParentProps) {
     const padding = [25, 25];
     const minimums = [100, 100];
 
-    const currentFrame = store.playbackData!.frames[store.frame];
+    const currentFrame = globalThis.gameFrames[store.frame];
+    if (!currentFrame) return;
     const focuses = currentFrame.players.filter(Boolean).map((player) => ({
       x: player.state.xPosition,
       y: player.state.yPosition,

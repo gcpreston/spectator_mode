@@ -197,7 +197,7 @@ export function SpectateControls() {
         type="range"
         ref={seekbarInput}
         value={spectateStore.frame}
-        max={spectateStore.playbackData!.frames.length - 1}
+        max={globalThis.gameFrames.length - 1}
         onInput={() => jump(seekbarInput.valueAsNumber)}
       />
       <div

@@ -10,15 +10,18 @@ import { playbackStore, playbackType } from "~/state/playback";
 
 export function Viewer() {
   const items = createMemo(
-    () => playbackStore().playbackData?.frames[playbackStore().frame]?.items ?? []
+    () => globalThis.gameFrames[playbackStore().frame]?.items ?? []
   );
   const showState = () => {
     console.log('playbackStore', playbackStore());
+    console.log('global frames', globalThis.gameFrames);
   };
+  console.log('evaluating viewer, frames', globalThis.gameFrames);
   return (
     <div class="flex flex-col overflow-y-auto pb-4">
+      Frame: {playbackStore().frame}
       {playbackStore().isDebug && <button onClick={showState}>Debug</button>}
-      <Show when={(playbackStore().playbackData?.frames.length || 0) > 0}>
+      <Show when={playbackStore().playbackData?.settings} fallback={<div class="italic">Waiting for game...</div>}>
         <svg class="rounded-t border bg-slate-50" viewBox="-365 -300 730 600">
           {/* up = positive y axis */}
           <g class="-scale-y-100">

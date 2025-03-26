@@ -281,5 +281,5 @@ function FlyGuy(props: { item: ItemUpdate }) {
 }
 
 function getOwner(playbackStore: PlaybackStore, item: ItemUpdate): PlayerUpdate {
-  return playbackStore.playbackData!.frames[item.frameNumber].players[item.owner];
+  return globalThis.gameFrames[item.frameNumber].players[item.owner];
 }

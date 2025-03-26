@@ -3,7 +3,6 @@ import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import { setPlaybackType } from "~/state/playback";
 import { connectWS } from "~/state/spectateStore";
-import "~/state/fileStore";
 import "~/state/replayStore";
 import "~/state/spectateStore";
 import "~/state/playback";
