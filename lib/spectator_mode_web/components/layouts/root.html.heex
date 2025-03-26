@@ -22,7 +22,7 @@
       <script type="module" src="http://localhost:5173/src/miniRoot.tsx"></script>
     <% else %>
       <%!-- <link phx-track-static rel="stylesheet" href={Routes.static_path(@conn, "/assets/main.css")}/> --%>
-      <script defer phx-track-static type="text/javascript" src={Routes.static_path(@conn, "/assets/root.js")}></script>
+      <script defer phx-track-static type="text/javascript" src={~p"/assets/root.js"}></script>
     <% end %>
   </head>
   <body class="lg:overflow-hidden">
