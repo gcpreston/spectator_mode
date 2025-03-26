@@ -19,7 +19,6 @@ import {
   jumpToLive,
   nonReactiveState,
 } from "~/state/spectateStore";
-import { currentSelectionStore } from "~/state/selectionStore";
 
 export function SpectateControls() {
   onMount(() => {
@@ -84,14 +83,15 @@ export function SpectateControls() {
       case "+":
         zoomIn();
         break;
-      case "]":
-      case "}":
-        void currentSelectionStore().nextFile();
-        break;
-      case "[":
-      case "{":
-        void currentSelectionStore().previousFile();
-        break;
+      // TODO: Update controls help popup
+      // case "]":
+      // case "}":
+      //   void currentSelectionStore().nextFile();
+      //   break;
+      // case "[":
+      // case "{":
+      //   void currentSelectionStore().previousFile();
+      //   break;
       // case "'":
       // case '"':
       //   nextHighlight();

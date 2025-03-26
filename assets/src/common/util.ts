@@ -1,6 +1,6 @@
 import { unzipSync } from "fflate";
 import colors from "tailwindcss/colors";
-import { PlaybackStore } from "~/common/types";
+import { SpectateStore } from "~/common/types";
 
 export async function filterFiles(files: File[]): Promise<File[]> {
   const slpFiles = files.filter((file) => file.name.endsWith(".slp"));
@@ -19,13 +19,13 @@ export async function unzip(zipFile: File): Promise<File[]> {
 }
 
 export function getPlayerColor(
-  playbackStore: PlaybackStore,
+  spectateStore: SpectateStore,
   playerIndex: number,
   isNana: boolean
 ): string {
-  if (playbackStore.playbackData!.settings.isTeams) {
+  if (spectateStore.playbackData!.settings.isTeams) {
     const settings =
-    playbackStore.playbackData!.settings.playerSettings[playerIndex];
+    spectateStore.playbackData!.settings.playerSettings[playerIndex];
     return [
       [colors.red["800"], colors.red["600"]],
       [colors.green["800"], colors.green["600"]],

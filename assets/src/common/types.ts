@@ -19,8 +19,8 @@ export interface RenderData {
   characterData: Character;
 }
 
-export type PlaybackStore = {
-  playbackData?: PlaybackData;
+export type SpectateStore = {
+  playbackData?: SpectateData;
   highlights: Record<string, Highlight[]>;
   selectedHighlight?: [string, Highlight];
   animations: (CharacterAnimations | undefined)[];
@@ -34,16 +34,16 @@ export type PlaybackStore = {
   isFullscreen: boolean;
   customAction: ActionName;
   customAttack: AttackName;
-};
 
-export type ReplayStore = PlaybackStore & {
-  playbackData?: ReplayData;
-};
-
-export type SpectateStore = PlaybackStore & {
-  playbackData?: SpectateData;
   packetBuffer: ArrayBuffer[];
 };
+
+export type SpectateData = {
+  readonly settings: GameSettings;
+
+  /** Cause of game end. To determine winner you must examine the last frame. */
+  readonly ending?: GameEnding;
+}
 
 export type NonReactiveState = {
   payloadSizes: CommandPayloadSizes | undefined;
@@ -52,25 +52,6 @@ export type NonReactiveState = {
    */
   gameFrames: Frame[];
 }
-
-export type PlaybackData = {
-  readonly settings: GameSettings;
-
-  /** Cause of game end. To determine winner you must examine the last frame. */
-  readonly ending?: GameEnding;
-}
-
-/** */
-export type ReplayData = PlaybackData & {
-  readonly frames: Frame[];
-  readonly ending: GameEnding;
-}
-/**
- * SpectateData is like a streamed version of ReplayData,
- * meaning the fields may incrementally not yet be present.
- * It is initialized on game start.
- */
-export type SpectateData = PlaybackData;
 
 /**
  * internal use only. The size of each event is announced at the start of the

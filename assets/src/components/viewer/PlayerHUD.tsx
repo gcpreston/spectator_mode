@@ -1,11 +1,11 @@
 import { createMemo, For, Show } from "solid-js";
 import { characterNameByInternalId } from "~/common/ids";
 import { RenderData } from "~/common/types";
-import { playbackStore } from "~/state/playback";
+import { spectateStore } from "~/state/spectateStore";
 
 export function PlayerHUD(props: { player: number }) {
   const renderData = createMemo(() =>
-    playbackStore().renderDatas.find(
+    spectateStore.renderDatas.find(
       (renderData) =>
         renderData.playerSettings.playerIndex === props.player &&
         renderData.playerState.isNana === false
@@ -61,7 +61,7 @@ export function PlayerHUD(props: { player: number }) {
           fill={renderData()!.innerColor}
           stroke="black"
         />
-        <Show when={playbackStore().isDebug}>
+        <Show when={spectateStore.isDebug}>
           <Debug position={position()} renderData={renderData()!} />
         </Show>
       </Show>

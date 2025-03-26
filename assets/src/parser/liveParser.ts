@@ -67,7 +67,6 @@ function parseEvent(
   offset: number,
   maybeSpectateData: SpectateData | undefined
 ): [number, GameEvent | null] {
-  console.log('parsing event, spectatedata', maybeSpectateData);
   const replayVersion = maybeSpectateData?.settings.replayFormatVersion  ?? '3.18.0.0'; // TODO: replayVersion
   const payloadSizes = nonReactiveState.payloadSizes;
 

@@ -1,13 +1,13 @@
 import { createMemo, For, Show } from "solid-js";
 import { characterNameByExternalId } from "~/common/ids";
 import { RenderData } from "~/common/types";
-import { playbackStore } from "~/state/playback";
+import { nonReactiveState, spectateStore } from "~/state/spectateStore";
 import { getPlayerOnFrame, getStartOfAction } from "~/viewer/viewerUtil";
 
 export function Players() {
   return (
     <>
-      <For each={playbackStore().renderDatas}>
+      <For each={spectateStore.renderDatas}>
         {(renderData) => (
           <>
             <path
@@ -43,9 +43,9 @@ function Shield(props: { renderData: RenderData }) {
           props.renderData.playerSettings.playerIndex,
           getStartOfAction(
             props.renderData.playerState,
-            playbackStore().playbackData!
+            nonReactiveState!
           ),
-          playbackStore().playbackData!
+          nonReactiveState!
         ).inputs.processed.anyTrigger
       : props.renderData.playerInputs.processed.anyTrigger === 0
       ? 1

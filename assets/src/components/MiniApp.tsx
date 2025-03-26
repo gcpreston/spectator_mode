@@ -1,12 +1,8 @@
 import "@thisbeyond/solid-select/style.css";
 import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
-import { setPlaybackType } from "~/state/playback";
 import { connectWS } from "~/state/spectateStore";
-import "~/state/replayStore";
 import "~/state/spectateStore";
-import "~/state/playback";
-import "~/state/selectionStore";
 
 export function MiniApp({ bridgeId }: { bridgeId: string }) {
   // Get started fetching the most popular characters
@@ -15,7 +11,6 @@ export function MiniApp({ bridgeId }: { bridgeId: string }) {
   void fetchAnimations(0); // Falcon
   void fetchAnimations(9); // Marth
 
-  setPlaybackType("spectate");
   connectWS(bridgeId);
 
   return (

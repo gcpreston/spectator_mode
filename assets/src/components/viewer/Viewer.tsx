@@ -15,7 +15,6 @@ export function Viewer() {
     console.log('spectateStore', spectateStore);
     console.log('nonReactiveState', nonReactiveState);
   };
-  console.log('evaluating viewer, frames', nonReactiveState.gameFrames);
   return (
     <div class="flex flex-col overflow-y-auto pb-4">
       {spectateStore.isDebug && <button onClick={showState}>Debug</button>}
