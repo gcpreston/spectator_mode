@@ -18,6 +18,10 @@ defmodule SpectatorMode.BridgeRelay do
     )
   end
 
+  def stop(bridge_id) do
+    GenServer.stop({:via, Registry, {BridgeRegistry, bridge_id}})
+  end
+
   def set_metadata(bridge, data) do
     GenServer.call(bridge, {:set_metadata, data})
   end
@@ -57,7 +61,7 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def handle_continue(:notify_streams_manager, state) do
-    StreamsManager.start_monitor(state.bridge_id)
+    StreamsManager.start_relay_monitor(state.bridge_id)
     {:noreply, state}
   end
 end

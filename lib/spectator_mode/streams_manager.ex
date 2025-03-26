@@ -6,6 +6,13 @@ defmodule SpectatorMode.StreamsManager do
   For the general stream API, see the `SpectatorMode.Streams` context.
   """
   use GenServer
+  alias SpectatorMode.BridgeRelay
+
+  @type bridge_id() :: String.t()
+
+  @type t() :: %__MODULE__{
+    refs: %{reference() => {:source, bridge_id()} | {:relay, bridge_id()}}
+  }
 
   defstruct refs: Map.new()
 
@@ -16,10 +23,17 @@ defmodule SpectatorMode.StreamsManager do
   end
 
   @doc """
-  Tells the StreamsManager to monitor the calling process as `bridge_id`.
+  Tells the StreamsManager to monitor the calling process as the relay for `bridge_id`.
   """
-  def start_monitor(bridge_id) do
-    GenServer.call(__MODULE__, {:start_monitor, bridge_id})
+  def start_relay_monitor(bridge_id) do
+    GenServer.call(__MODULE__, {:start_monitor, :relay, bridge_id})
+  end
+
+  @doc """
+  Tells the StreamsManager to monitor the calling process as the source for `bridge_id`.
+  """
+  def start_source_monitor(bridge_id) do
+    GenServer.call(__MODULE__, {:start_monitor, :source, bridge_id})
   end
 
   ## Callbacks
@@ -30,9 +44,9 @@ defmodule SpectatorMode.StreamsManager do
   end
 
   @impl true
-  def handle_call({:start_monitor, bridge_id}, {from_pid, _alias}, %{refs: refs} = state) do
+  def handle_call({:start_monitor, kind, bridge_id}, {from_pid, _alias}, %{refs: refs} = state) do
     ref = Process.monitor(from_pid)
-    {:reply, :ok, %{state | refs: Map.put(refs, ref, bridge_id)},
+    {:reply, :ok, %{state | refs: Map.put(refs, ref, {kind, bridge_id})},
       {:continue, {:notify_subscribers, :relay_created, bridge_id}}}
   end
 
@@ -40,15 +54,18 @@ defmodule SpectatorMode.StreamsManager do
   def handle_info({:DOWN, ref, :process, _down_pid, reason}, %{refs: refs} = state) do
     IO.puts("StreamsManager caught an exit, reason: #{inspect(reason)}")
 
-    case reason do
-      :normal ->
-        bridge_id = Map.get(refs, ref)
+    case Map.get(refs, ref) do
+      {:source, bridge_id} ->
+        # stop the relay as well
+        BridgeRelay.stop(bridge_id)
+        updated_refs = Map.delete(refs, ref)
+        {:noreply, %{state | refs: updated_refs}}
+
+      {:relay, bridge_id} ->
+        # just let subscribers know that a relay went down, it'll come back
         updated_refs = Map.delete(refs, ref)
         {:noreply, %{state | refs: updated_refs},
           {:continue, {:notify_subscribers, :relay_destroyed, bridge_id}}}
-
-      _ ->
-        {:noreply, state}
     end
   end
 
