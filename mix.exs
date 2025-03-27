@@ -76,6 +76,7 @@ defmodule SpectatorMode.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind spectator_mode", "esbuild spectator_mode"],
       "assets.deploy": [
+        "vite build",
         "tailwind spectator_mode --minify",
         "esbuild spectator_mode --minify",
         "phx.digest"
