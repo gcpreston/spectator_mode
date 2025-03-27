@@ -19,7 +19,7 @@ defmodule SpectatorMode.MixProject do
   def application do
     [
       mod: {SpectatorMode.Application, []},
-      extra_applications: [:logger, :wx, :observer, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools]
     ]
   end
 
@@ -76,9 +76,9 @@ defmodule SpectatorMode.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind spectator_mode", "esbuild spectator_mode"],
       "assets.deploy": [
-        "vite build",
         "tailwind spectator_mode --minify",
         "esbuild spectator_mode --minify",
+        "vite build",
         "phx.digest"
       ]
     ]

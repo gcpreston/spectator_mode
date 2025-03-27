@@ -30,7 +30,7 @@ export default defineConfig(({ command }: any) => {
     build: {
       target: "esnext", // build for recent browsers
       outDir: "../priv/static", // emit assets to priv/static
-      emptyOutDir: true,
+      emptyOutDir: false,
       sourcemap: isDev, // enable source map in dev build
       manifest: false, // do not generate manifest.json
       rollupOptions: {
