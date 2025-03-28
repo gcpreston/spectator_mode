@@ -31,7 +31,7 @@ defmodule SpectatorModeWeb.Endpoint do
 
   if Mix.env() == :dev do
     plug Plug.Static,
-      at: "/",
+      at: "/assets",
       from: "assets/public",
       gzip: false
   end

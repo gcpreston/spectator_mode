@@ -48,7 +48,7 @@ const characterZipUrlByExternalId = [
   "/zips/roy.zip",
   "/zips/pichu.zip",
   "/zips/ganondorf.zip",
-];
+].map(url => "/assets" + url);
 
 async function load(url: string): Promise<CharacterAnimations> {
   const response = await fetch(url);

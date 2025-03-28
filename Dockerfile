@@ -64,6 +64,7 @@ COPY assets assets
 # compile assets
 RUN cd assets && npm install
 RUN mix assets.deploy
+COPY assets/public/zips priv/static/assets/zips
 
 # Compile the release
 RUN mix compile

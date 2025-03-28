@@ -13,7 +13,6 @@ defmodule Mix.Tasks.Vite do
   end
 
   defp build do
-    # Mix.shell().cmd("cp -r assets/public priv/static")
     Mix.shell().cmd("cd assets && node_modules/vite/bin/vite.js build")
   end
 end
