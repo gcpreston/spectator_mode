@@ -1,40 +1,30 @@
 import { Socket } from "phoenix";
-import { add } from "./liveParser";
+import { parsePacket } from "./liveParser";
 
-onmessage = (event) => {
+/**
+ * Message schemas
+ *
+ * Inputs (event.data):
+ * - { type: "connect", value: <bridgeId string> }
+ * - disconnect?
+ *
+ * Outputs:
+ * - { type: "game_data", value: GameEvent[] }
+ */
+
+type WorkerInput = { type: "connect", value: string };
+
+onmessage = (event: MessageEvent<WorkerInput>) => {
   console.log("worker got event", event);
-  console.log(add(5));
 
-  const bridgeId = 'test_bridge';
-
-  console.log('connecting to bridge', bridgeId);
-  const PHOENIX_URL = '/socket';
-  const socket = new Socket(PHOENIX_URL);
-
-  socket.connect();
-
-  const phoenixChannel = socket.channel("view:" + bridgeId);
-  phoenixChannel.join()
-    .receive("ok", (resp: any) => {
-      console.log("Joined successfully", resp);
-
-      phoenixChannel.on("game_data", (payload: ArrayBuffer) => {
-       console.log('got payload', payload);
-      });
-    })
-    .receive("error", (resp: any) => {
-      console.log('WebSocket error:', resp);
-    });
+  switch (event.data.type) {
+    case "connect":
+      connectWS(event.data.value);
+      break;
+  }
 
   /*
-  const buf = replayState.packetBuffer[0];
-  const bufferRest = replayState.packetBuffer.slice(1);
-  setReplayState("packetBuffer", bufferRest);
 
-  const gameEvents = parsePacket(
-    new Uint8Array(buf),
-    replayState.playbackData
-  );
 
   batch(() => {
     gameEvents.forEach((gameEvent) => {
@@ -64,4 +54,11 @@ function connectWS(bridgeId: string) {
     .receive("error", (resp) => {
       console.log("WebSocket error:", resp);
     });
+}
+
+function binaryToGameEvents(buf: ArrayBuffer) {
+  const gameEvents = parsePacket(
+    new Uint8Array(buf),
+    replayState.playbackData // TODO: Store payloadSizes here
+  );
 }
