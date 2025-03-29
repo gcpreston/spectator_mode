@@ -34,8 +34,6 @@ export type SpectateStore = {
   isFullscreen: boolean;
   customAction: ActionName;
   customAttack: AttackName;
-
-  packetBuffer: ArrayBuffer[];
 };
 
 export type SpectateData = {
