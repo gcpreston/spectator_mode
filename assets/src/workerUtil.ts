@@ -1,11 +1,19 @@
-import { Socket } from "phoenix";
+import { batch } from "solid-js";
+import { GameEvent } from "~/common/types";
+import { setReplayStateFromGameEvent } from "~/state/spectateStore";
 
 export function createWorker(bridgeId: string) {
   console.log('creating worker...');
   const worker = new Worker('/assets/worker.js', { type: "module" });
 
-  worker.onmessage = (event) => {
-    console.log(`Got: ${event.data}`);
+  worker.onmessage = (event: MessageEvent) => {
+    const gameEvents: GameEvent[] = event.data.value;
+
+    batch(() => {
+      gameEvents.forEach((gameEvent) => {
+        setReplayStateFromGameEvent(gameEvent)
+      });
+    });
   };
 
   worker.onerror = (error) => {
@@ -14,7 +22,7 @@ export function createWorker(bridgeId: string) {
   };
 
   const postWorker = () => {
-    worker.postMessage("ping");
+    worker.postMessage({ type: "connect", value: bridgeId });
   }
 
   return postWorker;

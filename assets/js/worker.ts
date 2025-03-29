@@ -14,6 +14,18 @@ import { parsePacket } from "./liveParser";
 
 type WorkerInput = { type: "connect", value: string };
 
+/**
+ * internal use only. The size of each event is announced at the start of the
+ * replay file. This is used to find the start of every event for parsing.
+ */
+interface CommandPayloadSizes {
+  [commandByte: number]: number;
+}
+
+export type WorkerState = { payloadSizes?: CommandPayloadSizes };
+
+const workerState: WorkerState = { payloadSizes: undefined };
+
 onmessage = (event: MessageEvent<WorkerInput>) => {
   console.log("worker got event", event);
 
@@ -24,8 +36,6 @@ onmessage = (event: MessageEvent<WorkerInput>) => {
   }
 
   /*
-
-
   batch(() => {
     gameEvents.forEach((gameEvent) => {
       setReplayStateFromGameEvent(gameEvent)
@@ -45,10 +55,9 @@ function connectWS(bridgeId: string) {
   phoenixChannel.join()
     .receive("ok", (resp: any) => {
       console.log("Joined successfully", resp);
-      self.postMessage('Connected from web worker :)')
 
-      phoenixChannel.on("game_data", (payload) => {
-        console.log("got game data", payload);
+      phoenixChannel.on("game_data", (payload: ArrayBuffer) => {
+        handleGameData(payload);
       });
     })
     .receive("error", (resp) => {
@@ -56,9 +65,10 @@ function connectWS(bridgeId: string) {
     });
 }
 
-function binaryToGameEvents(buf: ArrayBuffer) {
+function handleGameData(payload: ArrayBuffer) {
   const gameEvents = parsePacket(
-    new Uint8Array(buf),
-    replayState.playbackData // TODO: Store payloadSizes here
+    new Uint8Array(payload),
+    workerState
   );
+  postMessage({ type: "game_data", value: gameEvents });
 }

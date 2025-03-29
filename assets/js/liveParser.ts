@@ -8,7 +8,7 @@ import type {
   SpectateData,
   GameEvent,
 } from "~/common/types";
-import { nonReactiveState } from "~/state/spectateStore";
+import { WorkerState } from "./worker";
 
 // This is a basic parser for use in the browser. It is based off of the replay
 // format spec up to 3.9.0.0. It is incomplete, I have left out things I don't
@@ -21,7 +21,7 @@ export function add(v: number): number {
   return v + 1;
 }
 
-export function parsePacket(rawPacket: Uint8Array, maybeSpectateData: SpectateData | undefined): GameEvent[] {
+export function parsePacket(rawPacket: Uint8Array, workerState: WorkerState): GameEvent[] {
   const rawData = new DataView(
     rawPacket.buffer,
     rawPacket.byteOffset
@@ -35,7 +35,7 @@ export function parsePacket(rawPacket: Uint8Array, maybeSpectateData: SpectateDa
     let newOffset: number, gameEvent: GameEvent | null;
 
     // TODO: TS fixes for knowing command payload -> game start -> everything else
-    [newOffset, gameEvent] = parseEvent(rawData, offset, maybeSpectateData);
+    [newOffset, gameEvent] = parseEvent(rawData, offset, workerState);
     offset = newOffset;
     if (gameEvent !== null) gameEvents.push(gameEvent);
   }
@@ -58,28 +58,20 @@ export function parsePacket(rawPacket: Uint8Array, maybeSpectateData: SpectateDa
 // higher level (something similar to but not equal parseFrame, or just the store).
 // parseEvent: (rawPacket, offset, replayVersion, frames, payloadSizes) -> [newOffset, frame]
 
-// TODO: Instead, return an array of `UpdateEvent`s (or something better named)
-//   - contains the fields to update for each kind of update event
-//   - merge them into existing SpectateData with state update to allow
-//     SolidJS to be efficient about it
-//   - wrap the whole map merge state update operation in `batch`
-//   - key: get rid of the structuredClone call (clones many things that
-//     we don't actually need to touch)
-
 function parseEvent(
   rawData: DataView,
   offset: number,
-  maybeSpectateData: SpectateData | undefined
+  workerState: WorkerState
 ): [number, GameEvent | null] {
-  const replayVersion = maybeSpectateData?.settings.replayFormatVersion  ?? '3.18.0.0'; // TODO: replayVersion
-  const payloadSizes = nonReactiveState.payloadSizes;
+  const replayVersion = '3.18.0.0'; // TODO: replayVersion
+  const payloadSizes = workerState.payloadSizes;
 
   const command = readUint(rawData, 8, replayVersion, firstVersion, offset);
   let gameEvent: GameEvent | null = null;
   switch (command) {
     case 0x35:
       const commandPayloadSizes = parseEventPayloadsEvent(rawData, offset); // this offset will always be 0
-      nonReactiveState.payloadSizes = commandPayloadSizes;
+      workerState.payloadSizes = commandPayloadSizes;
       gameEvent = { type: "event_payloads", data: null };
       return [offset + commandPayloadSizes[command] + 0x01, gameEvent];
     case 0x36:
