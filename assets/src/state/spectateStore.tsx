@@ -1,7 +1,6 @@
 import createRAF, { targetFPS } from "@solid-primitives/raf";
 import { batch, createEffect, createResource, createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
-import { Socket } from "phoenix";
 import { createToast } from "~/components/common/toaster";
 import {
   actionNameById,
@@ -13,7 +12,6 @@ import {
   PlayerState,
   PlayerUpdate,
   PlayerUpdateWithNana,
-  SpectateData,
   RenderData,
   SpectateStore,
   GameEvent,
@@ -30,7 +28,6 @@ import { CharacterAnimations, fetchAnimations } from "~/viewer/animationCache";
 import { actionMapByInternalId } from "~/viewer/characters";
 import { getPlayerOnFrame, getStartOfAction } from "~/viewer/viewerUtil";
 import { getPlayerColor } from "~/common/util";
-import { parsePacket } from "~/parser/liveParser";
 
 export const defaultSpectateStoreState: SpectateStore = {
   highlights: Object.fromEntries(
@@ -47,8 +44,6 @@ export const defaultSpectateStoreState: SpectateStore = {
   isFullscreen: false,
   customAction: "Passive",
   customAttack: "Up Tilt",
-
-  packetBuffer: [],
 };
 
 const [replayState, setReplayState] = createStore<SpectateStore>(
@@ -139,55 +134,7 @@ const [running, start, stop] = createRAF(
 );
 createEffect(() => setReplayState("running", running()));
 
-// on initial load: connect to websocket, define callbacks
-//   - initialize empty SpectateStore
-//   - expect first packets first
-//   - parseFrame for subsequent packets; add to SpectateStore
-//   - replay running effect should depend on spectateStore.frames (run the last frame always?)
-
-// ------------------------------------
-// TODO: Error handling
-
-export function connectWS(bridgeId: string): void {
-  console.log('connecting to bridge', bridgeId);
-  const PHOENIX_URL = '/socket';
-  const socket = new Socket(PHOENIX_URL);
-
-  socket.connect();
-
-  const phoenixChannel = socket.channel("view:" + bridgeId);
-  phoenixChannel.join()
-    .receive("ok", (resp: any) => {
-      console.log("Joined successfully", resp);
-
-      createToast({
-        title: `Connection success`,
-        duration: 2000,
-        render: () => (
-          <div>Streaming from {PHOENIX_URL}</div>
-        ),
-        placement: "top-end",
-      });
-
-      phoenixChannel.on("game_data", (payload: ArrayBuffer) => {
-        setReplayState("packetBuffer", [...replayState.packetBuffer, payload]);
-      });
-    })
-    .receive("error", (resp: any) => {
-      console.log('WebSocket error:', resp);
-
-      createToast({
-        title: `WebSocket connection error`,
-        duration: 2000,
-        render: () => (
-          <div>Failed to connect to {PHOENIX_URL}</div>
-        ),
-        placement: "top-end",
-      });
-    });
-}
-
-function setReplayStateFromGameEvent(gameEvent: GameEvent): void {
+export function setReplayStateFromGameEvent(gameEvent: GameEvent): void {
   switch (gameEvent.type) {
     case "event_payloads":
       handleEventPayloadsEvent();
@@ -359,26 +306,6 @@ function handleItemUpdateEvent(itemUpdate: ItemUpdateEvent): void {
 }
 
 createRoot(() => {
-  createEffect(() => {
-    // TODO: This could be some kind of forEach instead maybe
-    if (replayState.packetBuffer.length > 0) {
-      const buf = replayState.packetBuffer[0];
-      const bufferRest = replayState.packetBuffer.slice(1);
-      setReplayState("packetBuffer", bufferRest);
-
-      const gameEvents = parsePacket(
-        new Uint8Array(buf),
-        replayState.playbackData
-      );
-
-      batch(() => {
-        gameEvents.forEach((gameEvent) => {
-          setReplayStateFromGameEvent(gameEvent)
-        });
-      });
-    }
-  });
-
   const animationResources = [];
   for (let playerIndex = 0; playerIndex < 4; playerIndex++) {
     animationResources.push(
