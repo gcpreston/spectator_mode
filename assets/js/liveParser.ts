@@ -6,6 +6,7 @@ import type {
   PlayerState,
   CommandPayloadSizes,
   GameEvent,
+  FrameBookend,
 } from "~/common/types";
 import { WorkerState } from "./worker";
 
@@ -86,6 +87,10 @@ function parseEvent(
     case 0x3b:
       const itemUpdate = parseItemUpdateEvent(rawData, offset, replayVersion);
       gameEvent = { type: "item_update", data: itemUpdate };
+      break;
+    case 0x3c:
+      const frameBookendEvent = parseFrameBookendEvent(rawData, offset, replayVersion);
+      gameEvent = { type: "frame_bookend", data: frameBookendEvent };
       break;
   }
 
@@ -813,6 +818,19 @@ function parseGameEndEvent(
           : "No Contest",
       quitInitiator,
     };
+  }
+}
+
+function parseFrameBookendEvent(
+  rawData: DataView,
+  offset: number,
+  replayVersion: string
+): FrameBookend {
+  return {
+    frameNumber:
+      readInt(rawData, 32, replayVersion, "3.0.0.0", offset + 0x01) + 123,
+    latestFinalizedFrame:
+      readInt(rawData, 32, replayVersion, "3.7.0.0", offset + 0x05) + 123,
   }
 }
 
