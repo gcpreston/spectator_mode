@@ -5,7 +5,6 @@ import type {
   PlayerInputs,
   PlayerState,
   CommandPayloadSizes,
-  SpectateData,
   GameEvent,
 } from "~/common/types";
 import { WorkerState } from "./worker";

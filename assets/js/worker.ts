@@ -1,4 +1,5 @@
 import { Socket } from "phoenix";
+import { CommandPayloadSizes } from "~/common/types";
 import { parsePacket } from "./liveParser";
 
 /**
@@ -14,14 +15,6 @@ import { parsePacket } from "./liveParser";
 
 type WorkerInput = { type: "connect", value: string };
 
-/**
- * internal use only. The size of each event is announced at the start of the
- * replay file. This is used to find the start of every event for parsing.
- */
-interface CommandPayloadSizes {
-  [commandByte: number]: number;
-}
-
 export type WorkerState = { payloadSizes?: CommandPayloadSizes };
 
 const workerState: WorkerState = { payloadSizes: undefined };
@@ -34,14 +27,6 @@ onmessage = (event: MessageEvent<WorkerInput>) => {
       connectWS(event.data.value);
       break;
   }
-
-  /*
-  batch(() => {
-    gameEvents.forEach((gameEvent) => {
-      setReplayStateFromGameEvent(gameEvent)
-    });
-  });
-  */
 };
 
 function connectWS(bridgeId: string) {
