@@ -313,7 +313,12 @@ function handleItemUpdateEvent(itemUpdate: ItemUpdateEvent): void {
 }
 
 function handleFrameBookendEvent(frameBookend: FrameBookendEvent): void {
+  const prevLatestFrame = nonReactiveState.latestFinalizedFrame;
   nonReactiveState.latestFinalizedFrame = frameBookend.latestFinalizedFrame;
+
+  if (prevLatestFrame === undefined) {
+    setReplayState("frame", nonReactiveState.latestFinalizedFrame);
+  }
 }
 
 createRoot(() => {
