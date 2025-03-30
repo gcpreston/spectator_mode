@@ -206,23 +206,7 @@ function initPlayerIfNeeded(
   return { ...frame, players };
 }
 
-function isRollbackFromFrameUpdate(frames: Frame[], frameNumber: number): boolean {
-  const maybeFrame = frames[frameNumber];
-  return Boolean(maybeFrame && maybeFrame.players);
-}
-
 function handlePreFrameUpdateEvent(playerInputs: PreFrameUpdateEvent): void {
-  if (false /* TODO: Fix isRollbackFromFrameUpdate(nonReactiveState.gameFrames, playerInputs.frameNumber) */) {
-    console.log('setting frame from preframe rollback')
-    // Cut off stale frames, and roll back to the new playback point.
-    // Relies on updates being batched, as otherwise the frame would
-    // not yet be finished at this point.
-    const frames = nonReactiveState.gameFrames.slice(0, playerInputs.frameNumber + 1);
-    // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    nonReactiveState.gameFrames = frames;
-    setReplayState("frame", playerInputs.frameNumber);
-  }
-
   // Some older versions don't have the Frame Start Event so we have to
   // potentially initialize the frame in both places.
   let frame = initFrameIfNeeded(nonReactiveState.gameFrames /* replayState.playbackData!.frames */, playerInputs.frameNumber);
@@ -252,16 +236,6 @@ function handlePreFrameUpdateEvent(playerInputs: PreFrameUpdateEvent): void {
 }
 
 function handlePostFrameUpdateEvent(playerState: PostFrameUpdateEvent): void {
-  if (false /* TODO: Fix isRollbackFromFrameUpdate(nonReactiveState.gameFrames, playerState.frameNumber) */) {
-    // Cut off stale frames, and roll back to the new playback point.
-    // Relies on updates being batched, as otherwise the frame would
-    // not yet be finished at this point.
-    // const frames = replayState.playbackData!.frames.slice(0, playerState.frameNumber + 1);
-    // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    nonReactiveState.gameFrames = nonReactiveState.gameFrames.slice(0, playerState.frameNumber + 1);
-    setReplayState("frame", playerState.frameNumber);
-  }
-
   // const frame = replayState.playbackData!.frames[playerState.frameNumber];
   const frame = nonReactiveState.gameFrames[playerState.frameNumber];
   if (playerState.isNana) {
