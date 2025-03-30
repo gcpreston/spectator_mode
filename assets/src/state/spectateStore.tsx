@@ -128,7 +128,7 @@ const [running, start, stop] = createRAF(
     () => {
       // TODO: Fix joining replay mid-game
       const tryFrame = replayState.frame + replayState.framesPerTick;
-      if (tryFrame <= (nonReactiveState.latestFinalizedFrame ?? 0)) {
+      if (tryFrame < (nonReactiveState.latestFinalizedFrame ?? 0)) {
         setReplayState("frame", tryFrame);
       }
     },

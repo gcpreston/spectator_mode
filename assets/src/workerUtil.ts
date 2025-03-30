@@ -9,6 +9,8 @@ export function createWorker(bridgeId: string) {
   worker.onmessage = (event: MessageEvent) => {
     const gameEvents: GameEvent[] = event.data.value;
 
+    // Works without batch now, but might still want it for smoothness.
+    // To consider alongside changed buffer logic.
     batch(() => {
       gameEvents.forEach((gameEvent) => {
         setReplayStateFromGameEvent(gameEvent)
