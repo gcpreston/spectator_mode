@@ -44,11 +44,12 @@ export type SpectateData = {
 }
 
 export type NonReactiveState = {
-  payloadSizes: CommandPayloadSizes | undefined;
+  payloadSizes?: CommandPayloadSizes;
   /**
    * Player control starts at 84. Timer starts at 123.
    */
   gameFrames: Frame[];
+  latestFinalizedFrame?: number;
 }
 
 /**
@@ -65,6 +66,7 @@ export type FrameStartEvent = { frameNumber: number, randomSeed: number };
 export type ItemUpdateEvent = ItemUpdate;
 export type GameEndEvent = GameEnding;
 export type GameStartEvent = GameSettings;
+export type FrameBookendEvent = FrameBookend
 
 export type GameEvent = {
   type: "pre_frame_update",
@@ -87,7 +89,10 @@ export type GameEvent = {
 } | {
   type: "game_start",
   data: GameStartEvent
-}
+} | {
+  type: "frame_bookend",
+  data: FrameBookendEvent
+};
 
 export interface GameSettings {
   /**
@@ -290,6 +295,11 @@ export interface ItemUpdate {
   /** Mewtwo/Samus */
   readonly chargeShotChargeLevel: number;
   readonly owner: number;
+}
+
+export interface FrameBookend {
+  readonly frameNumber: number;
+  readonly latestFinalizedFrame: number;
 }
 
 /**

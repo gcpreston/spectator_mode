@@ -22,6 +22,7 @@ import {
   ItemUpdateEvent,
   GameStartEvent,
   NonReactiveState,
+  FrameBookendEvent,
 } from "~/common/types";
 import { queries } from "~/search/queries";
 import { CharacterAnimations, fetchAnimations } from "~/viewer/animationCache";
@@ -54,7 +55,8 @@ export const spectateStore = replayState;
 
 export const nonReactiveState: NonReactiveState = {
   payloadSizes: undefined,
-  gameFrames: []
+  gameFrames: [],
+  latestFinalizedFrame: undefined
 }
 
 // Highlight code removed
@@ -124,8 +126,9 @@ export function adjust(delta: number): void {
 const [running, start, stop] = createRAF(
   targetFPS(
     () => {
+      // TODO: Fix joining replay mid-game
       const tryFrame = replayState.frame + replayState.framesPerTick;
-      if (tryFrame < nonReactiveState.gameFrames.length - 2) {
+      if (tryFrame < (nonReactiveState.latestFinalizedFrame ?? 0)) {
         setReplayState("frame", tryFrame);
       }
     },
@@ -156,6 +159,9 @@ export function setReplayStateFromGameEvent(gameEvent: GameEvent): void {
       break;
     case "item_update":
       handleItemUpdateEvent(gameEvent.data);
+      break;
+    case "frame_bookend":
+      handleFrameBookendEvent(gameEvent.data);
       break;
   }
 }
@@ -200,22 +206,7 @@ function initPlayerIfNeeded(
   return { ...frame, players };
 }
 
-function isRollbackFromFrameUpdate(frames: Frame[], frameNumber: number): boolean {
-  const maybeFrame = frames[frameNumber];
-  return Boolean(maybeFrame && maybeFrame.players);
-}
-
 function handlePreFrameUpdateEvent(playerInputs: PreFrameUpdateEvent): void {
-  if (isRollbackFromFrameUpdate(nonReactiveState.gameFrames, playerInputs.frameNumber)) {
-    // Cut off stale frames, and roll back to the new playback point.
-    // Relies on updates being batched, as otherwise the frame would
-    // not yet be finished at this point.
-    const frames = nonReactiveState.gameFrames.slice(0, playerInputs.frameNumber + 1);
-    // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    nonReactiveState.gameFrames = frames;
-    setReplayState("frame", playerInputs.frameNumber);
-  }
-
   // Some older versions don't have the Frame Start Event so we have to
   // potentially initialize the frame in both places.
   let frame = initFrameIfNeeded(nonReactiveState.gameFrames /* replayState.playbackData!.frames */, playerInputs.frameNumber);
@@ -245,16 +236,6 @@ function handlePreFrameUpdateEvent(playerInputs: PreFrameUpdateEvent): void {
 }
 
 function handlePostFrameUpdateEvent(playerState: PostFrameUpdateEvent): void {
-  if (isRollbackFromFrameUpdate(nonReactiveState.gameFrames, playerState.frameNumber)) {
-    // Cut off stale frames, and roll back to the new playback point.
-    // Relies on updates being batched, as otherwise the frame would
-    // not yet be finished at this point.
-    // const frames = replayState.playbackData!.frames.slice(0, playerState.frameNumber + 1);
-    // setReplayState("playbackData", { ...replayState.playbackData!, frames });
-    nonReactiveState.gameFrames = nonReactiveState.gameFrames.slice(0, playerState.frameNumber + 1);
-    setReplayState("frame", playerState.frameNumber);
-  }
-
   // const frame = replayState.playbackData!.frames[playerState.frameNumber];
   const frame = nonReactiveState.gameFrames[playerState.frameNumber];
   if (playerState.isNana) {
@@ -303,6 +284,15 @@ function handleItemUpdateEvent(itemUpdate: ItemUpdateEvent): void {
   // frames[itemUpdate.frameNumber] = frame;
   // setReplayState("playbackData", { ...replayState.playbackData!, frames });
   nonReactiveState.gameFrames[itemUpdate.frameNumber] = frame;
+}
+
+function handleFrameBookendEvent(frameBookend: FrameBookendEvent): void {
+  const prevLatestFrame = nonReactiveState.latestFinalizedFrame;
+  nonReactiveState.latestFinalizedFrame = frameBookend.latestFinalizedFrame;
+
+  if (prevLatestFrame === undefined) {
+    setReplayState("frame", nonReactiveState.latestFinalizedFrame);
+  }
 }
 
 createRoot(() => {
