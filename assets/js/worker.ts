@@ -15,9 +15,19 @@ import { parsePacket } from "./liveParser";
 
 type WorkerInput = { type: "connect", value: string };
 
-export type WorkerState = { payloadSizes?: CommandPayloadSizes };
+export type WorkerState = {
+  /**
+   * The version of the .slp spec that was used when the file was created. Some
+   * fields are only present after certain versions.
+   */
+  replayFormatVersion?: string,
+  payloadSizes?: CommandPayloadSizes
+};
 
-const workerState: WorkerState = { payloadSizes: undefined };
+const workerState: WorkerState = {
+  replayFormatVersion: undefined,
+  payloadSizes: undefined
+};
 
 onmessage = (event: MessageEvent<WorkerInput>) => {
   console.log("worker got event", event);

@@ -42,27 +42,12 @@ export function parsePacket(rawPacket: Uint8Array, workerState: WorkerState): Ga
   return gameEvents;
 }
 
-// Ok we actually maybe don't want to return a frame here because a frame
-// is created and updated across different slippi events
-// ACTUALLY: Frame events are batched together over the network
-// - this function should be recursive or something and return a Frame at the end
-
-// flow:
-// 1. receive frame start event; get or initialize frame
-// 2. receive a series of frame update events; mutate frame
-// 3. at the end, return the frame, and update it in state within the store
-//
-// What happens when this differs though?
-// Maybe could have a parseEvent-type function, which gets called from a
-// higher level (something similar to but not equal parseFrame, or just the store).
-// parseEvent: (rawPacket, offset, replayVersion, frames, payloadSizes) -> [newOffset, frame]
-
 function parseEvent(
   rawData: DataView,
   offset: number,
   workerState: WorkerState
 ): [number, GameEvent | null] {
-  const replayVersion = '3.18.0.0'; // TODO: replayVersion
+  const replayVersion = workerState.replayFormatVersion ?? '3.18.0.0';
   const payloadSizes = workerState.payloadSizes;
 
   const command = readUint(rawData, 8, replayVersion, firstVersion, offset);
@@ -75,6 +60,7 @@ function parseEvent(
       return [offset + commandPayloadSizes[command] + 0x01, gameEvent];
     case 0x36:
       const gameSettings = parseGameStartEvent(rawData, offset, /* metadata */);
+      workerState.replayFormatVersion = gameSettings.replayFormatVersion;
       gameEvent = { type: "game_start", data: gameSettings };
       break;
     case 0x37:
