@@ -7,12 +7,14 @@ defmodule SpectatorModeWeb.StreamsLive do
   def render(assigns) do
     ~H"""
     <div>
-      <p>Streams:</p>
-      <ul>
-        <li :for={bridge_id <- @relays}>
-          <a href={~p"/watch/#{bridge_id}"}>{bridge_id}</a>
-        </li>
-      </ul>
+      <p class="text-center italic text-xl">Streams:</p>
+      <div class="justify-center grid grid-cols-1 gap-4 mt-6">
+        <%= for bridge_id <- @relays do %>
+          <a href={~p"/watch/#{bridge_id}"}>
+            <.stream_card bridge_id={bridge_id} />
+          </a>
+        <% end %>
+      </div>
     </div>
     """
   end

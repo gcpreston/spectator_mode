@@ -647,6 +647,25 @@ defmodule SpectatorModeWeb.CoreComponents do
   end
 
   @doc """
+  Renders a card to show information about a stream.
+  """
+  attr :bridge_id, :string, required: true
+
+  def stream_card(assigns) do
+    ~H"""
+    <div
+      id={"stream-card-#{@bridge_id}"}
+      class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md"
+    >
+      <div class="text-center">
+        <span class="text-lg font-medium">{@bridge_id}</span>
+      </div>
+    </div>
+    """
+  end
+
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do
