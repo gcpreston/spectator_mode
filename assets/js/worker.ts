@@ -30,8 +30,6 @@ const workerState: WorkerState = {
 };
 
 onmessage = (event: MessageEvent<WorkerInput>) => {
-  console.log("worker got event", event);
-
   switch (event.data.type) {
     case "connect":
       connectWS(event.data.value);
@@ -40,7 +38,7 @@ onmessage = (event: MessageEvent<WorkerInput>) => {
 };
 
 function connectWS(bridgeId: string) {
-  console.log("connecting to bridge", bridgeId);
+  console.log("Connecting to bridge:", bridgeId);
   const PHOENIX_URL = "/socket";
   const socket = new Socket(PHOENIX_URL);
 
