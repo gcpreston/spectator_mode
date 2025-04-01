@@ -5,6 +5,14 @@ defmodule SpectatorModeWeb.Endpoint do
     websocket: true,
     longpoll: false
 
+  socket "/bridge_socket", SpectatorModeWeb.BridgeSocket,
+    websocket: [timeout: 180_000],
+    longpoll: false
+
+  socket "/viewer_socket", SpectatorModeWeb.ViewerSocket,
+    websocket: [timeout: 180_000],
+    longpoll: false
+
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
