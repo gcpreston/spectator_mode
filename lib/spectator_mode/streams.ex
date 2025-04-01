@@ -22,6 +22,8 @@ defmodule SpectatorMode.Streams do
   @pubsub_topic "streams"
   @index_subtopic "#{@pubsub_topic}:index"
 
+  @type bridge_id() :: String.t()
+
   @doc """
   Subscribe to PubSub notifications about the state
   of active streams.
@@ -30,37 +32,26 @@ defmodule SpectatorMode.Streams do
     Phoenix.PubSub.subscribe(SpectatorMode.PubSub, @index_subtopic)
   end
 
-  # I feel it's better to have start_relay here than implemented as
-  # a call in StreamsManager for simplicity. One downside is extraneous
-  # created/destroyed messages on crash and restart.
-  # A solution would be some kind of debounce mechanism for the UI;
-  # it shouldn't be necessary for subscribers in code, and it more
-  # accurate than the other solution in that regard.
-
-  @doc """
-  Start a supervised bridge relay.
-  """
-  def start_relay(bridge_id) do
-    DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, bridge_id})
+  def index_subtopic do
+    @index_subtopic
   end
 
   @doc """
-  Stop a supervised bridge relay.
+  Start a supervised bridge relay, and link the newly created process
+  to the given source. The idea of this function is to create a relay
+  which exits with the source and recovers from crashes, while a relay
+  crash does not take down the source process.
   """
-  def stop_relay(bridge_id) do
-    GenServer.stop({:via, Registry, {BridgeRegistry, bridge_id}})
-    notify_subscribers(:relay_destroyed, bridge_id)
+  @spec start_and_link_relay(bridge_id(), pid()) :: DynamicSupervisor.on_start_child()
+  def start_and_link_relay(bridge_id, source_pid) do
+    DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, source_pid}})
   end
 
+  @doc """
+  Fetch the IDs of all currently active bridge relays.
+  """
+  @spec list_relays() :: [bridge_id()]
   def list_relays do
     Registry.select(BridgeRegistry, [{{:"$1", :_, :_}, [], [:"$1"]}])
-  end
-
-  defp notify_subscribers(event, result) do
-    Phoenix.PubSub.broadcast(
-      SpectatorMode.PubSub,
-      @index_subtopic,
-      {event, result}
-    )
   end
 end

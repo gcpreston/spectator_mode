@@ -1,25 +1,17 @@
 defmodule SpectatorMode.BridgeRelay do
   use GenServer, restart: :transient
+
+  require Logger
   alias SpectatorMode.BridgeRegistry
-  alias SpectatorMode.StreamsManager
 
   defstruct bridge_id: nil, subscribers: MapSet.new(), game_metadata: nil
 
   ## API
 
-  # TODO: optional name pass
-  # TODO: call StreamsManager after initialization to
-  #   set up monitoring. This allows monitoring to be
-  #   set on crash restart, outside of the :start_relay flow
-  #   - also look into module-based dynamicsupervisor for this
-  def start_link(bridge_id) do
-    GenServer.start_link(__MODULE__, bridge_id,
+  def start_link({bridge_id, source_pid}) do
+    GenServer.start_link(__MODULE__, {bridge_id, source_pid},
       name: {:via, Registry, {BridgeRegistry, bridge_id}}
     )
-  end
-
-  def stop(bridge_id) do
-    GenServer.stop({:via, Registry, {BridgeRegistry, bridge_id}})
   end
 
   def set_metadata(bridge, data) do
@@ -34,11 +26,33 @@ defmodule SpectatorMode.BridgeRelay do
     GenServer.call(bridge, :subscribe)
   end
 
+  def crash(bridge_id) do
+    GenServer.call({:via, Registry, {BridgeRegistry, bridge_id}}, :crash)
+  end
+
   ## Callbacks
 
   @impl true
-  def init(bridge_id) do
-    {:ok, %__MODULE__{bridge_id: bridge_id}, {:continue, :notify_streams_manager}}
+  def init({bridge_id, source_pid}) do
+    IO.inspect(bridge_id, label: "Starting bridge relay:")
+    Process.link(source_pid)
+    Process.flag(:trap_exit, true)
+    notify_subscribers(:relay_created, bridge_id)
+    {:ok, %__MODULE__{bridge_id: bridge_id}}
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    # Notify subscribers on normal shutdowns. The possibility of this
+    # callback not being invoked in a crash is not concerning, because
+    # any such crash would invoke a restart from the supervisor.
+    Logger.debug("Relay #{state.bridge_id} terminating, reason: #{inspect(reason)}")
+    notify_subscribers(:relay_destroyed, state.bridge_id)
+  end
+
+  @impl true
+  def handle_info({:EXIT, _peer_pid, reason}, state) do
+    {:stop, reason, state}
   end
 
   @impl true
@@ -59,9 +73,13 @@ defmodule SpectatorMode.BridgeRelay do
     {:noreply, state}
   end
 
-  @impl true
-  def handle_continue(:notify_streams_manager, state) do
-    StreamsManager.start_relay_monitor(state.bridge_id)
-    {:noreply, state}
+  ## Helpers
+
+  defp notify_subscribers(event, result) do
+    Phoenix.PubSub.broadcast(
+      SpectatorMode.PubSub,
+      Streams.index_subtopic(),
+      {event, result}
+    )
   end
 end
