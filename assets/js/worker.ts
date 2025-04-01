@@ -40,17 +40,19 @@ function connectWS(bridgeId: string) {
   console.log("Connecting to bridge:", bridgeId);
   const PHOENIX_URL = "/viewer_socket/websocket?bridge_id=" + bridgeId;
   const ws = new WebSocket(PHOENIX_URL);
+  ws.binaryType = "arraybuffer";
   console.log("Connected to viewer socket with bridge_id:", bridgeId);
 
   ws.onmessage = (msg) => {
-    msg.data.arrayBuffer()
-      .then((ab: ArrayBuffer) => {
-        handleGameData(ab);
-      });
+    handleGameData(msg.data);
   };
 
   ws.onerror = (err) => {
     console.error("WebSocket error:", err);
+  }
+
+  ws.onclose = (msg) => {
+    console.log("WebSocket closed:", msg);
   }
 }
 

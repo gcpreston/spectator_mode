@@ -2,7 +2,7 @@ defmodule SpectatorMode.BridgeRelay do
   use GenServer, restart: :transient
 
   require Logger
-  alias SpectatorMode.BridgeRegistry
+  alias SpectatorMode.Streams
 
   defstruct bridge_id: nil, subscribers: MapSet.new(), game_metadata: nil
 
@@ -10,7 +10,7 @@ defmodule SpectatorMode.BridgeRelay do
 
   def start_link({bridge_id, source_pid}) do
     GenServer.start_link(__MODULE__, {bridge_id, source_pid},
-      name: {:via, Registry, {BridgeRegistry, bridge_id}}
+      name: {:via, Registry, {SpectatorMode.BridgeRegistry, bridge_id}}
     )
   end
 
@@ -24,10 +24,6 @@ defmodule SpectatorMode.BridgeRelay do
 
   def subscribe(bridge) do
     GenServer.call(bridge, :subscribe)
-  end
-
-  def crash(bridge_id) do
-    GenServer.call({:via, Registry, {BridgeRegistry, bridge_id}}, :crash)
   end
 
   ## Callbacks
