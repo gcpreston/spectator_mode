@@ -54,4 +54,16 @@ defmodule SpectatorMode.Streams do
   def list_relays do
     Registry.select(BridgeRegistry, [{{:"$1", :_, :_}, [], [:"$1"]}])
   end
+
+  @doc """
+  Find PID of the relay process for a given bridge ID. If no such relay
+  process exists, returns `nil`.
+  """
+  @spec lookup(bridge_id()) :: pid() | nil
+  def lookup(bridge_id) do
+    case Registry.lookup(BridgeRegistry, bridge_id) do
+      [{pid, _value} | _rest] -> pid # _rest should always be []
+      _ -> nil
+    end
+  end
 end
