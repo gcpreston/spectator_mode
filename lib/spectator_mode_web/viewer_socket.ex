@@ -14,7 +14,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
   @impl true
   def connect(%{params: %{"bridge_id" => bridge_id}} = state) do
     bridge_relay_name = {:via, Registry, {BridgeRegistry, bridge_id}}
-    maybe_current_metadata = BridgeRelay.subscribe(bridge_relay_name) |> dbg()
+    maybe_current_metadata = BridgeRelay.subscribe(bridge_relay_name)
 
     if maybe_current_metadata do
       send(self(), {:after_join, maybe_current_metadata})

@@ -3,6 +3,7 @@ defmodule SpectatorMode.BridgeRelay do
 
   require Logger
   alias SpectatorMode.Streams
+  alias SpectatorMode.SlpParser
 
   defstruct bridge_id: nil, subscribers: MapSet.new(), game_metadata: nil
 
@@ -12,10 +13,6 @@ defmodule SpectatorMode.BridgeRelay do
     GenServer.start_link(__MODULE__, {bridge_id, source_pid},
       name: {:via, Registry, {SpectatorMode.BridgeRegistry, bridge_id}}
     )
-  end
-
-  def set_metadata(bridge, data) do
-    GenServer.call(bridge, {:set_metadata, data})
   end
 
   def forward(bridge, data) do
@@ -56,17 +53,20 @@ defmodule SpectatorMode.BridgeRelay do
     {:reply, state.game_metadata, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
   end
 
-  def handle_call({:set_metadata, data}, _from, state) do
-    {:reply, :ok, %{state | game_metadata: data}}
-  end
-
   @impl true
   def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
+    new_state =
+      case SlpParser.packet_type(data) do
+        :event_payloads -> %{state | game_metadata: data}
+        :game_end -> %{state | game_metadata: nil}
+        _ -> state
+      end
+
     for subscriber_pid <- subscribers do
       send(subscriber_pid, {:game_data, data})
     end
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   ## Helpers
