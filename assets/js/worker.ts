@@ -1,4 +1,3 @@
-import { Socket } from "phoenix";
 import { CommandPayloadSizes } from "~/common/types";
 import { parsePacket } from "./liveParser";
 
@@ -39,23 +38,22 @@ onmessage = (event: MessageEvent<WorkerInput>) => {
 
 function connectWS(bridgeId: string) {
   console.log("Connecting to bridge:", bridgeId);
-  const PHOENIX_URL = "/socket";
-  const socket = new Socket(PHOENIX_URL);
+  const PHOENIX_URL = "/viewer_socket/websocket?bridge_id=" + bridgeId;
+  const ws = new WebSocket(PHOENIX_URL);
+  ws.binaryType = "arraybuffer";
+  console.log("Connected to viewer socket with bridge_id:", bridgeId);
 
-  socket.connect();
+  ws.onmessage = (msg) => {
+    handleGameData(msg.data);
+  };
 
-  const phoenixChannel = socket.channel("view:" + bridgeId);
-  phoenixChannel.join()
-    .receive("ok", (resp: any) => {
-      console.log("Joined successfully", resp);
+  ws.onerror = (err) => {
+    console.error("WebSocket error:", err);
+  }
 
-      phoenixChannel.on("game_data", (payload: ArrayBuffer) => {
-        handleGameData(payload);
-      });
-    })
-    .receive("error", (resp) => {
-      console.log("WebSocket error:", resp);
-    });
+  ws.onclose = (msg) => {
+    console.log("WebSocket closed:", msg);
+  }
 }
 
 function handleGameData(payload: ArrayBuffer) {

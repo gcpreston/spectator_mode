@@ -1,8 +1,14 @@
 defmodule SpectatorModeWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :spectator_mode
 
-  socket "/socket", SpectatorModeWeb.UserSocket,
-    websocket: true,
+  @sockets_timeout_ms 600_000 # 10 minutes
+
+  socket "/bridge_socket", SpectatorModeWeb.BridgeSocket,
+    websocket: [timeout: @sockets_timeout_ms],
+    longpoll: false
+
+  socket "/viewer_socket", SpectatorModeWeb.ViewerSocket,
+    websocket: [timeout: @sockets_timeout_ms],
     longpoll: false
 
   # The session will be stored in the cookie and signed,
