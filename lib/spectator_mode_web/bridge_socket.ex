@@ -7,14 +7,16 @@ defmodule SpectatorModeWeb.BridgeSocket do
   alias SpectatorMode.BridgeRegistry
 
   @impl true
-  def child_spec(opts) do
+  def child_spec(_opts) do
     # We won't spawn any process, so let's ignore the child spec
     :ignore
   end
 
   @impl true
-  def connect(%{params: %{"bridge_id" => bridge_id}} = state) do
+  def connect(state) do
+    bridge_id = Ecto.UUID.generate()
     {:ok, _pid} = Streams.start_and_link_relay(bridge_id, self())
+    send(self(), :after_join)
     {:ok, Map.put(state, :bridge_id, bridge_id)}
   end
 
@@ -34,8 +36,9 @@ defmodule SpectatorModeWeb.BridgeSocket do
   # TODO: Handle metadata
 
   @impl true
-  def handle_info(_, state) do
-    {:ok, state}
+  def handle_info(:after_join, state) do
+    # notify the bridge of its generated id
+    {:push, {:text, state.bridge_id}, state}
   end
 
   @impl true

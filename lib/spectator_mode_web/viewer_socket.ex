@@ -6,7 +6,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
   alias SpectatorMode.BridgeRegistry
 
   @impl true
-  def child_spec(opts) do
+  def child_spec(_opts) do
     # We won't spawn any process, so let's ignore the child spec
     :ignore
   end
@@ -39,7 +39,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
   @impl true
   def handle_info({:after_join, current_metadata}, state) do
     # forward the current game metadata to the specator who just connected
-    {:push, {current_metadata, [opcode: :binary]}, state}
+    {:push, {:binary, current_metadata}, state}
   end
 
   def handle_info({:game_data, payload}, state) do
