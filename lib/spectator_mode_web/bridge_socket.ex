@@ -30,7 +30,7 @@ defmodule SpectatorModeWeb.BridgeSocket do
   @impl true
   def handle_in({payload, [opcode: :binary]}, state) do
     BridgeRelay.forward({:via, Registry, {BridgeRegistry, state.bridge_id}}, payload)
-    {:reply, :ok, {:binary, payload}, state}
+    {:ok, state}
   end
 
   # TODO: Handle metadata
