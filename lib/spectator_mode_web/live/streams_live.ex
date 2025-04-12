@@ -22,7 +22,6 @@ defmodule SpectatorModeWeb.StreamsLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      IO.puts("Subscribing to streams")
       Streams.subscribe()
     end
 

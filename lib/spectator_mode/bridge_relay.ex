@@ -27,7 +27,7 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def init({bridge_id, source_pid}) do
-    IO.inspect(bridge_id, label: "Starting bridge relay:")
+    Logger.debug("Starting bridge relay #{bridge_id}")
     Process.link(source_pid)
     Process.flag(:trap_exit, true)
     notify_subscribers(:relay_created, bridge_id)
