@@ -6,7 +6,7 @@ defmodule SpectatorMode.BridgeRelay do
 
   require Logger
   alias SpectatorMode.Streams
-  alias SpectatorMode.SlpParser
+  alias SpectatorMode.Slp
 
   @enforce_keys [:bridge_id]
   defstruct [
@@ -72,7 +72,7 @@ defmodule SpectatorMode.BridgeRelay do
   @impl true
   def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
     payload_sizes = if state.metadata.event_payloads, do: state.metadata.event_payloads.payload_sizes, else: nil
-    events = SlpParser.parse_packet(data, payload_sizes)
+    events = Slp.Parser.parse_packet(data, payload_sizes)
     new_state = update_state_from_events(events, state)
 
     for subscriber_pid <- subscribers do
@@ -96,11 +96,11 @@ defmodule SpectatorMode.BridgeRelay do
     Enum.reduce(events, state, &(update_state_from_event(&1, &2)))
   end
 
-  defp update_state_from_event(%SlpParser.Events.EventPayloads{} = event, state) do
+  defp update_state_from_event(%Slp.Parser.Events.EventPayloads{} = event, state) do
     put_in(state.metadata.event_payloads, event)
   end
 
-  defp update_state_from_event(%SlpParser.Events.GameStart{} = event, state) do
+  defp update_state_from_event(%Slp.Parser.Events.GameStart{} = event, state) do
     new_state = put_in(state.metadata.game_start, event)
 
     if state.metadata.event_payloads do
@@ -111,7 +111,7 @@ defmodule SpectatorMode.BridgeRelay do
     end
   end
 
-  defp update_state_from_event(%SlpParser.Events.GameEnd{}, state) do
+  defp update_state_from_event(%Slp.Parser.Events.GameEnd{}, state) do
     new_state = put_in(state.metadata.game_start, nil)
     # Event Payloads is re-sent on next game start, so it will be forwarded then.
     put_in(new_state.new_viewer_packet, nil)

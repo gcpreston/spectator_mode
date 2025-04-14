@@ -1,4 +1,4 @@
-defmodule SpectatorMode.SlpParser do
+defmodule SpectatorMode.Slp.Parser do
   @moduledoc """
   The absolute minimum .slp parsing needed for this application.
 
@@ -13,7 +13,7 @@ defmodule SpectatorMode.SlpParser do
     defmodule EventPayloads do
       @type t :: %__MODULE__{
         binary: binary(),
-        payload_sizes: SlpParser.payload_sizes()
+        payload_sizes: Slp.Parser.payload_sizes()
       }
       @enforce_keys [:payload_sizes, :binary]
       defstruct [:payload_sizes, :binary]
