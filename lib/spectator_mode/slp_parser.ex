@@ -1,24 +1,112 @@
 defmodule SpectatorMode.SlpParser do
   @moduledoc """
   The absolute minimum .slp parsing needed for this application.
+
+  Slippi spec reference: https://github.com/project-slippi/slippi-wiki/blob/master/SPEC.md
   """
+
+  @type payload_sizes :: %{integer() => integer()}
+
+  defmodule Events do
+    @type t :: EventPayloads.t() | GameStart.t()
+
+    defmodule EventPayloads do
+      @type t :: %__MODULE__{
+        payload_sizes: SlpParser.payload_sizes(),
+        binary: binary()
+      }
+      @enforce_keys [:payload_sizes, :binary]
+      defstruct [:payload_sizes, :binary]
+    end
+
+    defmodule GameStart do
+      @type t :: %__MODULE__{
+        binary: binary()
+      }
+      @enforce_keys [:binary]
+      defstruct [:binary]
+    end
+
+    defmodule GameEnd do
+      @type t :: %__MODULE__{
+        binary: binary()
+      }
+      @enforce_keys [:binary]
+      defstruct [:binary]
+    end
+  end
+
+  defmodule ParseError do
+    defexception [:message]
+  end
 
   @doc """
-  Determine which [Slippi event type](https://github.com/project-slippi/slippi-wiki/blob/master/SPEC.md#events)
-  the given packet corresponds to.
+  Parse a binary game data packet, which may include multiple events.
 
-  Please note that this function assumes events are successfully grouped as a
-  frame as indicated by the [spectator protocol docs](https://github.com/project-slippi/slippi-wiki/blob/master/SPECTATOR_PROTOCOL.md#slp-streams),
-  and assuming Event Payloads and Game Start come in the same packet.
-
-  Since it is stated that this behavior should not be relied upon, this will
-  have to be improved eventually.
+  Parsing requires knowing the sizes of each possible event, as given in the
+  Event Payloads event. This is the first event in the stream, and also needs
+  to be parsed, and therefore may not be present on call. If Event Payloads
+  is not given, and the first command to be parsed is not Event Payloads,
+  `ParseError` is raised.
   """
-  def packet_type(<<command, __rest::binary>>) do
-    case command do
-      0x35 -> :event_payloads
-      0x39 -> :game_end
-      _ -> :other
+  @spec parse_packet(binary(), payload_sizes() | nil) :: [Events.t()]
+  def parse_packet(data, payload_sizes) do
+    <<first_command::8, _rest::binary>> = data
+
+    if is_nil(payload_sizes) && first_command != 0x35 do
+      raise ParseError, message: "Expected first command to be 0x35, got: 0x#{Integer.to_string(first_command, 16)}"
     end
+
+    parse_packet(data, payload_sizes, [])
+  end
+
+  defp parse_packet(<<>>, _payload_sizes, acc), do: Enum.reverse(acc)
+
+  defp parse_packet(<<0x35::8, _::binary>> = data, _payload_sizes, []) do
+    {event_payloads, rest} = parse_event_payloads(data)
+    parse_packet(rest, event_payloads.payload_sizes, [event_payloads])
+  end
+
+  defp parse_packet(<<command::8, data::binary>>, payload_sizes, acc) do
+    {event, rest} =
+      case command do
+        0x36 -> parse_game_start(data, payload_sizes)
+        0x39 -> parse_game_end(data, payload_sizes)
+        _ -> parse_skip(command, data, payload_sizes)
+      end
+
+    new_acc = if is_nil(event), do: acc, else: [event | acc]
+    parse_packet(rest, payload_sizes, new_acc)
+  end
+
+  # https://github.com/project-slippi/slippi-wiki/blob/master/SPEC.md#event-payloads
+  defp parse_event_payloads(<<0x35::8, payload_size::8, rest::binary>>) do
+    <<ep_data::binary-size(payload_size - 1), rest::binary>> = rest
+    binary = <<0x35::8, payload_size::8, ep_data::binary>>
+    {%Events.EventPayloads{payload_sizes: parse_payload_sizes(ep_data, %{}), binary: binary}, rest}
+  end
+
+  defp parse_payload_sizes(<<>>, acc), do: acc
+
+  defp parse_payload_sizes(<<command::8, payload_size::16, rest::binary>>, acc) do
+    parse_payload_sizes(rest, Map.put(acc, command, payload_size))
+  end
+
+  defp parse_game_start(data, payload_sizes) do
+    game_start_size = payload_sizes[0x36]
+    <<gs_data::binary-size(game_start_size), rest::binary>> = data
+    {%Events.GameStart{binary: gs_data}, rest}
+  end
+
+  defp parse_game_end(data, payload_sizes) do
+    game_end_size = payload_sizes[0x39]
+    <<ge_data::binary-size(game_end_size), rest::binary>> = data
+    {%Events.GameEnd{binary: ge_data}, rest}
+  end
+
+  defp parse_skip(command, data, payload_sizes) do
+    payload_size = payload_sizes[command]
+    <<_event_data::binary-size(payload_size), rest::binary>> = data
+    {nil, rest}
   end
 end

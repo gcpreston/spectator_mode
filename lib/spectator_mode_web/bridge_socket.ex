@@ -8,7 +8,6 @@ defmodule SpectatorModeWeb.BridgeSocket do
 
   @impl true
   def child_spec(_opts) do
-    # We won't spawn any process, so let's ignore the child spec
     :ignore
   end
 
@@ -22,18 +21,15 @@ defmodule SpectatorModeWeb.BridgeSocket do
 
   @impl true
   def init(state) do
-    # Now we are effectively inside the process that maintains the socket.
-    # dbg(state)
     {:ok, state}
   end
 
   @impl true
   def handle_in({payload, [opcode: :binary]}, state) do
+    # Forward binary game data via the relay
     BridgeRelay.forward({:via, Registry, {BridgeRegistry, state.bridge_id}}, payload)
     {:ok, state}
   end
-
-  # TODO: Handle metadata
 
   @impl true
   def handle_info(:after_join, state) do
