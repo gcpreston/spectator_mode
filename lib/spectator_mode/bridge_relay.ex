@@ -72,8 +72,8 @@ defmodule SpectatorMode.BridgeRelay do
   @impl true
   def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
     payload_sizes = if state.metadata.event_payloads, do: state.metadata.event_payloads.payload_sizes, else: nil
-    events = SlpParser.parse_packet(data, payload_sizes) |> dbg()
-    new_state = update_state_from_events(events, state) |> dbg()
+    events = SlpParser.parse_packet(data, payload_sizes)
+    new_state = update_state_from_events(events, state)
 
     for subscriber_pid <- subscribers do
       send(subscriber_pid, {:game_data, data})
