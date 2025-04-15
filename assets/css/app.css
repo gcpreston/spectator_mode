@@ -3,3 +3,10 @@
 @import "tailwindcss/utilities";
 
 /* This file is for your main application CSS */
+html, body {
+  @apply h-full overflow-hidden;
+}
+
+[data-phx-main] {
+  @apply h-full;
+}

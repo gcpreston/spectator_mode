@@ -660,7 +660,7 @@ defmodule SpectatorModeWeb.CoreComponents do
       class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md"
     >
       <div class="text-center">
-        <div><span class="text-lg font-medium">{@bridge_id}</span></div>
+        <div><span class="text-md font-medium">{@bridge_id}</span></div>
         <div><span class="text-md font-light">{active_game_text(@active_game)}</span></div>
       </div>
     </div>
