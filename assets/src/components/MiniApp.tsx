@@ -18,11 +18,8 @@ export function MiniApp() {
   const observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(mutation) {
       if (mutation.attributeName) {
-        const newBridgeId = target?.getAttribute(mutation.attributeName)
-
-        if (newBridgeId !== null) {
-          setBridgeId(newBridgeId);
-        }
+        const newBridgeId = target!.getAttribute(mutation.attributeName);
+        setBridgeId(newBridgeId);
       }
     });
   });

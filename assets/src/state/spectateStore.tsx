@@ -48,18 +48,20 @@ export const defaultSpectateStoreState: SpectateStore = {
 };
 
 const [replayState, setReplayState] = createStore<SpectateStore>(
-  defaultSpectateStoreState
+  structuredClone(defaultSpectateStoreState)
 );
 
 export const spectateStore = replayState;
 
-export const nonReactiveState: NonReactiveState = {
+const defaultNonReactiveState: NonReactiveState = {
   payloadSizes: undefined,
   gameFrames: [],
   latestFinalizedFrame: undefined
 }
 
-export const [bridgeId, setBridgeId] = createSignal<string | undefined>(undefined);
+export let nonReactiveState = structuredClone(defaultNonReactiveState);
+
+export const [bridgeId, setBridgeId] = createSignal<string | null>(null);
 
 // Highlight code removed
 
@@ -302,8 +304,9 @@ createRoot(() => {
   createEffect(async () => {
     const newBridgeId = bridgeId();
 
-    if (newBridgeId === undefined) {
-      setReplayState(defaultSpectateStoreState);
+    if (newBridgeId === null) {
+      nonReactiveState = structuredClone(defaultNonReactiveState);
+      setReplayState(structuredClone(defaultSpectateStoreState));
       return;
     }
 
