@@ -5,45 +5,7 @@ defmodule SpectatorMode.Slp.Parser do
   Slippi spec reference: https://github.com/project-slippi/slippi-wiki/blob/master/SPEC.md
   """
 
-  @type payload_sizes :: %{integer() => integer()}
-
-  defmodule Events do
-    @type t :: EventPayloads.t() | GameStart.t()
-
-    defmodule EventPayloads do
-      @type t :: %__MODULE__{
-        binary: binary(),
-        payload_sizes: Slp.Parser.payload_sizes()
-      }
-      @enforce_keys [:payload_sizes, :binary]
-      defstruct [:payload_sizes, :binary]
-    end
-
-    defmodule GameStart do
-      @type player_settings :: %{external_character_id: integer()}
-
-      @type t :: %__MODULE__{
-        binary: binary(),
-        players: {
-          player_settings(),
-          player_settings(),
-          player_settings(),
-          player_settings()
-        },
-        stage_id: integer()
-      }
-      @enforce_keys [:binary, :players, :stage_id]
-      defstruct [:binary, :players, :stage_id]
-    end
-
-    defmodule GameEnd do
-      @type t :: %__MODULE__{
-        binary: binary()
-      }
-      @enforce_keys [:binary]
-      defstruct [:binary]
-    end
-  end
+  alias SpectatorMode.Slp.Events
 
   defmodule ParseError do
     defexception [:message]
@@ -58,7 +20,7 @@ defmodule SpectatorMode.Slp.Parser do
   is not given, and the first command to be parsed is not Event Payloads,
   `ParseError` is raised.
   """
-  @spec parse_packet(binary(), payload_sizes() | nil) :: [Events.t()]
+  @spec parse_packet(binary(), Events.payload_sizes() | nil) :: [Events.t()]
   def parse_packet(data, payload_sizes) do
     <<first_command::8, _rest::binary>> = data
 

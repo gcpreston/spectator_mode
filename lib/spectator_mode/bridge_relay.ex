@@ -7,21 +7,24 @@ defmodule SpectatorMode.BridgeRelay do
   require Logger
   alias SpectatorMode.Streams
   alias SpectatorMode.Slp
+  alias SpectatorMode.BridgeRegistry
 
   @enforce_keys [:bridge_id]
   defstruct [
     bridge_id: nil,
     subscribers: MapSet.new(),
-    metadata: %{
+    events: %{
       event_payloads: nil,
       game_start: nil
     },
     new_viewer_packet: nil
   ]
 
-  # :metadata contains information about the stream and about the current game.
+  # :events stores structs found in `SpectatorMode.Slp.Events` which are
+  #   relevant to the current game.
   # :new_viewer_packet is the binary to send to new viewers upon connection.
-  # This will contain the Event Payloads and Game Start events, once both are available.
+  #   This will contain the Event Payloads and Game Start events, once both
+  #   are available.
 
   ## API
 
@@ -66,14 +69,14 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def handle_call(:subscribe, {from_pid, _tag}, %{subscribers: subscribers} = state) do
-    {:reply, state.game_metadata, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
+    {:reply, state.new_viewer_packet, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
   end
 
   @impl true
   def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
-    payload_sizes = if state.metadata.event_payloads, do: state.metadata.event_payloads.payload_sizes, else: nil
+    payload_sizes = if state.events.event_payloads, do: state.events.event_payloads.payload_sizes, else: nil
     events = Slp.Parser.parse_packet(data, payload_sizes)
-    new_state = update_state_from_events(events, state)
+    new_state = handle_events(events, state)
 
     for subscriber_pid <- subscribers do
       send(subscriber_pid, {:game_data, data})
@@ -92,30 +95,47 @@ defmodule SpectatorMode.BridgeRelay do
     )
   end
 
-  defp update_state_from_events(events, state) do
-    Enum.reduce(events, state, &(update_state_from_event(&1, &2)))
+  defp update_registry_value(bridge_id, new_value) do
+    Registry.update_value(BridgeRegistry, bridge_id, fn _old_value -> new_value end)
   end
 
-  defp update_state_from_event(%Slp.Parser.Events.EventPayloads{} = event, state) do
-    put_in(state.metadata.event_payloads, event)
+  # handle_events/2 and handle_event/2 serve to
+  # 1. execute any necessary side-effects based on a Slippi event
+  #    (i.e. sending PubSub messages)
+  # 2. return the modified state based on the event
+
+  defp handle_events(events, state) do
+    Enum.reduce(events, state, &(handle_event(&1, &2)))
   end
 
-  defp update_state_from_event(%Slp.Parser.Events.GameStart{} = event, state) do
-    new_state = put_in(state.metadata.game_start, event)
+  defp handle_event(%Slp.Events.EventPayloads{} = event, state) do
+    put_in(state.events.event_payloads, event)
+  end
 
-    if state.metadata.event_payloads do
-      new_viewer_packet = new_state.metadata.event_payloads.binary <> new_state.metadata.game_start.binary
+  defp handle_event(%Slp.Events.GameStart{} = event, state) do
+    # Store and broadcast parsed event the data; the binary is not needed
+    game_settings = Map.put(event, :binary, nil)
+    update_registry_value(state.bridge_id, game_settings)
+    notify_subscribers(:game_update, {state.bridge_id, game_settings})
+
+    new_state = put_in(state.events.game_start, event)
+
+    if state.events.event_payloads do
+      new_viewer_packet = new_state.events.event_payloads.binary <> new_state.events.game_start.binary
       put_in(new_state.new_viewer_packet, new_viewer_packet)
     else
       new_state
     end
   end
 
-  defp update_state_from_event(%Slp.Parser.Events.GameEnd{}, state) do
-    new_state = put_in(state.metadata.game_start, nil)
+  defp handle_event(%Slp.Events.GameEnd{}, state) do
+    update_registry_value(state.bridge_id, nil)
+    notify_subscribers(:game_update, {state.bridge_id, nil})
+
+    new_state = put_in(state.events.game_start, nil)
     # Event Payloads is re-sent on next game start, so it will be forwarded then.
     put_in(new_state.new_viewer_packet, nil)
   end
 
-  defp update_state_from_event(_event, state), do: state
+  defp handle_event(_event, state), do: state
 end

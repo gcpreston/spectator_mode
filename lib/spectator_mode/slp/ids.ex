@@ -1,4 +1,4 @@
-defmodule SpectatorMode.SlpIds do
+defmodule SpectatorMode.Slp.Ids do
   @moduledoc """
   Helpers for SSBM IDs found in Slippi.
 
