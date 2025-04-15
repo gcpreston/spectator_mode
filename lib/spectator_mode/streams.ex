@@ -18,6 +18,7 @@ defmodule SpectatorMode.Streams do
   """
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.BridgeRelay
+  alias SpectatorMode.Slp.Events.GameStart
 
   @pubsub_topic "streams"
   @index_subtopic "#{@pubsub_topic}:index"
@@ -50,9 +51,9 @@ defmodule SpectatorMode.Streams do
   @doc """
   Fetch the IDs of all currently active bridge relays, and their metadata.
   """
-  @spec list_relays() :: [bridge_id()]
+  @spec list_relays() :: [%{bridge_id: bridge_id(), active_game: GameStart.t()}]
   def list_relays do
-    Registry.select(BridgeRegistry, [{{:"$1", :_, :"$2"}, [], [%{bridge_id: :"$1", metadata: :"$2"}]}])
+    Registry.select(BridgeRegistry, [{{:"$1", :_, :"$2"}, [], [%{bridge_id: :"$1", active_game: :"$2"}]}])
   end
 
   @doc """

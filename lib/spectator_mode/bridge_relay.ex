@@ -7,6 +7,7 @@ defmodule SpectatorMode.BridgeRelay do
   require Logger
   alias SpectatorMode.Streams
   alias SpectatorMode.Slp
+  alias SpectatorMode.BridgeRegistry
 
   @enforce_keys [:bridge_id]
   defstruct [
@@ -75,7 +76,7 @@ defmodule SpectatorMode.BridgeRelay do
   def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
     payload_sizes = if state.events.event_payloads, do: state.events.event_payloads.payload_sizes, else: nil
     events = Slp.Parser.parse_packet(data, payload_sizes)
-    new_state = update_state_from_events(events, state)
+    new_state = handle_events(events, state)
 
     for subscriber_pid <- subscribers do
       send(subscriber_pid, {:game_data, data})
@@ -94,21 +95,29 @@ defmodule SpectatorMode.BridgeRelay do
     )
   end
 
-  # TODO: PubSub notification for metadata update
-  # - This may call for a rigorous metadata type definition. There is a
-  #   distinction between the whole "metadata" stored in BridgeRelay state
-  #   (everything we parsed + binary), and the "metadata" that we will store
-  #   in the registry (things we care about querying in bulk).
-
-  defp update_state_from_events(events, state) do
-    Enum.reduce(events, state, &(update_state_from_event(&1, &2)))
+  defp update_registry_value(bridge_id, new_value) do
+    Registry.update_value(BridgeRegistry, bridge_id, fn _old_value -> new_value end)
   end
 
-  defp update_state_from_event(%Slp.Parser.Events.EventPayloads{} = event, state) do
+  # handle_events/2 and handle_event/2 serve to
+  # 1. execute any necessary side-effects based on a Slippi event
+  #    (i.e. sending PubSub messages)
+  # 2. return the modified state based on the event
+
+  defp handle_events(events, state) do
+    Enum.reduce(events, state, &(handle_event(&1, &2)))
+  end
+
+  defp handle_event(%Slp.Events.EventPayloads{} = event, state) do
     put_in(state.events.event_payloads, event)
   end
 
-  defp update_state_from_event(%Slp.Parser.Events.GameStart{} = event, state) do
+  defp handle_event(%Slp.Events.GameStart{} = event, state) do
+    # Store and broadcast parsed event the data; the binary is not needed
+    game_settings = Map.put(event, :binary, nil)
+    update_registry_value(state.bridge_id, game_settings)
+    notify_subscribers(:game_update, {state.bridge_id, game_settings})
+
     new_state = put_in(state.events.game_start, event)
 
     if state.events.event_payloads do
@@ -119,11 +128,14 @@ defmodule SpectatorMode.BridgeRelay do
     end
   end
 
-  defp update_state_from_event(%Slp.Parser.Events.GameEnd{}, state) do
+  defp handle_event(%Slp.Events.GameEnd{}, state) do
+    update_registry_value(state.bridge_id, nil)
+    notify_subscribers(:game_update, {state.bridge_id, nil})
+
     new_state = put_in(state.events.game_start, nil)
     # Event Payloads is re-sent on next game start, so it will be forwarded then.
     put_in(new_state.new_viewer_packet, nil)
   end
 
-  defp update_state_from_event(_event, state), do: state
+  defp handle_event(_event, state), do: state
 end

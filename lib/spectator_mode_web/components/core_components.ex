@@ -18,6 +18,7 @@ defmodule SpectatorModeWeb.CoreComponents do
   use Gettext, backend: SpectatorModeWeb.Gettext
 
   alias Phoenix.LiveView.JS
+  alias SpectatorMode.Slp
 
   @doc """
   Renders a modal.
@@ -650,6 +651,7 @@ defmodule SpectatorModeWeb.CoreComponents do
   Renders a card to show information about a stream.
   """
   attr :bridge_id, :string, required: true
+  attr :active_game, :any, required: true
 
   def stream_card(assigns) do
     ~H"""
@@ -658,12 +660,33 @@ defmodule SpectatorModeWeb.CoreComponents do
       class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md"
     >
       <div class="text-center">
-        <span class="text-lg font-medium">{@bridge_id}</span>
+        <div><span class="text-lg font-medium">{@bridge_id}</span></div>
+        <div><span class="text-md font-light">{active_game_text(@active_game)}</span></div>
       </div>
     </div>
     """
   end
 
+  defp active_game_text(nil), do: "Waiting for game..."
+
+  defp active_game_text(%Slp.Events.GameStart{} = event) do
+    filtered_players =
+      event.players
+      |> Tuple.to_list()
+      |> Enum.filter(fn p -> p.external_character_id && p.external_character_id < 26 end)
+
+    if length(filtered_players) != 2 do
+      ""
+    else
+      [p1, p2] = filtered_players
+
+      character_id_1 = p1.external_character_id;
+      character_id_2 = p2.external_character_id;
+      stage_id = event.stage_id
+
+      "#{Slp.Ids.get_character_name_by_external_id(character_id_1)} vs. #{Slp.Ids.get_character_name_by_external_id(character_id_2)} (#{Slp.Ids.get_stage_name_by_external_id(stage_id)})"
+    end
+  end
 
   @doc """
   Translates an error message using gettext.

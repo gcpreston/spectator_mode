@@ -5,7 +5,7 @@ defmodule SpectatorMode.Slp.Events do
   defmodule EventPayloads do
     @type t :: %__MODULE__{
       binary: binary(),
-      payload_sizes: payload_sizes()
+      payload_sizes: Events.payload_sizes()
     }
     @enforce_keys [:payload_sizes, :binary]
     defstruct [:payload_sizes, :binary]
