@@ -12,16 +12,18 @@ defmodule SpectatorMode.BridgeRelay do
   defstruct [
     bridge_id: nil,
     subscribers: MapSet.new(),
-    metadata: %{
+    events: %{
       event_payloads: nil,
       game_start: nil
     },
     new_viewer_packet: nil
   ]
 
-  # :metadata contains information about the stream and about the current game.
+  # :events stores structs found in `SpectatorMode.Slp.Events` which are
+  #   relevant to the current game.
   # :new_viewer_packet is the binary to send to new viewers upon connection.
-  # This will contain the Event Payloads and Game Start events, once both are available.
+  #   This will contain the Event Payloads and Game Start events, once both
+  #   are available.
 
   ## API
 
@@ -66,12 +68,12 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def handle_call(:subscribe, {from_pid, _tag}, %{subscribers: subscribers} = state) do
-    {:reply, state.game_metadata, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
+    {:reply, state.new_viewer_packet, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
   end
 
   @impl true
   def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
-    payload_sizes = if state.metadata.event_payloads, do: state.metadata.event_payloads.payload_sizes, else: nil
+    payload_sizes = if state.events.event_payloads, do: state.events.event_payloads.payload_sizes, else: nil
     events = Slp.Parser.parse_packet(data, payload_sizes)
     new_state = update_state_from_events(events, state)
 
@@ -103,14 +105,14 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   defp update_state_from_event(%Slp.Parser.Events.EventPayloads{} = event, state) do
-    put_in(state.metadata.event_payloads, event)
+    put_in(state.events.event_payloads, event)
   end
 
   defp update_state_from_event(%Slp.Parser.Events.GameStart{} = event, state) do
-    new_state = put_in(state.metadata.game_start, event)
+    new_state = put_in(state.events.game_start, event)
 
-    if state.metadata.event_payloads do
-      new_viewer_packet = new_state.metadata.event_payloads.binary <> new_state.metadata.game_start.binary
+    if state.events.event_payloads do
+      new_viewer_packet = new_state.events.event_payloads.binary <> new_state.events.game_start.binary
       put_in(new_state.new_viewer_packet, new_viewer_packet)
     else
       new_state
@@ -118,7 +120,7 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   defp update_state_from_event(%Slp.Parser.Events.GameEnd{}, state) do
-    new_state = put_in(state.metadata.game_start, nil)
+    new_state = put_in(state.events.game_start, nil)
     # Event Payloads is re-sent on next game start, so it will be forwarded then.
     put_in(new_state.new_viewer_packet, nil)
   end
