@@ -23,7 +23,8 @@ defmodule SpectatorModeWeb.StreamsLive do
       </div>
 
       <div class="grow">
-        <div id="viewer-root" class="w-full" bridgeid={@selected_bridge_id} phx-hook="ViewerRoot"></div>
+        <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
+        <div id="viewer-root" class="w-full" phx-update="ignore"></div>
       </div>
     </div>
     """

@@ -1,5 +1,5 @@
 import createRAF, { targetFPS } from "@solid-primitives/raf";
-import { batch, createEffect, createResource, createRoot } from "solid-js";
+import { batch, createEffect, createResource, createRoot, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   actionNameById,
@@ -28,6 +28,7 @@ import { CharacterAnimations, fetchAnimations } from "~/viewer/animationCache";
 import { actionMapByInternalId } from "~/viewer/characters";
 import { getPlayerOnFrame, getStartOfAction } from "~/viewer/viewerUtil";
 import { getPlayerColor } from "~/common/util";
+import { createWorker } from "~/workerUtil";
 
 export const defaultSpectateStoreState: SpectateStore = {
   highlights: Object.fromEntries(
@@ -57,6 +58,8 @@ export const nonReactiveState: NonReactiveState = {
   gameFrames: [],
   latestFinalizedFrame: undefined
 }
+
+export const [bridgeId, setBridgeId] = createSignal<string | undefined>(undefined);
 
 // Highlight code removed
 
@@ -295,6 +298,27 @@ function handleFrameBookendEvent(frameBookend: FrameBookendEvent): void {
 }
 
 createRoot(() => {
+  // Set up store on spectate of different stream
+  createEffect(async () => {
+    const newBridgeId = bridgeId();
+
+    if (newBridgeId === undefined) {
+      setReplayState(defaultSpectateStoreState);
+      return;
+    }
+
+    const worker = createWorker(newBridgeId);
+
+    onCleanup(() => {
+      worker.terminate();
+    });
+
+    setReplayState({
+      frame: 0,
+      renderDatas: [],
+    });
+  });
+
   const animationResources = [];
   for (let playerIndex = 0; playerIndex < 4; playerIndex++) {
     animationResources.push(

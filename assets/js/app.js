@@ -24,30 +24,9 @@ import topbar from "../vendor/topbar"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 
-const ViewerRoot = {
-  updated() {
-    import('http://localhost:5173/src/miniRoot.tsx').then((module) => {
-      console.log('what is module', module)
-      // this.unmountComponent = mounter.default(this.el.id)
-    }).catch(console.error)
-  },
-
-  // destroyed() {
-  //   if (!this.unmountComponent) {
-  //     console.error('ViewerRoot unmountComponent not set')
-  //     return
-  //   }
-
-  //   this.unmountComponent(this.el)
-  // },
-}
-
-let Hooks = { ViewerRoot }
-
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken},
-  hooks: Hooks
+  params: {_csrf_token: csrfToken}
 })
 
 // Show progress bar on live navigation and form submits

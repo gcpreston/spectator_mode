@@ -2,7 +2,7 @@ import { batch } from "solid-js";
 import { GameEvent } from "~/common/types";
 import { setReplayStateFromGameEvent } from "~/state/spectateStore";
 
-export function createWorker(bridgeId: string): void {
+export function createWorker(bridgeId: string): Worker {
   console.log("Creating worker...");
   const worker = new Worker("/assets/worker.js", { type: "module" });
 
@@ -24,4 +24,6 @@ export function createWorker(bridgeId: string): void {
   };
 
   worker.postMessage({ type: "connect", value: bridgeId });
+
+  return worker;
 }
