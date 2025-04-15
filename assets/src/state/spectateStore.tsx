@@ -304,9 +304,10 @@ createRoot(() => {
   createEffect(async () => {
     const newBridgeId = bridgeId();
 
+    nonReactiveState = structuredClone(defaultNonReactiveState);
+    setReplayState(structuredClone(defaultSpectateStoreState));
+
     if (newBridgeId === null) {
-      nonReactiveState = structuredClone(defaultNonReactiveState);
-      setReplayState(structuredClone(defaultSpectateStoreState));
       return;
     }
 
@@ -315,70 +316,70 @@ createRoot(() => {
     onCleanup(() => {
       worker.terminate();
     });
-
-    setReplayState({
-      frame: 0,
-      renderDatas: [],
-    });
   });
 
-  const animationResources = [];
-  for (let playerIndex = 0; playerIndex < 4; playerIndex++) {
-    animationResources.push(
-      createResource(
-        () => {
-          const replay = replayState.playbackData;
-          if (replay === undefined) {
-            return undefined;
-          }
-          // TODO: Remove this one when the code isn't awful lol
-          if (replay.settings === undefined) {
-            return undefined
-          }
-          const playerSettings = replay.settings.playerSettings[playerIndex];
-          if (playerSettings === undefined) {
-            return undefined;
-          }
-          if (nonReactiveState.gameFrames[replayState.frame] === undefined) {
-            return undefined;
-          }
+  createEffect(() => {
+    if (replayState.playbackData === undefined) {
+      return;
+    }
+    const animationResources = [];
+    for (let playerIndex = 0; playerIndex < 4; playerIndex++) {
+      animationResources.push(
+        createResource(
+          () => {
+            const replay = replayState.playbackData;
+            if (replay === undefined) {
+              return undefined;
+            }
+            // TODO: Remove this one when the code isn't awful lol
+            if (replay.settings === undefined) {
+              return undefined
+            }
+            const playerSettings = replay.settings.playerSettings[playerIndex];
+            if (playerSettings === undefined) {
+              return undefined;
+            }
+            if (nonReactiveState.gameFrames[replayState.frame] === undefined) {
+              return undefined;
+            }
 
-          const playerUpdate =
-          nonReactiveState.gameFrames[replayState.frame].players[playerIndex];
-          if (playerUpdate === undefined) {
+            const playerUpdate =
+            nonReactiveState.gameFrames[replayState.frame].players[playerIndex];
+            if (playerUpdate === undefined) {
+              return playerSettings.externalCharacterId;
+            }
+            if (
+              playerUpdate.state.internalCharacterId ===
+              characterNameByInternalId.indexOf("Zelda")
+            ) {
+              return characterNameByExternalId.indexOf("Zelda");
+            }
+            if (
+              playerUpdate.state.internalCharacterId ===
+              characterNameByInternalId.indexOf("Sheik")
+            ) {
+              return characterNameByExternalId.indexOf("Sheik");
+            }
             return playerSettings.externalCharacterId;
-          }
-          if (
-            playerUpdate.state.internalCharacterId ===
-            characterNameByInternalId.indexOf("Zelda")
-          ) {
-            return characterNameByExternalId.indexOf("Zelda");
-          }
-          if (
-            playerUpdate.state.internalCharacterId ===
-            characterNameByInternalId.indexOf("Sheik")
-          ) {
-            return characterNameByExternalId.indexOf("Sheik");
-          }
-          return playerSettings.externalCharacterId;
-        },
-        (id) => (id === undefined ? undefined : fetchAnimations(id))
+          },
+          (id) => (id === undefined ? undefined : fetchAnimations(id))
+        )
+      );
+    }
+    animationResources.forEach(([dataSignal], playerIndex) =>
+      createEffect(() =>
+        // I can't use the obvious setReplayState("animations", playerIndex,
+        // dataSignal()) because it will merge into the previous animations data
+        // object, essentially overwriting the previous characters animation data
+        // forever
+        setReplayState("animations", (animations) => {
+          const newAnimations = [...animations];
+          newAnimations[playerIndex] = dataSignal();
+          return newAnimations;
+        })
       )
     );
-  }
-  animationResources.forEach(([dataSignal], playerIndex) =>
-    createEffect(() =>
-      // I can't use the obvious setReplayState("animations", playerIndex,
-      // dataSignal()) because it will merge into the previous animations data
-      // object, essentially overwriting the previous characters animation data
-      // forever
-      setReplayState("animations", (animations) => {
-        const newAnimations = [...animations];
-        newAnimations[playerIndex] = dataSignal();
-        return newAnimations;
-      })
-    )
-  );
+  });
 
   createEffect(() => {
     if (replayState.playbackData === undefined) {
