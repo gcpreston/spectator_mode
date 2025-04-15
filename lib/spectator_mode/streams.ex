@@ -48,11 +48,11 @@ defmodule SpectatorMode.Streams do
   end
 
   @doc """
-  Fetch the IDs of all currently active bridge relays.
+  Fetch the IDs of all currently active bridge relays, and their metadata.
   """
   @spec list_relays() :: [bridge_id()]
   def list_relays do
-    Registry.select(BridgeRegistry, [{{:"$1", :_, :_}, [], [:"$1"]}])
+    Registry.select(BridgeRegistry, [{{:"$1", :_, :"$2"}, [], [%{bridge_id: :"$1", metadata: :"$2"}]}])
   end
 
   @doc """
@@ -62,7 +62,7 @@ defmodule SpectatorMode.Streams do
   @spec lookup(bridge_id()) :: pid() | nil
   def lookup(bridge_id) do
     case Registry.lookup(BridgeRegistry, bridge_id) do
-      [{pid, _value} | _rest] -> pid # _rest should always be []
+      [{pid, _value} | _rest] -> pid # _rest should always be [] due to unique keys
       _ -> nil
     end
   end

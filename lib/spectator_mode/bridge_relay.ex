@@ -92,6 +92,12 @@ defmodule SpectatorMode.BridgeRelay do
     )
   end
 
+  # TODO: PubSub notification for metadata update
+  # - This may call for a rigorous metadata type definition. There is a
+  #   distinction between the whole "metadata" stored in BridgeRelay state
+  #   (everything we parsed + binary), and the "metadata" that we will store
+  #   in the registry (things we care about querying in bulk).
+
   defp update_state_from_events(events, state) do
     Enum.reduce(events, state, &(update_state_from_event(&1, &2)))
   end

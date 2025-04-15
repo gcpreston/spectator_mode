@@ -9,7 +9,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     <div>
       <p class="text-center italic text-xl">Streams:</p>
       <div class="justify-center grid grid-cols-1 gap-4 mt-6">
-        <%= for bridge_id <- @relays do %>
+        <%= for %{bridge_id: bridge_id, metadata: _metadata} <- @relays do %>
           <a href={~p"/watch/#{bridge_id}"}>
             <.stream_card bridge_id={bridge_id} />
           </a>
