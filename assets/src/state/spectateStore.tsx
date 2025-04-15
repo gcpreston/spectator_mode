@@ -1,7 +1,6 @@
 import createRAF, { targetFPS } from "@solid-primitives/raf";
 import { batch, createEffect, createResource, createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
-import { createToast } from "~/components/common/toaster";
 import {
   actionNameById,
   characterNameByExternalId,

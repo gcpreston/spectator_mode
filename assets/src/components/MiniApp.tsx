@@ -3,7 +3,7 @@ import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import "~/state/spectateStore";
 
-export function MiniApp({ bridgeId }: { bridgeId: string }) {
+export function MiniApp() {
   // Get started fetching the most popular characters
   void fetchAnimations(20); // Falco
   void fetchAnimations(2); // Fox
