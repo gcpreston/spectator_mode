@@ -29,10 +29,11 @@ defmodule SpectatorMode.Slp.Parser do
           player_settings(),
           player_settings(),
           player_settings()
-        }
+        },
+        stage_id: integer()
       }
-      @enforce_keys [:binary, :players]
-      defstruct [:binary, :players]
+      @enforce_keys [:binary, :players, :stage_id]
+      defstruct [:binary, :players, :stage_id]
     end
 
     defmodule GameEnd do
@@ -116,7 +117,9 @@ defmodule SpectatorMode.Slp.Parser do
       end
       |> List.to_tuple()
 
-    {%Events.GameStart{players: player_settings, binary: gs_data}, rest}
+    stage_id = read_uint16(data, 0x5 + 0xe)
+
+    {%Events.GameStart{players: player_settings, stage_id: stage_id, binary: gs_data}, rest}
   end
 
   defp parse_game_end(data, payload_sizes) do
@@ -133,6 +136,11 @@ defmodule SpectatorMode.Slp.Parser do
 
   defp read_uint8(data, offset) do
     <<_::binary-size(offset), n::8, _::binary>> = data
+    n
+  end
+
+  defp read_uint16(data, offset) do
+    <<_::binary-size(offset), n::16, _::binary>> = data
     n
   end
 end
