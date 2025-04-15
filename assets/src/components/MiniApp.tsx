@@ -1,9 +1,9 @@
 import "@thisbeyond/solid-select/style.css";
-import { onCleanup } from "solid-js";
+import { onCleanup, Show } from "solid-js";
 import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import "~/state/spectateStore";
-import { setBridgeId } from "~/state/spectateStore";
+import { bridgeId, setBridgeId } from "~/state/spectateStore";
 
 export function MiniApp() {
   // Get started fetching the most popular characters
@@ -34,7 +34,9 @@ export function MiniApp() {
 
   return (
     <div class="flex max-h-screen flex-grow flex-col gap-2 pt-2 pr-4 pl-4 lg:pl-0">
-      <Viewer />
+      <Show when={Boolean(bridgeId())}>
+        <Viewer />
+      </Show>
     </div>
   );
 }
