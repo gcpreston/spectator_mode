@@ -20,6 +20,7 @@ defmodule SpectatorModeWeb.StreamsLive do
             <% end %>
           <% end %>
         </div>
+        <button phx-click="watch" phx-value-bridgeid={nil}>Clear stream</button>
       </div>
 
       <div class="grow">
@@ -52,6 +53,10 @@ defmodule SpectatorModeWeb.StreamsLive do
   @impl true
   def handle_event("watch", %{"bridgeid" => bridge_id}, socket) do
     {:noreply, assign(socket, :selected_bridge_id, bridge_id)}
+  end
+
+  def handle_event("watch", _, socket) do
+    {:noreply, assign(socket, :selected_bridge_id, nil)}
   end
 
   @impl true
