@@ -7,7 +7,7 @@ defmodule SpectatorModeWeb.StreamsLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-row h-full">
-      <div class="w-96 flex-none h-full flex flex-col px-4">
+      <div class={"w-full lg:w-96 flex-none h-full flex flex-col px-4 " <> if @selected_bridge_id, do: "hidden lg:block", else: ""}>
         <div class="text-center font-semibold text-xl py-4 max-h-24">Streams</div>
         <div class="justify-center grid grid-cols-1 gap-4 overflow-y-auto">
           <%= if map_size(@relays) == 0 do %>
@@ -20,10 +20,15 @@ defmodule SpectatorModeWeb.StreamsLive do
             <% end %>
           <% end %>
         </div>
-        <button :if={@selected_bridge_id} class="py-2" phx-click="watch" phx-value-bridgeid={nil}>Clear stream</button>
       </div>
 
       <div class="grow">
+        <div class="text-center lg:hidden pt-4 pb-2">
+          <button :if={@selected_bridge_id} phx-click="watch" phx-value-bridgeid={nil}>
+            <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
+            <span>Return to streams</span>
+          </button>
+        </div>
         <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
         <div id="viewer-root" class="w-full" phx-update="ignore"></div>
       </div>
