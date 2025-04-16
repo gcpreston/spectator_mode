@@ -6,14 +6,26 @@ defmodule SpectatorModeWeb.StreamsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div>
-      <p class="text-center italic text-xl">Streams:</p>
-      <div class="justify-center grid grid-cols-1 gap-4 mt-6">
-        <%= for {bridge_id, active_game} <- @relays do %>
-          <a href={~p"/watch/#{bridge_id}"}>
-            <.stream_card bridge_id={bridge_id} active_game={active_game} />
-          </a>
-        <% end %>
+    <div class="flex flex-row h-full">
+      <div class="w-96 flex-none h-full flex flex-col px-4">
+        <div class="text-center font-semibold text-xl py-4 max-h-24">Streams</div>
+        <div class="justify-center grid grid-cols-1 gap-4 overflow-y-auto">
+          <%= if map_size(@relays) == 0 do %>
+            <p class="text-center">No current streams.</p>
+          <% else %>
+            <%= for {bridge_id, active_game} <- @relays do %>
+              <button phx-click="watch" phx-value-bridgeid={bridge_id}>
+                <.stream_card bridge_id={bridge_id} active_game={active_game} selected={bridge_id == @selected_bridge_id} />
+              </button>
+            <% end %>
+          <% end %>
+        </div>
+        <button class="py-2" phx-click="watch" phx-value-bridgeid={nil}>Clear stream</button>
+      </div>
+
+      <div class="grow">
+        <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
+        <div id="viewer-root" class="w-full" phx-update="ignore"></div>
       </div>
     </div>
     """
@@ -34,7 +46,17 @@ defmodule SpectatorModeWeb.StreamsLive do
       :ok,
       socket
       |> assign(:relays, relays_bridge_id_to_active_game_map)
+      |> assign(:selected_bridge_id, nil)
     }
+  end
+
+  @impl true
+  def handle_event("watch", %{"bridgeid" => bridge_id}, socket) do
+    {:noreply, assign(socket, :selected_bridge_id, bridge_id)}
+  end
+
+  def handle_event("watch", _, socket) do
+    {:noreply, assign(socket, :selected_bridge_id, nil)}
   end
 
   @impl true

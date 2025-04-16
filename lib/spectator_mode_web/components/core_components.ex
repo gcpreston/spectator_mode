@@ -652,39 +652,89 @@ defmodule SpectatorModeWeb.CoreComponents do
   """
   attr :bridge_id, :string, required: true
   attr :active_game, :any, required: true
+  attr :selected, :boolean, required: true
 
   def stream_card(assigns) do
     ~H"""
     <div
       id={"stream-card-#{@bridge_id}"}
-      class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md"
+      data-selected={@selected}
+      class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md data-[selected]:bg-gray-100"
     >
       <div class="text-center">
-        <div><span class="text-lg font-medium">{@bridge_id}</span></div>
-        <div><span class="text-md font-light">{active_game_text(@active_game)}</span></div>
+        <.active_game_text event={@active_game} />
+        <div><span class="text-sm font-light">{@bridge_id}</span></div>
       </div>
     </div>
     """
   end
 
-  defp active_game_text(nil), do: "Waiting for game..."
+  attr :event, :any, required: true, doc: "The GameStart event"
 
-  defp active_game_text(%Slp.Events.GameStart{} = event) do
+  defp active_game_text(%{event: nil} = assigns) do
+    ~H"""
+    <div><span class="text-md font-medium">Waiting for game...</span></div>
+    """
+  end
+
+  defp active_game_text(%{event: %Slp.Events.GameStart{}} = assigns) do
     filtered_players =
-      event.players
+      assigns.event.players
       |> Tuple.to_list()
       |> Enum.filter(fn p -> p.external_character_id && p.external_character_id < 26 end)
 
     if length(filtered_players) != 2 do
-      ""
+      ~H"""
+      <span></span>
+      """
     else
       [p1, p2] = filtered_players
 
-      character_id_1 = p1.external_character_id;
-      character_id_2 = p2.external_character_id;
-      stage_id = event.stage_id
+      stage_id = assigns.event.stage_id
 
-      "#{Slp.Ids.get_character_name_by_external_id(character_id_1)} vs. #{Slp.Ids.get_character_name_by_external_id(character_id_2)} (#{Slp.Ids.get_stage_name_by_external_id(stage_id)})"
+      display_name_1 = Map.get(p1, :display_name)
+      character_id_1 = p1.external_character_id
+      character_name_1 = Slp.Ids.get_character_name_by_external_id(character_id_1)
+
+      display_name_2 = Map.get(p1, :display_name)
+      character_id_2 = p2.external_character_id
+      character_name_2 = Slp.Ids.get_character_name_by_external_id(character_id_2)
+
+      port_colors = %{
+        1 => "text-red-600",
+        2 => "text-blue-600",
+        3 => "text-yellow-600",
+        4 => "text-green-600"
+      }
+
+      assigns =
+        assigns
+        |> assign(:stage_name, Slp.Ids.get_stage_name_by_external_id(stage_id))
+        |> assign(:show_1,
+          if display_name_1 == "" do
+            character_name_1
+          else
+            "#{display_name_1} (#{character_name_1})"
+          end)
+        |> assign(:show_2,
+          if display_name_2 == "" do
+            character_name_2
+          else
+            "#{display_name_2} (#{character_name_2})"
+          end)
+        |> assign(:text_color_1, port_colors[p1.port])
+        |> assign(:text_color_2, port_colors[p2.port])
+
+      ~H"""
+      <div>
+        <span class="text-md font-medium">
+          [{@stage_name}]
+          <span class={@text_color_1}>{@show_1}</span>
+          vs.
+          <span class={@text_color_2}>{@show_2}</span>
+        </span>
+      </div>
+      """
     end
   end
 

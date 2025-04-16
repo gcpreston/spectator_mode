@@ -1,7 +1,6 @@
 import createRAF, { targetFPS } from "@solid-primitives/raf";
-import { batch, createEffect, createResource, createRoot } from "solid-js";
+import { batch, createEffect, createResource, createRoot, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
-import { createToast } from "~/components/common/toaster";
 import {
   actionNameById,
   characterNameByExternalId,
@@ -29,6 +28,7 @@ import { CharacterAnimations, fetchAnimations } from "~/viewer/animationCache";
 import { actionMapByInternalId } from "~/viewer/characters";
 import { getPlayerOnFrame, getStartOfAction } from "~/viewer/viewerUtil";
 import { getPlayerColor } from "~/common/util";
+import { createWorker } from "~/workerUtil";
 
 export const defaultSpectateStoreState: SpectateStore = {
   highlights: Object.fromEntries(
@@ -48,16 +48,20 @@ export const defaultSpectateStoreState: SpectateStore = {
 };
 
 const [replayState, setReplayState] = createStore<SpectateStore>(
-  defaultSpectateStoreState
+  structuredClone(defaultSpectateStoreState)
 );
 
 export const spectateStore = replayState;
 
-export const nonReactiveState: NonReactiveState = {
+const defaultNonReactiveState: NonReactiveState = {
   payloadSizes: undefined,
   gameFrames: [],
   latestFinalizedFrame: undefined
 }
+
+export let nonReactiveState = structuredClone(defaultNonReactiveState);
+
+export const [bridgeId, setBridgeId] = createSignal<string | null>(null);
 
 // Highlight code removed
 
@@ -169,7 +173,7 @@ export function setReplayStateFromGameEvent(gameEvent: GameEvent): void {
 function handleEventPayloadsEvent() {
   // New game, unset spectate data.
   // It will get reset on game start, when settings are available.
-  setReplayState({ ...defaultSpectateStoreState, playbackData: undefined, frame: 0 });
+  setReplayState({ playbackData: undefined, frame: 0, renderDatas: [] });
 }
 
 function handleGameStartEvent(settings: GameStartEvent) {
@@ -296,6 +300,24 @@ function handleFrameBookendEvent(frameBookend: FrameBookendEvent): void {
 }
 
 createRoot(() => {
+  // Set up store on spectate of different stream
+  createEffect(async () => {
+    const newBridgeId = bridgeId();
+
+    nonReactiveState = structuredClone(defaultNonReactiveState);
+    setReplayState(structuredClone(defaultSpectateStoreState));
+
+    if (newBridgeId === null) {
+      return;
+    }
+
+    const worker = createWorker(newBridgeId);
+
+    onCleanup(() => {
+      worker.terminate();
+    });
+  });
+
   const animationResources = [];
   for (let playerIndex = 0; playerIndex < 4; playerIndex++) {
     animationResources.push(

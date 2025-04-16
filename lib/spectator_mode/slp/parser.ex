@@ -4,8 +4,10 @@ defmodule SpectatorMode.Slp.Parser do
 
   Slippi spec reference: https://github.com/project-slippi/slippi-wiki/blob/master/SPEC.md
   """
-
   alias SpectatorMode.Slp.Events
+
+  @display_name_max_length 31
+  @connect_code_max_length 10
 
   defmodule ParseError do
     defexception [:message]
@@ -50,7 +52,6 @@ defmodule SpectatorMode.Slp.Parser do
     parse_packet(rest, payload_sizes, new_acc)
   end
 
-  # https://github.com/project-slippi/slippi-wiki/blob/master/SPEC.md#event-payloads
   defp parse_event_payloads(<<0x35::8, payload_size::8, rest::binary>>) do
     <<ep_data::binary-size(payload_size - 1), rest::binary>> = rest
     binary = <<0x35::8, payload_size::8, ep_data::binary>>
@@ -75,7 +76,12 @@ defmodule SpectatorMode.Slp.Parser do
 
     player_settings =
       for i <- 0..3 do
-        %{external_character_id: read_uint8(data, 0x5 + 0x60 + (0x24 * i))}
+        %{
+          port: i + 1,
+          external_character_id: read_uint8(data, 0x5 + 0x60 + (0x24 * i)),
+          display_name: read_shift_jis_string(data, 0x1a5 + (0x1f * i), @display_name_max_length),
+          connect_code: read_shift_jis_string(data, 0x221 + (0xa * i), @connect_code_max_length)
+        }
       end
       |> List.to_tuple()
 
@@ -104,5 +110,18 @@ defmodule SpectatorMode.Slp.Parser do
   defp read_uint16(data, offset) do
     <<_::binary-size(offset), n::16, _::binary>> = data
     n
+  end
+
+  defp read_shift_jis_string(data, offset, max_length) do
+    Enum.reduce_while(0..(max_length - 1), <<>>, fn char_num, acc ->
+      byte = read_uint8(data, offset + char_num)
+
+      if byte == 0 do
+        {:halt, acc}
+      else
+        {:cont, <<acc::binary, byte>>}
+      end
+    end)
+    |> SpectatorMode.ShiftJis.decode()
   end
 end

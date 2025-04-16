@@ -61,6 +61,14 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Configure Codepagex to recognize Shift JIS
+# https://github.com/adamu/shift-jis-elixir
+config :codepagex, :encodings, [
+  # CP392 is SHIFT_JIS
+  # https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
+  "VENDORS/MICSFT/WINDOWS/CP932"
+]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
