@@ -14,6 +14,7 @@ defmodule SpectatorMode.Slp.Events do
   defmodule GameStart do
     @type player_settings :: %{
       port: number(),
+      player_type: number(),
       external_character_id: integer(),
       display_name: String.t(),
       connect_code: String.t()

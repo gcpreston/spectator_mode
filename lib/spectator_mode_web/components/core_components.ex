@@ -681,7 +681,7 @@ defmodule SpectatorModeWeb.CoreComponents do
     filtered_players =
       assigns.event.players
       |> Tuple.to_list()
-      |> Enum.filter(fn p -> p.external_character_id && p.external_character_id < 26 end)
+      |> Enum.filter(fn p -> p.player_type < 3 end)
 
     if length(filtered_players) != 2 do
       ~H"""

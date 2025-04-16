@@ -78,6 +78,7 @@ defmodule SpectatorMode.Slp.Parser do
       for i <- 0..3 do
         %{
           port: i + 1,
+          player_type: read_uint8(data, 0x5 + 0x61 + (0x24 * i)),
           external_character_id: read_uint8(data, 0x5 + 0x60 + (0x24 * i)),
           display_name: read_shift_jis_string(data, 0x1a5 + (0x1f * i), @display_name_max_length),
           connect_code: read_shift_jis_string(data, 0x221 + (0xa * i), @connect_code_max_length)
