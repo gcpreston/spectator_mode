@@ -25,6 +25,7 @@ export type SpectateStore = {
   selectedHighlight?: [string, Highlight];
   animations: (CharacterAnimations | undefined)[];
   frame: number;
+  gameEndFrame: number | null;
   renderDatas: RenderData[];
   fps: number;
   framesPerTick: number;

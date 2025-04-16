@@ -35,6 +35,7 @@ export const defaultSpectateStoreState: SpectateStore = {
     Object.entries(queries).map(([name]) => [name, []])
   ),
   frame: 0,
+  gameEndFrame: null,
   renderDatas: [],
   animations: Array(4).fill(undefined),
   fps: 60,
@@ -134,6 +135,8 @@ const [running, start, stop] = createRAF(
       const tryFrame = replayState.frame + replayState.framesPerTick;
       if (tryFrame < (nonReactiveState.latestFinalizedFrame ?? 0)) {
         setReplayState("frame", tryFrame);
+      } else if (replayState.gameEndFrame !== null && tryFrame > replayState.gameEndFrame) {
+        stop();
       }
     },
     () => replayState.fps
@@ -264,8 +267,10 @@ function handlePostFrameUpdateEvent(playerState: PostFrameUpdateEvent): void {
 }
 
 function handleGameEndEvent(gameEnding: GameEndEvent) {
-  setReplayState("playbackData", { ...replayState.playbackData!, ending: gameEnding });
-  stop();
+  setReplayState({
+    playbackData: { ...replayState.playbackData!, ending: gameEnding },
+    gameEndFrame: nonReactiveState.gameFrames.length - 1
+  });
 }
 
 function handleFrameStartEvent(frameStart: FrameStartEvent): void {
