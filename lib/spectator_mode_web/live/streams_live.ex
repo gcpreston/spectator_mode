@@ -7,20 +7,20 @@ defmodule SpectatorModeWeb.StreamsLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-row h-full">
-      <div class="w-96 p-2 flex-none h-full flex flex-col">
+      <div class="w-96 flex-none h-full flex flex-col px-4">
         <div class="text-center font-semibold text-xl py-4 max-h-24">Streams</div>
         <div class="justify-center grid grid-cols-1 gap-4 overflow-y-auto">
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
             <%= for {bridge_id, active_game} <- @relays do %>
-              <div phx-click="watch" phx-value-bridgeid={bridge_id}>
-                <.stream_card bridge_id={bridge_id} active_game={active_game} />
-              </div>
+              <button phx-click="watch" phx-value-bridgeid={bridge_id}>
+                <.stream_card bridge_id={bridge_id} active_game={active_game} selected={bridge_id == @selected_bridge_id} />
+              </button>
             <% end %>
           <% end %>
         </div>
-        <button phx-click="watch" phx-value-bridgeid={nil}>Clear stream</button>
+        <button class="py-2" phx-click="watch" phx-value-bridgeid={nil}>Clear stream</button>
       </div>
 
       <div class="grow">

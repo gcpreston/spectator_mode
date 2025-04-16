@@ -75,7 +75,7 @@ defmodule SpectatorMode.Slp.Parser do
 
     player_settings =
       for i <- 0..3 do
-        %{external_character_id: read_uint8(data, 0x5 + 0x60 + (0x24 * i))}
+        %{port: i + 1, external_character_id: read_uint8(data, 0x5 + 0x60 + (0x24 * i))}
       end
       |> List.to_tuple()
 

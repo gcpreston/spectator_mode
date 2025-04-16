@@ -12,7 +12,12 @@ defmodule SpectatorMode.Slp.Events do
   end
 
   defmodule GameStart do
-    @type player_settings :: %{external_character_id: integer()}
+    @type player_settings :: %{
+      port: number(),
+      external_character_id: integer(),
+      display_name: String.t(),
+      connect_code: String.t()
+    }
 
     @type t :: %__MODULE__{
       binary: binary(),
