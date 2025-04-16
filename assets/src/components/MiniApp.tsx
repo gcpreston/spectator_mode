@@ -14,6 +14,11 @@ export function MiniApp() {
 
   // Observe bridge ID, since this is set by Phoenix
   const target = document.querySelector('#bridge-id-target');
+  const initialBridgeId = target!.getAttribute("bridgeid");
+
+  if (initialBridgeId) {
+    setBridgeId(initialBridgeId);
+  }
 
   const observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(mutation) {
