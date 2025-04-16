@@ -18,9 +18,6 @@ defmodule SpectatorModeWeb.Router do
     pipe_through :browser
 
     live "/", StreamsLive, :index
-    # TODO: Wrap with a liveview
-    # TODO: Wrap all with a live session
-    get "/watch/:bridge_id", SpectateController, :show
   end
 
   # Other scopes may use custom stacks.
