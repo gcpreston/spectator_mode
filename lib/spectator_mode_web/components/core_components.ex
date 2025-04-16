@@ -685,7 +685,9 @@ defmodule SpectatorModeWeb.CoreComponents do
         |> Enum.filter(fn p -> p.external_character_id && p.external_character_id < 26 end)
 
       if length(filtered_players) != 2 do
-        nil
+        ~H"""
+        <span></span>
+        """
       else
         [p1, p2] = filtered_players
 

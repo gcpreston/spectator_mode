@@ -75,11 +75,18 @@ defmodule SpectatorMode.Slp.Parser do
 
     player_settings =
       for i <- 0..3 do
-        %{port: i + 1, external_character_id: read_uint8(data, 0x5 + 0x60 + (0x24 * i))}
+        %{
+          port: i + 1,
+          external_character_id: read_uint8(data, 0x5 + 0x60 + (0x24 * i))
+        }
       end
       |> List.to_tuple()
 
     stage_id = read_uint16(data, 0x5 + 0xe)
+    display_name_1 = read_shift_jis_string(data, 0x1a5 + (0x1f * 0), 16)
+    display_name_2 = read_shift_jis_string(data, 0x1a5 + (0x1f * 1), 16)
+    display_name_3 = read_shift_jis_string(data, 0x1a5 + (0x1f * 2), 16)
+    display_name_4 = read_shift_jis_string(data, 0x1a5 + (0x1f * 3), 16)
 
     {%Events.GameStart{players: player_settings, stage_id: stage_id, binary: gs_data}, rest}
   end
@@ -104,5 +111,13 @@ defmodule SpectatorMode.Slp.Parser do
   defp read_uint16(data, offset) do
     <<_::binary-size(offset), n::16, _::binary>> = data
     n
+  end
+
+  defp read_shift_jis_string(data, offset, max_length) do
+    shift_jis_bytes =
+      for char_num <- 0..(max_length - 1), into: <<>> do
+        <<read_uint8(data, offset + char_num)>>
+      end
+      |> dbg()
   end
 end
