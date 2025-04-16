@@ -41,7 +41,7 @@ export const defaultSpectateStoreState: SpectateStore = {
   framesPerTick: 1,
   running: false,
   zoom: 1,
-  isDebug: true,
+  isDebug: false,
   isFullscreen: false,
   customAction: "Passive",
   customAttack: "Up Tilt",
