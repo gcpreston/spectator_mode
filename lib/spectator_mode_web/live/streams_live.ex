@@ -20,7 +20,7 @@ defmodule SpectatorModeWeb.StreamsLive do
             <% end %>
           <% end %>
         </div>
-        <button class="py-2" phx-click="watch" phx-value-bridgeid={nil}>Clear stream</button>
+        <button :if={@selected_bridge_id} class="py-2" phx-click="watch" phx-value-bridgeid={nil}>Clear stream</button>
       </div>
 
       <div class="grow">
