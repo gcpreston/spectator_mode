@@ -8,7 +8,7 @@ import type {
   GameEvent,
   FrameBookend,
 } from "~/common/types";
-import { WorkerState } from "./worker";
+import { WorkerState } from "~/worker/worker";
 
 // This is a basic parser for use in the browser. It is based off of the replay
 // format spec up to 3.9.0.0. It is incomplete, I have left out things I don't

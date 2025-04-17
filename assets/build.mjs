@@ -2,9 +2,9 @@ import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
 
 await build({
-  entryPoints: ["src/index.ts"],
+  entryPoints: ["src/index.ts", "src/worker/worker.ts"],
   bundle: true,
-  outfile: "../priv/static/assets/main.js",
+  outdir: "../priv/static/assets/",
   minify: true,
   loader: {
     ".svg": "dataurl",

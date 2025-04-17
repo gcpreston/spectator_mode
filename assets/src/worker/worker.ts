@@ -1,5 +1,5 @@
 import { CommandPayloadSizes } from "~/common/types";
-import { parsePacket } from "./liveParser";
+import { parsePacket } from "~/worker/liveParser";
 
 /**
  * Message schemas
