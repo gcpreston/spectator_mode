@@ -17,10 +17,10 @@ import { bridgeId, setBridgeId } from "~/state/spectateStore";
  * - Create a custom element with the following API:
  *   * const viewer = document.querySelector("slippi-viewer");
  *   * viewer.setReplay(replayData: ArrayBuffer): void
- *   * viewer.setSpectate(wsUrl: string, initialEvents?: { eventPayloads: ArrayBuffer, gameStart: ArrayBuffer }): void
- *     - expects initialEvents if tuning in mid-game
+ *   * viewer.spectate(wsUrl: string): void
  *     - spectator_mode can provide a wrapper component which just takes
- *       bridgeid as an observed attribute
+ *       bridgeid as an observed attribute if desired
+ *   * viewer.clear(): void
  */
 
 export function MiniApp() {
