@@ -41,7 +41,7 @@ export function MiniApp() {
     <div class="flex max-h-screen flex-grow flex-col gap-2 pt-2 pr-4 pl-4 lg:pl-0">
       <Show
         when={Boolean(bridgeId())}
-        fallback={<div class="text-center italic py-12">Click on a stream to get started</div>}
+        fallback={<div class="text-center italic">Click on a stream to get started</div>}
       >
         <Viewer />
       </Show>
