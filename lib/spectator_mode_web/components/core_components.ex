@@ -760,6 +760,18 @@ defmodule SpectatorModeWeb.CoreComponents do
   end
 
   @doc """
+  Formats text as code, with monospace font and a background.
+  """
+  attr :class, :string, default: "", required: false
+  slot :inner_block, required: true
+
+  def code(assigns) do
+    ~H"""
+    <span class={["font-mono text-xs bg-gray-200 p-0.5", @class]}>{render_slot(@inner_block)}</span>
+    """
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do

@@ -30,7 +30,7 @@ defmodule SpectatorModeWeb.StreamsLive do
         <div class="text-center pt-4 pb-2">
           <button :if={@selected_bridge_id} phx-click="clear">
             <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
-            <span>Return to streams</span>
+            <span>Close stream</span>
           </button>
         </div>
         <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
@@ -44,13 +44,21 @@ defmodule SpectatorModeWeb.StreamsLive do
   def bottom_bar(assigns) do
     ~H"""
     <div class="border-t border-gray-400">
-      <div class="flex flex-row p-2">
-        <.link href="https://github.com/gcpreston/spectator_mode" target="_blank">
-          <.icon name="github" class="w-8 h-8 text-gray-800" />
-        </.link>
-        <span class="grow text-center">
-          <button class="font-medium italic underline" phx-click={show_modal("help-modal")}>Show help</button>
-        </span>
+      <div class="flex flex-row justify-between">
+        <div class="flex flex-row gap-2 p-2">
+          <.link href="https://github.com/gcpreston/spectator_mode" target="_blank">
+            <.icon name="github" class="w-8 h-8 text-gray-800" />
+          </.link>
+
+          <.link href="https://github.com/gcpreston/spectator_mode/issues/new" target="_blank">
+            <.icon name="hero-bug-ant" class="w-8 h-8 text-gray-800" />
+          </.link>
+        </div>
+
+        <button class="font-medium p-2" phx-click={show_modal("help-modal")}>
+          <.icon name="hero-question-mark-circle" class="w-8 h-8 text-gray-800" />
+          Help
+        </button>
       </div>
 
       <.modal id="help-modal">
@@ -59,7 +67,7 @@ defmodule SpectatorModeWeb.StreamsLive do
           <:item title="How to spectate">
             <ul class="text-left list-disc">
               <li>Click or tap on a stream in the list</li>
-              <li>To stop watching, click or tap "Return to streams"</li>
+              <li>To stop watching, click or tap on "Close stream"</li>
             </ul>
           </:item>
           <:item title="How to stream">
@@ -67,10 +75,10 @@ defmodule SpectatorModeWeb.StreamsLive do
             <ul class="list-disc">
               <li><.link href="https://nodejs.org/en/download" target="_blank" class="underline">Download and install NodeJS >= 22.4.0</.link></li>
               <li>Start Slippi Dolphin</li>
-              <li>In the terminal, run "npx @gcpreston/swb start"</li>
+              <li>In the terminal, run <.code>npx @gcpreston/swb start</.code></li>
               <li>The stream ID will be given in the terminal upon successful connection</li>
             </ul>
-            <p>More information can be found on <.link href="https://www.npmjs.com/package/@gcpreston/swb" target="_blank" class="underline">npm</.link></p>
+            <p class="mt-4">More information can be found in the <.link href="https://www.npmjs.com/package/@gcpreston/swb" target="_blank" class="underline">CLI package's README</.link>.</p>
             </div>
           </:item>
         </.list>
