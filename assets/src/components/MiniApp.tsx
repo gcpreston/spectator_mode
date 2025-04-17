@@ -4,6 +4,24 @@ import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import "~/state/spectateStore";
 import { bridgeId, setBridgeId } from "~/state/spectateStore";
+/**
+ * THE VISION FOR PORTABLE VIEWER
+ * - solid-element provides the ability to create a web component custom
+ *   element from a solidjs component alongside rollup/babel
+ *   * https://giancarlobuomprisco.com/solid/building-widgets-solidjs-web-components
+ * - Custom elements can have observed attributes
+ *   * https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements#custom_element_lifecycle_callbacks
+ * - Custom elements can have custom methods
+ *   * https://stackoverflow.com/a/55480022
+ *
+ * - Create a custom element with the following API:
+ *   * const viewer = document.querySelector("slippi-viewer");
+ *   * viewer.setReplay(replayData: ArrayBuffer): void
+ *   * viewer.setSpectate(wsUrl: string, initialEvents?: { eventPayloads: ArrayBuffer, gameStart: ArrayBuffer }): void
+ *     - expects initialEvents if tuning in mid-game
+ *     - spectator_mode can provide a wrapper component which just takes
+ *       bridgeid as an observed attribute
+ */
 
 export function MiniApp() {
   // Get started fetching the most popular characters
