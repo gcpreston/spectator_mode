@@ -37,25 +37,26 @@ export function MiniApp() {
   const initialBridgeId = target!.getAttribute("bridgeid");
 
   if (initialBridgeId) {
+    console.log('setting initial bridge');
     setBridgeId(initialBridgeId);
   }
 
-  const observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-      if (mutation.attributeName) {
-        const newBridgeId = target!.getAttribute(mutation.attributeName);
-        setBridgeId(newBridgeId);
-      }
-    });
-  });
+  // const observer = new MutationObserver(function(mutations) {
+  //   mutations.forEach(function(mutation) {
+  //     if (mutation.attributeName) {
+  //       const newBridgeId = target!.getAttribute(mutation.attributeName);
+  //       setBridgeId(newBridgeId);
+  //     }
+  //   });
+  // });
 
-  if (target) {
-    observer.observe(target, { attributes: true });
-  }
+  // if (target) {
+  //   observer.observe(target, { attributes: true });
+  // }
 
-  onCleanup(() => {
-    observer.disconnect();
-  });
+  // onCleanup(() => {
+  //   observer.disconnect();
+  // });
 
   return (
     <>

@@ -33,7 +33,7 @@ defmodule SpectatorModeWeb.StreamsLive do
             <span>Close stream</span>
           </button>
         </div>
-        <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
+        <div id="bridge-id-target" bridgeid={@selected_bridge_id} phx-hook="BridgeIdTarget"></div>
         <slippi-viewer id="viewer" phx-update="ignore" />
       </div>
 

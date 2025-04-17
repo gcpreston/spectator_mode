@@ -24,9 +24,21 @@ import topbar from "../vendor/topbar"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 
+const BridgeIdTarget = {
+  updated() {
+    const viewer = document.querySelector("slippi-viewer");
+    const newBridgeId = this.el.getAttribute("bridgeid");
+
+    if (viewer) {
+      viewer.setBridgeId(newBridgeId);
+    }
+  }
+}
+
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken}
+  params: {_csrf_token: csrfToken},
+  hooks: { BridgeIdTarget }
 })
 
 // Show progress bar on live navigation and form submits
