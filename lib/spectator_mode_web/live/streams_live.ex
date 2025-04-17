@@ -43,8 +43,16 @@ defmodule SpectatorModeWeb.StreamsLive do
 
   def bottom_bar(assigns) do
     ~H"""
-    <div class="border-t border-gray-400 text-center">
-      <button class="font-medium italic underline" phx-click={show_modal("help-modal")}>Show help</button>
+    <div class="border-t border-gray-400">
+      <div class="flex flex-row p-2">
+        <.link href="https://github.com/gcpreston/spectator_mode" target="_blank">
+          <.icon name="github" class="w-8 h-8 text-gray-800" />
+        </.link>
+        <span class="grow text-center">
+          <button class="font-medium italic underline" phx-click={show_modal("help-modal")}>Show help</button>
+        </span>
+      </div>
+
       <.modal id="help-modal">
         <.header>Instructions</.header>
         <.list>
