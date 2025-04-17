@@ -7,9 +7,11 @@ defmodule SpectatorModeWeb.StreamsLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-row h-full">
-      <div class={"w-full lg:w-96 flex-none h-full flex flex-col px-4 " <> if @selected_bridge_id, do: "hidden lg:block", else: ""}>
-        <div class="text-center font-semibold text-xl py-4 max-h-24">Streams</div>
-        <div class="justify-center grid grid-cols-1 gap-4 overflow-y-auto">
+
+      <div class={"w-full lg:w-96 flex-none h-full flex flex-col border-r border-gray-400 " <> if @selected_bridge_id, do: "hidden lg:flex", else: ""}>
+        <div class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">SpectatorMode</div>
+
+        <div class="grow justify-center grid grid-cols-1 gap-4 overflow-y-auto bg-gray-100 p-4">
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
@@ -20,10 +22,12 @@ defmodule SpectatorModeWeb.StreamsLive do
             <% end %>
           <% end %>
         </div>
+
+        <.bottom_bar />
       </div>
 
       <div class="grow">
-        <div class="text-center lg:hidden pt-4 pb-2">
+        <div class="text-center pt-4 pb-2">
           <button :if={@selected_bridge_id} phx-click="clear">
             <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
             <span>Return to streams</span>
@@ -32,6 +36,31 @@ defmodule SpectatorModeWeb.StreamsLive do
         <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
         <div id="viewer-root" class="w-full" phx-update="ignore"></div>
       </div>
+
+    </div>
+    """
+  end
+
+  def bottom_bar(assigns) do
+    ~H"""
+    <div class="border-t border-gray-400 text-center">
+      <button class="font-semibold underline" phx-click={show_modal("help-modal")}>Show help</button>
+      <.modal id="help-modal">
+        <.header>Instructions</.header>
+        <.list>
+          <:item title="How to stream:">
+            <ul class="text-left list-disc">
+              <li>Download and install NodeJS >= 22.4.0</li>
+              <li>Start Slippi Dolphin</li>
+              <li>In the terminal, run "npx @gcpreston/swb start"</li>
+              <li>The stream ID will be given in the terminal upon successful connection</li>
+            </ul>
+          </:item>
+          <:item title="How to spectate">
+            Spectate instructions
+          </:item>
+        </.list>
+      </.modal>
     </div>
     """
   end
