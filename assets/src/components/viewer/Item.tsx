@@ -1,7 +1,7 @@
 import { createMemo, For, Match, Switch } from "solid-js";
 import { itemNamesById } from "~/common/ids";
-import { ItemUpdate, PlayerUpdate } from "~/common/types";
-import { nonReactiveState, NonReactiveState } from "~/state/spectateStore";
+import { ItemUpdate, PlayerUpdate, NonReactiveState } from "~/common/types";
+import { nonReactiveState } from "~/state/spectateStore";
 
 // TODO: characters projectiles
 

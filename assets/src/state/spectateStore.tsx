@@ -23,7 +23,6 @@ import {
   NonReactiveState,
   FrameBookendEvent,
 } from "~/common/types";
-import { queries } from "~/search/queries";
 import { CharacterAnimations, fetchAnimations } from "~/viewer/animationCache";
 import { actionMapByInternalId } from "~/viewer/characters";
 import { getPlayerOnFrame, getStartOfAction } from "~/viewer/viewerUtil";
@@ -31,9 +30,6 @@ import { getPlayerColor } from "~/common/util";
 import { createWorker } from "~/workerUtil";
 
 export const defaultSpectateStoreState: SpectateStore = {
-  highlights: Object.fromEntries(
-    Object.entries(queries).map(([name]) => [name, []])
-  ),
   frame: 0,
   gameEndFrame: null,
   renderDatas: [],
@@ -580,11 +576,4 @@ function wrapFrame(replayState: SpectateStore, frame: number): number {
     (frame + nonReactiveState.gameFrames.length) %
     nonReactiveState.gameFrames.length
   );
-}
-
-function wrapHighlight(replayState: SpectateStore, highlight: number): number {
-  const length = Object.entries(replayState.highlights).flatMap(
-    ([name, highlights]) => highlights
-  ).length;
-  return (highlight + length) % length;
 }

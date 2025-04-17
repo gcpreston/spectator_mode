@@ -1,7 +1,6 @@
 import { ActionName, AttackName } from "~/common/ids";
 import { Character } from "~/viewer/characters/character";
 import { CharacterAnimations } from "~/viewer/animationCache";
-import { Highlight } from "~/search/search";
 
 export interface RenderData {
   playerState: PlayerState;
@@ -21,8 +20,6 @@ export interface RenderData {
 
 export type SpectateStore = {
   playbackData?: SpectateData;
-  highlights: Record<string, Highlight[]>;
-  selectedHighlight?: [string, Highlight];
   animations: (CharacterAnimations | undefined)[];
   frame: number;
   gameEndFrame: number | null;
