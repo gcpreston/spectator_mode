@@ -44,20 +44,26 @@ defmodule SpectatorModeWeb.StreamsLive do
   def bottom_bar(assigns) do
     ~H"""
     <div class="border-t border-gray-400 text-center">
-      <button class="font-semibold underline" phx-click={show_modal("help-modal")}>Show help</button>
+      <button class="font-medium italic underline" phx-click={show_modal("help-modal")}>Show help</button>
       <.modal id="help-modal">
         <.header>Instructions</.header>
         <.list>
-          <:item title="How to stream:">
+          <:item title="How to spectate">
             <ul class="text-left list-disc">
-              <li>Download and install NodeJS >= 22.4.0</li>
+              <li>Click or tap on a stream in the list</li>
+              <li>To stop watching, click or tap "Return to streams"</li>
+            </ul>
+          </:item>
+          <:item title="How to stream">
+            <div class="text-left">
+            <ul class="list-disc">
+              <li><.link href="https://nodejs.org/en/download" target="_blank" class="underline">Download and install NodeJS >= 22.4.0</.link></li>
               <li>Start Slippi Dolphin</li>
               <li>In the terminal, run "npx @gcpreston/swb start"</li>
               <li>The stream ID will be given in the terminal upon successful connection</li>
             </ul>
-          </:item>
-          <:item title="How to spectate">
-            Spectate instructions
+            <p>More information can be found on <.link href="https://www.npmjs.com/package/@gcpreston/swb" target="_blank" class="underline">npm</.link></p>
+            </div>
           </:item>
         </.list>
       </.modal>

@@ -661,7 +661,7 @@ defmodule SpectatorModeWeb.CoreComponents do
     <div
       id={"stream-card-#{@bridge_id}"}
       data-selected={@selected}
-      class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md data-[selected]:border data-[selected]:border-gray-800"
+      class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md data-[selected]:border-2 data-[selected]:border-gray-700"
     >
       <div class="text-center">
         <.active_game_text event={@active_game} />
