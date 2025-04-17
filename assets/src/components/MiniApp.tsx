@@ -1,9 +1,11 @@
-import "@thisbeyond/solid-select/style.css";
 import { onCleanup, Show } from "solid-js";
 import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import "~/state/spectateStore";
 import { bridgeId, setBridgeId } from "~/state/spectateStore";
+import style from "../../public/index.css";
+import muiStyle from "../../public/mui.css";
+
 /**
  * THE VISION FOR PORTABLE VIEWER
  * - solid-element provides the ability to create a web component custom
@@ -56,13 +58,20 @@ export function MiniApp() {
   });
 
   return (
-    <div class="flex max-h-screen flex-grow flex-col gap-2 pt-2 pr-4 pl-4 lg:pl-0">
-      <Show
-        when={Boolean(bridgeId())}
-        fallback={<div class="text-center italic">Click on a stream to get started</div>}
-      >
-        <Viewer />
-      </Show>
-    </div>
+    <>
+      <style>
+        {style}
+        {muiStyle}
+      </style>
+
+      <div class="flex max-h-screen flex-grow flex-col gap-2 pt-2 pr-4 pl-4 lg:pl-0">
+        <Show
+          when={Boolean(bridgeId())}
+          fallback={<div class="text-center italic">Click on a stream to get started</div>}
+        >
+          <Viewer />
+        </Show>
+      </div>
+    </>
   );
 }
