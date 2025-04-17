@@ -4,8 +4,7 @@
   "author": "Frank Borden",
   "license": "MIT",
   "scripts": {
-    "build": "node build.mjs",
-    "preview": "wrangler pages dev dist",
+    "build": "tailwindcss -i ./src/index.css -o ./public/index.css --minify && tailwindcss -i ./src/mui.css -o ./public/mui.css --minify && node build.mjs",
     "types": "tsc",
     "format": "prettier -w src/"
   },
