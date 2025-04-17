@@ -11,7 +11,7 @@ defmodule SpectatorModeWeb.StreamsLive do
       <div class={"w-full lg:w-96 flex-none h-full flex flex-col border-r border-gray-400 " <> if @selected_bridge_id, do: "hidden lg:flex", else: ""}>
         <div class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">SpectatorMode</div>
 
-        <div class="grow justify-center grid grid-cols-1 gap-4 overflow-y-auto bg-gray-100 p-4">
+        <div class="grow justify-start flex flex-col gap-4 overflow-y-auto bg-gray-100 p-4">
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
