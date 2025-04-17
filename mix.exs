@@ -79,7 +79,6 @@ defmodule SpectatorMode.MixProject do
       "assets.deploy": [
         "tailwind spectator_mode --minify",
         "esbuild spectator_mode --minify",
-        "vite build",
         "phx.digest"
       ]
     ]

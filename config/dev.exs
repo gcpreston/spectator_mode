@@ -1,21 +1,5 @@
 import Config
 
-# Configure Vite app
-config :spectator_mode, SpectatorModeWeb.Endpoint,
-  # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 4000],
-  check_origin: false,
-  code_reloader: true,
-  debug_errors: true,
-  secret_key_base: "some_secret",
-  watchers: [
-    node: [
-      "node_modules/vite/bin/vite.js",
-      cd: Path.expand("../assets", __DIR__)
-    ]
-  ]
-
 # Configure your database
 config :spectator_mode, SpectatorMode.Repo,
   username: "postgres",
