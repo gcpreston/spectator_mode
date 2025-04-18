@@ -58,7 +58,8 @@ defmodule SpectatorMode.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:codepagex, "~> 0.1"}
+      {:codepagex, "~> 0.1"},
+      {:corsica, "~> 2.1"}
     ]
   end
 
