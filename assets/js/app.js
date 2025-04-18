@@ -25,13 +25,21 @@ import topbar from "../vendor/topbar"
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 
 const BridgeIdTarget = {
+  mounted() {
+    this._spectateBridge();
+  },
+
   updated() {
+    this._spectateBridge();
+  },
+
+  _spectateBridge() {
     const viewer = document.querySelector("slippi-viewer");
-    const newBridgeId = this.el.getAttribute("bridgeid");
+    const bridgeId = this.el.getAttribute("bridgeid");
 
     if (viewer) {
-      if (newBridgeId) {
-        viewer.spectate("/viewer_socket/websocket?bridge_id=" + newBridgeId);
+      if (bridgeId) {
+        viewer.spectate("/viewer_socket/websocket?bridge_id=" + bridgeId);
       } else {
         viewer.spectate(null);
       }

@@ -34,7 +34,7 @@ defmodule SpectatorModeWeb.StreamsLive do
           </button>
         </div>
         <div id="bridge-id-target" bridgeid={@selected_bridge_id} phx-hook="BridgeIdTarget"></div>
-        <slippi-viewer zips-base-url="/" id="viewer" phx-update="ignore" />
+        <slippi-viewer zips-base-url="/assets" id="viewer" phx-update="ignore" />
       </div>
 
     </div>
