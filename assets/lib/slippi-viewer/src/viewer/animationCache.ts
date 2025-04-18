@@ -48,7 +48,10 @@ const characterZipUrlByExternalId = [
   "/zips/roy.zip",
   "/zips/pichu.zip",
   "/zips/ganondorf.zip",
-].map(url => "/assets" + url);
+].map(url => "https://slippilab.com" + url);
+// TODO: Not sure what the best solution is when making the viewer portable.
+//   Not sure if it would be a problem to put traffic towards SlippiLab like this.
+//   For the testing phase, I like this solution.
 
 async function load(url: string): Promise<CharacterAnimations> {
   const response = await fetch(url);
