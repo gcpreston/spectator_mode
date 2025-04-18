@@ -26,6 +26,10 @@ const buildCssPlugin = {
       const fileName = path.basename(args.path);
       return { path: path.join(args.resolveDir, cssPath, '../../build/css', fileName) }
     });
+
+    build.onEnd(() => {
+      fs.rmSync("build", { recursive: true, force: true });
+    });
   },
 }
 
