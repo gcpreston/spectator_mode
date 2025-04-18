@@ -30,7 +30,11 @@ const BridgeIdTarget = {
     const newBridgeId = this.el.getAttribute("bridgeid");
 
     if (viewer) {
-      viewer.setBridgeId(newBridgeId);
+      if (newBridgeId) {
+        viewer.spectate("/viewer_socket/websocket?bridge_id=" + newBridgeId);
+      } else {
+        viewer.spectate(null);
+      }
     }
   }
 }

@@ -58,7 +58,7 @@ const defaultNonReactiveState: NonReactiveState = {
 
 export let nonReactiveState = structuredClone(defaultNonReactiveState);
 
-export const [bridgeId, setBridgeId] = createSignal<string | null>(null);
+export const [wsUrl, setWsUrl] = createSignal<string | null>(null);
 
 // Highlight code removed
 
@@ -303,16 +303,16 @@ function handleFrameBookendEvent(frameBookend: FrameBookendEvent): void {
 createRoot(() => {
   // Set up store on spectate of different stream
   createEffect(async () => {
-    const newBridgeId = bridgeId();
+    const newWsUrl = wsUrl();
 
     nonReactiveState = structuredClone(defaultNonReactiveState);
     setReplayState(structuredClone(defaultSpectateStoreState));
 
-    if (newBridgeId === null) {
+    if (newWsUrl === null) {
       return;
     }
 
-    const worker = createWorker(newBridgeId);
+    const worker = createWorker(newWsUrl);
 
     onCleanup(() => {
       worker.terminate();

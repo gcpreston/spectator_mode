@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import "~/state/spectateStore";
-import { bridgeId } from "~/state/spectateStore";
+import { wsUrl } from "~/state/spectateStore";
 import style from "../../public/index.css";
 import muiStyle from "../../public/mui.css";
 
@@ -41,7 +41,7 @@ export function MiniApp() {
 
       <div class="flex max-h-screen flex-grow flex-col gap-2 pt-2 pr-4 pl-4 lg:pl-0">
         <Show
-          when={Boolean(bridgeId())}
+          when={Boolean(wsUrl())}
           fallback={<div class="text-center italic">Click on a stream to get started</div>}
         >
           <Viewer />

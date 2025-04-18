@@ -1,13 +1,13 @@
 import { customElement } from "solid-element";
 import { MiniApp } from "~/components/MiniApp";
-import { setBridgeId } from "~/state/spectateStore";
+import { setWsUrl } from "~/state/spectateStore";
 
 interface HTMLSlippiViewer extends HTMLElement {
-  setBridgeId(bridgeId: string): void;
+  spectate(wsUrl: string | null): void;
 }
 
 customElement('slippi-viewer', {},
   (_props, { element }) => {
-    element.setBridgeId = setBridgeId;
+    element.spectate = setWsUrl
     return (<MiniApp /> as HTMLSlippiViewer);
   });

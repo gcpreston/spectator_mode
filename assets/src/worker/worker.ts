@@ -5,7 +5,7 @@ import { parsePacket } from "~/worker/liveParser";
  * Message schemas
  *
  * Inputs (event.data):
- * - { type: "connect", value: <bridgeId string> }
+ * - { type: "connect", value: <wsUrl string> }
  * - disconnect?
  *
  * Outputs:
@@ -36,12 +36,9 @@ onmessage = (event: MessageEvent<WorkerInput>) => {
   }
 };
 
-function connectWS(bridgeId: string) {
-  console.log("Connecting to bridge:", bridgeId);
-  const PHOENIX_URL = "/viewer_socket/websocket?bridge_id=" + bridgeId;
-  const ws = new WebSocket(PHOENIX_URL);
+function connectWS(wsUrl: string) {
+  const ws = new WebSocket(wsUrl);
   ws.binaryType = "arraybuffer";
-  console.log("Connected to viewer socket with bridge_id:", bridgeId);
 
   ws.onmessage = (msg) => {
     handleGameData(msg.data);
