@@ -8,6 +8,14 @@ import util from "node:util";
 
 const exec = util.promisify(child_process.exec);
 
+// Because a web component is being created, it cannot be styled by a CSS file
+// which will be included somewhere such as an index.html. Instead, the styles
+// must be directly added to the component within a <styles> tag, which means
+// importing them as text.
+// Because Tailwind is being used, meaning index.css must be compiled, and
+// recompiled to only include the necessary classes, this is added to the build
+// pipeline as a plugin here, to generate/minify all CSS before it is imported.
+
 const buildCssPlugin = {
   name: 'buildCssPlugin',
   setup(build) {
@@ -22,9 +30,8 @@ const buildCssPlugin = {
     });
 
     build.onResolve({ filter: /\.css/ }, args => {
-      const cssPath = path.dirname(args.path);
       const fileName = path.basename(args.path);
-      return { path: path.join(args.resolveDir, cssPath, '../../build/css', fileName) }
+      return { path: path.join(import.meta.dirname, 'build/css', fileName) }
     });
 
     build.onEnd(() => {
@@ -36,8 +43,7 @@ const buildCssPlugin = {
 const buildOptions = {
   entryPoints: ["src/index.tsx", "src/worker/worker.ts"],
   bundle: true,
-  // outdir: "dist/",
-  outdir: "../../../priv/static/assets",
+  outdir: "dist/",
   minify: true,
   loader: {
     ".svg": "dataurl",
