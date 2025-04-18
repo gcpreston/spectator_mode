@@ -3,8 +3,8 @@ import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import "~/state/spectateStore";
 import { setZipsBaseUrl, wsUrl } from "~/state/spectateStore";
-import style from "../../public/index.css";
-import muiStyle from "../../public/mui.css";
+import style from "../css/index.css";
+import muiStyle from "../css/mui.css";
 
 /**
  * THE VISION FOR PORTABLE VIEWER
