@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 import { Viewer } from "~/components/viewer/Viewer";
 import { fetchAnimations } from "~/viewer/animationCache";
 import "~/state/spectateStore";
-import { wsUrl } from "~/state/spectateStore";
+import { setZipsBaseUrl, wsUrl } from "~/state/spectateStore";
 import style from "../../public/index.css";
 import muiStyle from "../../public/mui.css";
 
@@ -25,7 +25,15 @@ import muiStyle from "../../public/mui.css";
  *   * viewer.clear(): void
  */
 
-export function MiniApp() {
+type MiniAppProps = {
+  zipsBaseUrl?: string
+};
+
+export function MiniApp({ zipsBaseUrl }: MiniAppProps) {
+  if (zipsBaseUrl) {
+    setZipsBaseUrl(zipsBaseUrl);
+  }
+
   // Get started fetching the most popular characters
   void fetchAnimations(20); // Falco
   void fetchAnimations(2); // Fox

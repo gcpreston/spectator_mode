@@ -1,4 +1,5 @@
 import { unzipSync, strFromU8 } from "fflate";
+import { zipsBaseUrl } from "~/state/spectateStore";
 
 export type AnimationFrames = string[];
 export interface CharacterAnimations {
@@ -13,45 +14,44 @@ export const fetchAnimations = async (
   if (animationsCache.has(externalCharacterId)) {
     return animationsCache.get(externalCharacterId) as CharacterAnimations;
   }
-  const animations = await load(
-    characterZipUrlByExternalId[externalCharacterId]
-  );
+
+  let zipUrl = zipsBaseUrl();
+  if (!zipUrl.endsWith("/")) zipUrl += "/";
+  zipUrl += characterZipUrlByExternalId[externalCharacterId];
+
+  const animations = await load(zipUrl);
   animationsCache.set(externalCharacterId, animations);
   return animations;
 };
 
-// zips expected to exist at the root
 const characterZipUrlByExternalId = [
-  "/zips/captainFalcon.zip",
-  "/zips/donkeyKong.zip",
-  "/zips/fox.zip",
-  "/zips/mrGameAndWatch.zip",
-  "/zips/kirby.zip",
-  "/zips/bowser.zip",
-  "/zips/link.zip",
-  "/zips/luigi.zip",
-  "/zips/mario.zip",
-  "/zips/marth.zip",
-  "/zips/mewtwo.zip",
-  "/zips/ness.zip",
-  "/zips/peach.zip",
-  "/zips/pikachu.zip",
-  "/zips/iceClimbers.zip",
-  "/zips/jigglypuff.zip",
-  "/zips/samus.zip",
-  "/zips/yoshi.zip",
-  "/zips/zelda.zip",
-  "/zips/sheik.zip",
-  "/zips/falco.zip",
-  "/zips/youngLink.zip",
-  "/zips/doctorMario.zip",
-  "/zips/roy.zip",
-  "/zips/pichu.zip",
-  "/zips/ganondorf.zip",
-].map(url => "https://slippilab.com" + url);
-// TODO: Not sure what the best solution is when making the viewer portable.
-//   Not sure if it would be a problem to put traffic towards SlippiLab like this.
-//   For the testing phase, I like this solution.
+  "zips/captainFalcon.zip",
+  "zips/donkeyKong.zip",
+  "zips/fox.zip",
+  "zips/mrGameAndWatch.zip",
+  "zips/kirby.zip",
+  "zips/bowser.zip",
+  "zips/link.zip",
+  "zips/luigi.zip",
+  "zips/mario.zip",
+  "zips/marth.zip",
+  "zips/mewtwo.zip",
+  "zips/ness.zip",
+  "zips/peach.zip",
+  "zips/pikachu.zip",
+  "zips/iceClimbers.zip",
+  "zips/jigglypuff.zip",
+  "zips/samus.zip",
+  "zips/yoshi.zip",
+  "zips/zelda.zip",
+  "zips/sheik.zip",
+  "zips/falco.zip",
+  "zips/youngLink.zip",
+  "zips/doctorMario.zip",
+  "zips/roy.zip",
+  "zips/pichu.zip",
+  "zips/ganondorf.zip",
+];
 
 async function load(url: string): Promise<CharacterAnimations> {
   const response = await fetch(url);

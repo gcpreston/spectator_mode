@@ -59,6 +59,7 @@ const defaultNonReactiveState: NonReactiveState = {
 export let nonReactiveState = structuredClone(defaultNonReactiveState);
 
 export const [wsUrl, setWsUrl] = createSignal<string | null>(null);
+export const [zipsBaseUrl, setZipsBaseUrl] = createSignal<string>("/");
 
 // Highlight code removed
 

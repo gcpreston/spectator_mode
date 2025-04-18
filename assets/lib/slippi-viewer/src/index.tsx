@@ -6,8 +6,8 @@ interface HTMLSlippiViewer extends HTMLElement {
   spectate(wsUrl: string | null): void;
 }
 
-customElement('slippi-viewer', {},
-  (_props, { element }) => {
+customElement("slippi-viewer", { zipsBaseUrl: "/" },
+  (props, { element }) => {
     element.spectate = setWsUrl
-    return (<MiniApp /> as HTMLSlippiViewer);
+    return (<MiniApp zipsBaseUrl={props.zipsBaseUrl} /> as HTMLSlippiViewer);
   });
