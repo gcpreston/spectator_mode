@@ -35,6 +35,7 @@ defmodule SpectatorModeWeb.StreamsLive do
         </div>
         <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
         <div id="viewer-root" class="w-full" phx-update="ignore"></div>
+        <div :if={!@selected_bridge_id} class="text-center italic">Click on a stream to get started</div>
       </div>
 
     </div>
