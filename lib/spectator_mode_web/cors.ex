@@ -2,5 +2,5 @@ defmodule SpectatorModeWeb.CORS do
   use Corsica.Router, origins: []
 
   resource "/*"
-  resource "/assets/*", origins: "*"
+  resource "/assets/zips/*", origins: "*"
 end
