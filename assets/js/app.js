@@ -27,11 +27,13 @@ let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("
 
 function spectateStream(bridgeId) {
   const viewer = document.querySelector("#viewer");
+  const wsProtocol = document.location.protocol === "http:" ? "ws:" : "wss:";
 
   if (!bridgeId) {
     viewer.clear();
   } else {
-    viewer.spectate("ws://localhost:4000/viewer_socket/websocket?bridge_id=" + bridgeId);
+    // can't just use relaative path because connection is made from a blob file
+    viewer.spectate(`${wsProtocol}//${document.location.host}/viewer_socket/websocket?bridge_id=${bridgeId}`);
   }
 }
 
