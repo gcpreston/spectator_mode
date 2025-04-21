@@ -33,8 +33,8 @@ defmodule SpectatorModeWeb.StreamsLive do
             <span>Close stream</span>
           </button>
         </div>
-        <div id="bridge-id-target" bridgeid={@selected_bridge_id}></div>
-        <div id="viewer-root" class="w-full" phx-update="ignore"></div>
+        <div id="bridge-id-target" bridgeid={@selected_bridge_id} phx-hook="BridgeIdHook"></div>
+        <slippi-viewer id="viewer" zips-base-url="/assets" phx-update="ignore"></slippi-viewer>
         <div :if={!@selected_bridge_id} class="text-center italic">Click on a stream to get started</div>
       </div>
 
