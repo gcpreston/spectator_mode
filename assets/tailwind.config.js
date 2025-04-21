@@ -1,12 +1,12 @@
+// See the Tailwind configuration guide for advanced usage
+// https://tailwindcss.com/docs/configuration
+
 const plugin = require("tailwindcss/plugin")
 const fs = require("fs")
 const path = require("path")
 
-/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./index.html",
-    "./src/**/*.{ts,tsx}",
     "./js/**/*.js",
     "../lib/*_web.ex",
     "../lib/*_web/**/*.*ex"
@@ -14,27 +14,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        slippi: {
-          50: "#BFE5CB",
-          100: "#B1DFBF",
-          200: "#94D4A7",
-          300: "#77C890",
-          400: "#59BC78",
-          500: "#44A963",
-          600: "#34814C",
-          700: "#245934",
-          800: "#14311D",
-          900: "#040905",
-        },
-      },
-      animation: {
-        draw: "draw 2s ease-in-out forwards",
-      },
-      keyframes: {
-        draw: {
-          to: { "stroke-dashoffset": 0 },
-        },
-      },
+        brand: "#FD4F00",
+      }
     },
   },
   plugins: [
@@ -44,11 +25,12 @@ module.exports = {
     //
     //     <div class="phx-click-loading:animate-ping">
     //
+    plugin(({addVariant}) => addVariant("phx-no-feedback", [".phx-no-feedback&", ".phx-no-feedback &"])),
     plugin(({addVariant}) => addVariant("phx-click-loading", [".phx-click-loading&", ".phx-click-loading &"])),
     plugin(({addVariant}) => addVariant("phx-submit-loading", [".phx-submit-loading&", ".phx-submit-loading &"])),
     plugin(({addVariant}) => addVariant("phx-change-loading", [".phx-change-loading&", ".phx-change-loading &"])),
 
-    // Embeds Heroicons (https://heroicons.com) into your app.css bundle
+    // Embeds Hero Icons (https://heroicons.com) into your app.css bundle
     // See your `CoreComponents.icon/1` for more information.
     //
     plugin(function({matchComponents, theme}) {
@@ -57,11 +39,10 @@ module.exports = {
       let icons = [
         ["", "/24/outline"],
         ["-solid", "/24/solid"],
-        ["-mini", "/20/solid"],
-        ["-micro", "/16/solid"]
+        ["-mini", "/20/solid"]
       ]
       icons.forEach(([suffix, dir]) => {
-        fs.readdirSync(path.join(iconsDir, dir)).forEach(file => {
+        fs.readdirSync(path.join(iconsDir, dir)).map(file => {
           let name = path.basename(file, ".svg") + suffix
           values[name] = {name, fullPath: path.join(iconsDir, dir, file)}
         })
@@ -69,22 +50,15 @@ module.exports = {
       matchComponents({
         "hero": ({name, fullPath}) => {
           let content = fs.readFileSync(fullPath).toString().replace(/\r?\n|\r/g, "")
-          let size = theme("spacing.6")
-          if (name.endsWith("-mini")) {
-            size = theme("spacing.5")
-          } else if (name.endsWith("-micro")) {
-            size = theme("spacing.4")
-          }
           return {
             [`--hero-${name}`]: `url('data:image/svg+xml;utf8,${content}')`,
             "-webkit-mask": `var(--hero-${name})`,
             "mask": `var(--hero-${name})`,
-            "mask-repeat": "no-repeat",
             "background-color": "currentColor",
             "vertical-align": "middle",
             "display": "inline-block",
-            "width": size,
-            "height": size
+            "width": theme("spacing.5"),
+            "height": theme("spacing.5")
           }
         }
       }, {values})

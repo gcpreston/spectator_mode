@@ -21,12 +21,36 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
+import "@gcpreston/slippi-viewer"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 
+function spectateStream(bridgeId) {
+  const viewer = document.querySelector("#viewer");
+
+  if (!bridgeId) {
+    viewer.clear();
+  } else {
+    viewer.spectate("ws://localhost:4000/viewer_socket/websocket?bridge_id=" + bridgeId);
+  }
+}
+
+const BridgeIdHook = {
+  mounted() {
+    const bridgeId = this.el.getAttribute("bridgeid");
+    spectateStream(bridgeId);
+  },
+
+  updated() {
+    const bridgeId = this.el.getAttribute("bridgeid");
+    spectateStream(bridgeId);
+  }
+}
+
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken}
+  params: {_csrf_token: csrfToken},
+  hooks: {BridgeIdHook}
 })
 
 // Show progress bar on live navigation and form submits

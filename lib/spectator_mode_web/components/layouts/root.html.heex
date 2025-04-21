@@ -10,20 +10,8 @@
     <.live_title>
       {assigns[:page_title] || "SpectatorMode"}
     </.live_title>
-    <link
-      href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined"
-      rel="stylesheet"
-    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}></script>
-
-    <%= if dev_env?() do %>
-      <script type="module" src="http://localhost:5173/@vite/client"></script>
-      <script type="module" src="http://localhost:5173/src/miniRoot.tsx"></script>
-    <% else %>
-      <link phx-track-static type="text/css" rel="stylesheet" href={~p"/assets/miniRoot.css"} />
-      <script defer phx-track-static type="text/javascript" src={~p"/assets/main.js"}></script>
-    <% end %>
   </head>
   <body class="lg:overflow-hidden">
     {@inner_content}
