@@ -26,7 +26,7 @@ defmodule SpectatorModeWeb.StreamsLive do
         <.bottom_bar />
       </div>
 
-      <div class="grow">
+      <div class="grow overflow-y-auto">
         <div class="text-center pt-4 pb-2">
           <button :if={@selected_bridge_id} phx-click="clear">
             <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
