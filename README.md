@@ -1,14 +1,17 @@
 # SpectatorMode
 
+<img width="1274" alt="Screenshot 2025-04-22 at 11 33 12 AM" src="https://github.com/user-attachments/assets/14877f38-d7bc-47d9-bb5d-947626f6b3b3" />
+
 Stream and spectate SSBM games directly in the browser! This project is currently deployed at https://spectator-mode.fly.dev. The command line client can be found at https://github.com/gcpreston/swb.
 
 ## Usage
 
 To use SpectatorMode, you must run the client locally, which forwards Slippi data to the web server. To do so:
 
-- Download and install [NodeJS](https://nodejs.org/en/download) (requires >= v22.4.0, for the [WebSocket client API](https://nodejs.org/en/learn/getting-started/websocket))
+- Download and install [NodeJS](https://nodejs.org/en/download)
 - Open Slippi Dolphin
 - In the terminal, run `npx @gcpreston/swb start`
+  * If you'll be repeatedly streaming, install the client with `npm install -g @gcpreston/swb`, and then run it each time with `swb start`
 
 ## Local development
 
