@@ -50,10 +50,6 @@ defmodule SpectatorModeWeb.BridgeSocket do
     {:ok, state}
   end
 
-  def handle_in(_other, state) do
-    {:stop, 1000, state}
-  end
-
   @impl true
   def handle_info(:after_join, state) do
     # Notify the bridge of its generated id and reconnect token
