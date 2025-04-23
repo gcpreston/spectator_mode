@@ -62,12 +62,12 @@ defmodule SpectatorModeWeb.ReconnectTokenStore do
   @impl true
   def handle_call({:register, bridge_id}, _from, %{reconnect_tokens: reconnect_tokens} = state) do
     reconnect_token = :base64.encode(:crypto.strong_rand_bytes(@token_size))
-    new_reconnect_tokens = Map.put(reconnect_tokens, reconnect_token, bridge_id) |> dbg()
+    new_reconnect_tokens = Map.put(reconnect_tokens, reconnect_token, bridge_id)
     {:reply, reconnect_token, %{state | reconnect_tokens: new_reconnect_tokens}}
   end
 
   def handle_call({:fetch, reconnect_token}, _from, state) do
-    {:reply, Map.fetch(state.reconnect_tokens, reconnect_token) |> dbg(), state}
+    {:reply, Map.fetch(state.reconnect_tokens, reconnect_token), state}
   end
 
   def handle_call({:delete, reconnect_token}, _from, state) do
@@ -85,7 +85,7 @@ defmodule SpectatorModeWeb.ReconnectTokenStore do
   end
 
   defp delete_token(%{reconnect_tokens: reconnect_tokens} = state, reconnect_token) do
-    new_reconnect_tokens = Map.delete(reconnect_tokens, reconnect_token) |> dbg()
+    new_reconnect_tokens = Map.delete(reconnect_tokens, reconnect_token)
     %{state | reconnect_tokens: new_reconnect_tokens}
   end
 end

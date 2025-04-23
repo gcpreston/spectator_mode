@@ -19,13 +19,13 @@ defmodule SpectatorModeWeb.BridgeSocket do
     # Would this want to deny the connection if an invalid token is provided?
     {bridge_id, reconnect_token} =
       with {:ok, reconnect_token} <- Map.fetch(state.params, "reconnect_token"),
-           {:ok, bridge_id} <- ReconnectTokenStore.fetch(ReconnectTokenStore, reconnect_token) do
-        new_reconnect_token = ReconnectTokenStore.register(ReconnectTokenStore, bridge_id)
+           {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token) do
+        new_reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
         {bridge_id, new_reconnect_token}
       else
         _ ->
           bridge_id = Ecto.UUID.generate()
-          new_reconnect_token = ReconnectTokenStore.register(ReconnectTokenStore, bridge_id)
+          new_reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
           {bridge_id, new_reconnect_token}
       end
 
@@ -64,7 +64,7 @@ defmodule SpectatorModeWeb.BridgeSocket do
   @impl true
   def terminate(_reason, state) do
     ReconnectTokenStore.delete_after(
-      ReconnectTokenStore,
+      {:global, ReconnectTokenStore},
       state.reconnect_token,
       @reconnect_timeout_ms
     )
