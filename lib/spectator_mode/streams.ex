@@ -1,20 +1,6 @@
 defmodule SpectatorMode.Streams do
   @moduledoc """
-  The Streams context.
-
-  How this wants to work:
-
-  BridgesChannel PID <--link--> BridgeRelay PID
-  BridgeRelay PID <--supervise-- RelaySupervisor
-
-  [x] slippi-web-bridge crash => BridgesChannel PID stop
-  [ ] BridgesChannel PID => BridgeRelay PID stop
-  [ ] BridgeRelay PID stop (expected) => notify "streams:index" subscribers
-      - can be implemented in GenServer.terminate
-  [ ] BridgeRelay PID stop (unexpected) => restart, re-populate metadata
-      - will not call GenServer.terminate
-      - DynamicSupervisor will restart
-      -
+  The Streams context provides a public API for stream management operations.
   """
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.BridgeRelay
