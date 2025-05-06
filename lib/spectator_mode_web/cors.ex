@@ -1,6 +1,6 @@
 defmodule SpectatorModeWeb.CORS do
-  use Corsica.Router, origins: []
+  use Corsica.Router, origins: ["https://ssbm.tv"]
 
-  resource "/*"
   resource "/assets/zips/*", origins: "*", allow_headers: :all
+  resource "/*"
 end
