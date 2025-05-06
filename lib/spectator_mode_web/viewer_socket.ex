@@ -13,10 +13,10 @@ defmodule SpectatorModeWeb.ViewerSocket do
   @impl true
   def connect(%{params: %{"bridge_id" => bridge_id}} = state) do
     bridge_relay_name = {:via, Registry, {BridgeRegistry, bridge_id}}
-    maybe_current_metadata = BridgeRelay.subscribe(bridge_relay_name)
+    maybe_current_game = BridgeRelay.subscribe(bridge_relay_name)
 
-    if maybe_current_metadata do
-      send(self(), {:after_join, maybe_current_metadata})
+    if maybe_current_game do
+      send(self(), {:after_join, maybe_current_game})
     end
 
     {:ok, state}
@@ -34,9 +34,9 @@ defmodule SpectatorModeWeb.ViewerSocket do
   end
 
   @impl true
-  def handle_info({:after_join, current_metadata}, state) do
-    # Forward the current game metadata to the specator who just connected
-    {:push, {:binary, current_metadata}, state}
+  def handle_info({:after_join, current_game}, state) do
+    # Forward the current game binary to the specator who just connected
+    {:push, {:binary, current_game}, state}
   end
 
   def handle_info({:game_data, payload}, state) do
