@@ -15,9 +15,14 @@ defmodule SpectatorModeWeb.StreamsLive do
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
-            <%= for {bridge_id, active_game} <- @relays do %>
+            <%= for {bridge_id, %{game_start: active_game, disconnected: disconnected}} <- @relays do %>
               <button phx-click="watch" phx-value-bridgeid={bridge_id}>
-                <.stream_card bridge_id={bridge_id} active_game={active_game} selected={bridge_id == @selected_bridge_id} />
+                <.stream_card
+                  bridge_id={bridge_id}
+                  active_game={active_game}
+                  selected={bridge_id == @selected_bridge_id}
+                  disconnected={disconnected}
+                />
               </button>
             <% end %>
           <% end %>
@@ -94,15 +99,15 @@ defmodule SpectatorModeWeb.StreamsLive do
       Streams.subscribe()
     end
 
-    relays_bridge_id_to_active_game_map =
+    relays_bridge_id_to_metadata =
       for %{bridge_id: bridge_id, active_game: game_start} <- Streams.list_relays(), into: %{} do
-        {bridge_id, game_start}
+        {bridge_id, %{game_start: game_start, disconnected: false}}
       end
 
     {
       :ok,
       socket
-      |> assign(:relays, relays_bridge_id_to_active_game_map)
+      |> assign(:relays, relays_bridge_id_to_metadata)
     }
   end
 
@@ -136,7 +141,7 @@ defmodule SpectatorModeWeb.StreamsLive do
 
   @impl true
   def handle_info({:relay_created, bridge_id}, socket) do
-    {:noreply, update(socket, :relays, fn old_relays -> Map.put(old_relays, bridge_id, nil) end)}
+    {:noreply, update(socket, :relays, fn old_relays -> Map.put(old_relays, bridge_id, %{game_start: nil, disconnected: false}) end)}
   end
 
   def handle_info({:relay_destroyed, bridge_id}, socket) do
@@ -167,7 +172,12 @@ defmodule SpectatorModeWeb.StreamsLive do
         socket
       end
 
-    {:noreply, socket}
+    {
+      :noreply,
+       update(socket, :relays, fn relays ->
+        put_in(relays, [bridge_id, :disconnected], true)
+      end)
+    }
   end
 
   def handle_info({:game_update, {bridge_id, maybe_event}}, socket) do

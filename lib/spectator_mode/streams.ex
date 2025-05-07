@@ -42,6 +42,7 @@ defmodule SpectatorMode.Streams do
   #     meanwhile bridge_disconnected can not remove it from those who already saw
   # - Show some kind of indicator that a listed stream is disconnected
   # - Handle trying to watch a disconnected stream
+  # - Make sure reconnect attempt goes through on server-side crash (may be a client-side issue)
 
   @doc """
   Fetch the IDs of all currently active bridge relays, and their metadata.
