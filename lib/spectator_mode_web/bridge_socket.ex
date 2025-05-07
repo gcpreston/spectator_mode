@@ -7,7 +7,7 @@ defmodule SpectatorModeWeb.BridgeSocket do
   alias SpectatorMode.BridgeRegistry
   alias SpectatorModeWeb.ReconnectTokenStore
 
-  @reconnect_timeout_ms 30_000
+  @reconnect_timeout_ms 10_000
 
   @impl true
   def child_spec(_opts) do
@@ -50,6 +50,10 @@ defmodule SpectatorModeWeb.BridgeSocket do
     {:ok, state}
   end
 
+  def handle_in({"quit", [opcode: :text]}, state) do
+    {:stop, :bridge_quit, state}
+  end
+
   @impl true
   def handle_info(:after_join, state) do
     # Notify the bridge of its generated id and reconnect token
@@ -62,7 +66,9 @@ defmodule SpectatorModeWeb.BridgeSocket do
   end
 
   @impl true
-  def terminate(_reason, state) do
+  def terminate(reason, state) do
+    Logger.info("bridge socket terminating, reason: #{inspect(reason)}")
+
     ReconnectTokenStore.delete_after(
       {:global, ReconnectTokenStore},
       state.reconnect_token,

@@ -34,6 +34,15 @@ defmodule SpectatorMode.Streams do
     DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, source_pid}})
   end
 
+  # CHANGES DESIRED
+  # - Differentiate between bridge_disconnected and bridge_stopped events
+  #   * Show reconnecting message instead of exiting stream on disconnect; exit on stop
+  # - Can keep registry as source of truth for listing streams
+  #   * relay_created event on reconnect can show it to people on the page,
+  #     meanwhile bridge_disconnected can not remove it from those who already saw
+  # - Show some kind of indicator that a listed stream is disconnected
+  # - Handle trying to watch a disconnected stream
+
   @doc """
   Fetch the IDs of all currently active bridge relays, and their metadata.
   """

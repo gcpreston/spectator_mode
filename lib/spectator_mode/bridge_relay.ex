@@ -53,7 +53,12 @@ defmodule SpectatorMode.BridgeRelay do
     # callback not being invoked in a crash is not concerning, because
     # any such crash would invoke a restart from the supervisor.
     Logger.info("Relay #{state.bridge_id} terminating, reason: #{inspect(reason)}")
-    notify_subscribers(:relay_destroyed, state.bridge_id)
+
+    if reason == :bridge_quit do
+      notify_subscribers(:relay_destroyed, state.bridge_id)
+    else
+      notify_subscribers(:relay_disconnected, state.bridge_id)
+    end
   end
 
   @impl true

@@ -84,8 +84,19 @@ defmodule SpectatorModeWeb.ReconnectTokenStore do
     {:noreply, delete_token(state, reconnect_token)}
   end
 
+  ## Helpers
+
   defp delete_token(%{reconnect_tokens: reconnect_tokens} = state, reconnect_token) do
+    notify_subscribers(:relay_destroyed, state.reconnect_tokens[reconnect_token])
     new_reconnect_tokens = Map.delete(reconnect_tokens, reconnect_token)
     %{state | reconnect_tokens: new_reconnect_tokens}
+  end
+
+  defp notify_subscribers(event, result) do
+    Phoenix.PubSub.broadcast(
+      SpectatorMode.PubSub,
+      SpectatorMode.Streams.index_subtopic(),
+      {event, result}
+    )
   end
 end
