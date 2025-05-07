@@ -7,9 +7,10 @@ defmodule SpectatorModeWeb.StreamsLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-row h-full">
-
       <div class={"w-full lg:w-96 flex-none h-full flex flex-col border-r border-gray-400 " <> if @selected_bridge_id, do: "hidden lg:flex", else: ""}>
-        <div class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">SpectatorMode</div>
+        <div class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">
+          SpectatorMode
+        </div>
 
         <div class="grow justify-start flex flex-col gap-4 overflow-y-auto bg-gray-100 p-4">
           <%= if map_size(@relays) == 0 do %>
@@ -40,9 +41,10 @@ defmodule SpectatorModeWeb.StreamsLive do
         </div>
         <div id="bridge-id-target" bridgeid={@selected_bridge_id} phx-hook="BridgeIdHook"></div>
         <slippi-viewer id="viewer" zips-base-url="/assets" phx-update="ignore"></slippi-viewer>
-        <div :if={!@selected_bridge_id} class="text-center italic">Click on a stream to get started</div>
+        <div :if={!@selected_bridge_id} class="text-center italic">
+          Click on a stream to get started
+        </div>
       </div>
-
     </div>
     """
   end
@@ -62,8 +64,7 @@ defmodule SpectatorModeWeb.StreamsLive do
         </div>
 
         <button class="font-medium p-2" phx-click={show_modal("help-modal")}>
-          <.icon name="hero-question-mark-circle" class="w-8 h-8 text-gray-800" />
-          Help
+          <.icon name="hero-question-mark-circle" class="w-8 h-8 text-gray-800" /> Help
         </button>
       </div>
 
@@ -78,13 +79,26 @@ defmodule SpectatorModeWeb.StreamsLive do
           </:item>
           <:item title="How to stream">
             <div class="text-left">
-            <ul class="list-disc">
-              <li><.link href="https://nodejs.org/en/download" target="_blank" class="underline">Download and install NodeJS >= 22.4.0</.link></li>
-              <li>Start Slippi Dolphin</li>
-              <li>In the terminal, run <.code>npx @gcpreston/swb start</.code></li>
-              <li>The stream ID will be given in the terminal upon successful connection</li>
-            </ul>
-            <p class="mt-4">More information can be found in the <.link href="https://www.npmjs.com/package/@gcpreston/swb" target="_blank" class="underline">CLI package's README</.link>.</p>
+              <ul class="list-disc">
+                <li>
+                  <.link href="https://nodejs.org/en/download" target="_blank" class="underline">
+                    Download and install NodeJS >= 22.4.0
+                  </.link>
+                </li>
+                <li>Start Slippi Dolphin</li>
+                <li>
+                  In the terminal, run
+                  <.code>npx @gcpreston/swb start</.code>
+                </li>
+                <li>The stream ID will be given in the terminal upon successful connection</li>
+              </ul>
+              <p class="mt-4">
+                More information can be found in the <.link
+                  href="https://www.npmjs.com/package/@gcpreston/swb"
+                  target="_blank"
+                  class="underline"
+                >CLI package's README</.link>.
+              </p>
             </div>
           </:item>
         </.list>
@@ -141,7 +155,10 @@ defmodule SpectatorModeWeb.StreamsLive do
 
   @impl true
   def handle_info({:relay_created, bridge_id}, socket) do
-    {:noreply, update(socket, :relays, fn old_relays -> Map.put(old_relays, bridge_id, %{game_start: nil, disconnected: false}) end)}
+    {:noreply,
+     update(socket, :relays, fn old_relays ->
+       Map.put(old_relays, bridge_id, %{game_start: nil, disconnected: false})
+     end)}
   end
 
   def handle_info({:relay_destroyed, bridge_id}, socket) do
@@ -167,6 +184,7 @@ defmodule SpectatorModeWeb.StreamsLive do
       if bridge_id == socket.assigns.selected_bridge_id do
         socket
         |> put_flash(:info, "Reconnecting to stream...")
+
         # TODO: Actually try to reconnect
       else
         socket
@@ -174,14 +192,15 @@ defmodule SpectatorModeWeb.StreamsLive do
 
     {
       :noreply,
-       update(socket, :relays, fn relays ->
+      update(socket, :relays, fn relays ->
         put_in(relays, [bridge_id, :disconnected], true)
       end)
     }
   end
 
   def handle_info({:game_update, {bridge_id, maybe_event}}, socket) do
-    {:noreply, update(socket, :relays, fn old_relays -> Map.put(old_relays, bridge_id, maybe_event) end)}
+    {:noreply,
+     update(socket, :relays, fn old_relays -> Map.put(old_relays, bridge_id, maybe_event) end)}
   end
 
   defp clear_watch(socket) do
