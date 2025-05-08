@@ -26,17 +26,6 @@ defmodule SpectatorMode.Streams do
     @index_subtopic
   end
 
-  @doc """
-  Start a supervised bridge relay, and link the newly created process
-  to the given source. The idea of this function is to create a relay
-  which exits with the source and recovers from crashes, while a relay
-  crash does not take down the source process.
-  """
-  @spec start_and_link_relay_old(bridge_id(), pid()) :: DynamicSupervisor.on_start_child()
-  def start_and_link_relay_old(bridge_id, source_pid) do
-    DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, source_pid}})
-  end
-
   # CHANGES DESIRED
   # - Differentiate between bridge_disconnected and bridge_stopped events
   #   * Show reconnecting message instead of exiting stream on disconnect; exit on stop
@@ -57,9 +46,8 @@ defmodule SpectatorMode.Streams do
   bridge connection. On success, returns a tuple including the relay pid, the
   generated bridge ID, and the generated reconnect token.
   """
-  @spec start_and_link_relay() :: connect_result()
-  def start_and_link_relay do
-    source_pid = self()
+  @spec start_and_link_relay(pid()) :: connect_result()
+  def start_and_link_relay(source_pid \\ self()) do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
     {:ok, relay_pid} = DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, reconnect_token, source_pid}})
@@ -72,11 +60,11 @@ defmodule SpectatorMode.Streams do
   the correct reconnect token. On success, returns a tuple including the relay
   pid, the generated bridge ID, and the generated reconnect token.
   """
-  @spec reconnect_relay(reconnect_token()) :: connect_result()
-  def reconnect_relay(reconnect_token) do
+  @spec reconnect_relay(reconnect_token(), pid()) :: connect_result()
+  def reconnect_relay(reconnect_token, source_pid \\ self()) do
     with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
          relay_pid when is_pid(relay_pid) <- lookup(bridge_id),
-         {:ok, new_reconnect_token} <- BridgeRelay.reconnect(relay_pid, self()) do
+         {:ok, new_reconnect_token} <- BridgeRelay.reconnect(relay_pid, source_pid) do
       {:ok, relay_pid, bridge_id, new_reconnect_token}
     end
   end

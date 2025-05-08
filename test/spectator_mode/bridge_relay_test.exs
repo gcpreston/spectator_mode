@@ -21,6 +21,21 @@ defmodule SpectatorMode.BridgeRelayTest do
       %{relay_pid: relay_pid, source_pid: source_pid, bridge_id: bridge_id}
     end
 
+    test "exits immediately when source quits", %{relay_pid: relay_pid, source_pid: source_pid, bridge_id: bridge_id} do
+      Streams.subscribe()
+      assert Process.alive?(relay_pid)
+      # link test process and trap exit because refuting Process.alive?/1 alone
+      # might happen too early
+      Process.link(relay_pid)
+      Process.flag(:trap_exit, true)
+      Process.exit(source_pid, :bridge_quit)
+
+      assert_receive {:relay_destroyed, ^bridge_id}
+      assert_receive {:EXIT, ^relay_pid, :bridge_quit}
+      refute Process.alive?(relay_pid)
+      refute_received {:bridge_disconnected, ^bridge_id}
+    end
+
     test "exits after timeout when source dies", %{relay_pid: relay_pid, source_pid: source_pid, bridge_id: bridge_id} do
       Streams.subscribe()
       assert Process.alive?(relay_pid)
