@@ -186,8 +186,6 @@ defmodule SpectatorModeWeb.StreamsLive do
       if bridge_id == socket.assigns.selected_bridge_id do
         socket
         |> put_flash(:info, "Reconnecting to stream...")
-
-        # TODO: Actually try to reconnect
       else
         socket
       end
@@ -195,9 +193,21 @@ defmodule SpectatorModeWeb.StreamsLive do
     {
       :noreply,
       update(socket, :relays, fn relays ->
-        put_in(relays, [bridge_id, :disconnected], true)
+        put_in(relays[bridge_id].disconnected, true)
       end)
     }
+  end
+
+  def handle_info({:bridge_reconnected, bridge_id}, socket) do
+    socket =
+      if bridge_id == socket.assigns.selected_bridge_id do
+        socket
+        |> clear_flash()
+      else
+        socket
+      end
+
+    {:noreply, update(socket, :relays, fn relays -> put_in(relays[bridge_id].disconnected, false) end)}
   end
 
   def handle_info({:game_update, {bridge_id, maybe_event}}, socket) do
