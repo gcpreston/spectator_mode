@@ -8,43 +8,62 @@ defmodule SpectatorMode.BridgeRelay do
   alias SpectatorMode.Streams
   alias SpectatorMode.Slp
   alias SpectatorMode.BridgeRegistry
+  alias SpectatorMode.ReconnectTokenStore
 
-  @enforce_keys [:bridge_id]
+  @reconnect_timeout_ms 10_000
+
+  @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
             subscribers: MapSet.new(),
             payload_sizes: nil,
             current_game_start: nil,
-            current_game_packets: []
+            current_game_packets: [],
+            reconnect_token: nil,
+            reconnect_timeout_ref: nil
 
   # :current_game_start stores the parsed GameStart event for the current game.
   # :current_game_packets stores all the packets of the current game, which are
   #   sent to new viewers upon join.
+  # :reconnect_token tracks the current reconnect token. This is for logic
+  #   management purposes, as opposed to security purposes; the token would
+  #   have had to be given higher in the call stack already to find the
+  #   bridge ID/pid in the first place.
 
   ## API
 
-  def start_link({bridge_id, source_pid}) do
-    GenServer.start_link(__MODULE__, {bridge_id, source_pid},
+  def start_link({bridge_id, reconnect_token, source_pid}) do
+    GenServer.start_link(__MODULE__, {bridge_id, reconnect_token, source_pid},
       name: {:via, Registry, {SpectatorMode.BridgeRegistry, bridge_id}}
     )
   end
 
-  def forward(bridge, data) do
-    GenServer.cast(bridge, {:forward, data})
+  def forward(relay, data) do
+    GenServer.cast(relay, {:forward, data})
   end
 
-  def subscribe(bridge) do
-    GenServer.call(bridge, :subscribe)
+  def subscribe(relay) do
+    GenServer.call(relay, :subscribe)
+  end
+
+  @doc """
+  Reconnect this relay to the calling process, which is expected to act as the
+  bridge connection. For this function, the bridge must be in a disconnected
+  state. On success, returns `:ok`, otherwise `{:error, reason}`.
+  """
+  @spec reconnect(GenServer.server()) :: {:ok, Streams.reconnect_token()} | {:error, term()}
+  def reconnect(relay) do
+    GenServer.call(relay, :reconnect)
   end
 
   ## Callbacks
 
   @impl true
-  def init({bridge_id, source_pid}) do
+  def init({bridge_id, reconnect_token, source_pid}) do
     Logger.info("Starting bridge relay #{bridge_id}")
     Process.link(source_pid)
     Process.flag(:trap_exit, true)
     notify_subscribers(:relay_created, bridge_id)
-    {:ok, %__MODULE__{bridge_id: bridge_id}}
+    {:ok, %__MODULE__{bridge_id: bridge_id, reconnect_token: reconnect_token}}
   end
 
   @impl true
@@ -53,23 +72,43 @@ defmodule SpectatorMode.BridgeRelay do
     # callback not being invoked in a crash is not concerning, because
     # any such crash would invoke a restart from the supervisor.
     Logger.info("Relay #{state.bridge_id} terminating, reason: #{inspect(reason)}")
-
-    if reason == :bridge_quit do
-      notify_subscribers(:relay_destroyed, state.bridge_id)
-    else
-      notify_subscribers(:relay_disconnected, state.bridge_id)
-    end
+    notify_subscribers(:relay_destroyed, state.bridge_id)
+    ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
   end
 
   @impl true
   def handle_info({:EXIT, _peer_pid, reason}, state) do
-    {:stop, reason, state}
+    if reason == :bridge_quit do
+      {:stop, reason, state}
+    else
+      notify_subscribers(:bridge_disconnected, state.bridge_id)
+      reconnect_timeout_ref = Process.send_after(self(), :reconnect_timeout, @reconnect_timeout_ms)
+      {:noreply, %{state | reconnect_timeout_ref: reconnect_timeout_ref}}
+    end
+  end
+
+  def handle_info(:reconnect_timeout, state) do
+    {:stop, :bridge_disconnected, state}
   end
 
   @impl true
   def handle_call(:subscribe, {from_pid, _tag}, %{subscribers: subscribers} = state) do
     {:reply, state.current_game_packets |> Enum.reverse() |> Enum.join(),
      %{state | subscribers: MapSet.put(subscribers, from_pid)}}
+  end
+
+  def handle_call(:reconnect, {from_pid, _tag}, state) do
+    if is_nil(state.reconnect_timeout_ref) do
+      {:reply, {:error, :relay_not_disconnected}, state}
+    else
+      Process.cancel_timer(state.reconnect_timeout_ref)
+      Logger.info("Reconnecting relay #{state.bridge_id}")
+      Process.link(from_pid)
+      Process.flag(:trap_exit, true)
+      new_reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
+      notify_subscribers(:relay_reconnected, state.bridge_id)
+      {:reply, {:ok, new_reconnect_token}, %{state | reconnect_timeout_ref: nil, reconnect_token: new_reconnect_token}}
+    end
   end
 
   @impl true

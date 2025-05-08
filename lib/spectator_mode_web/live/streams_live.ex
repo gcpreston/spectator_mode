@@ -138,12 +138,14 @@ defmodule SpectatorModeWeb.StreamsLive do
   @impl true
   def handle_params(%{"watch" => bridge_id}, _uri, socket) do
     socket =
-      if Map.has_key?(socket.assigns.relays, bridge_id) do
-        assign(socket, :selected_bridge_id, bridge_id)
-      else
-        socket
-        |> clear_watch()
-        |> put_flash(:error, "Stream not found.")
+      cond do
+        !Map.has_key?(socket.assigns.relays, bridge_id) ->
+          socket
+          |> clear_watch()
+          |> put_flash(:error, "Stream not found.")
+
+        true ->
+          assign(socket, :selected_bridge_id, bridge_id)
       end
 
     {:noreply, socket}
@@ -179,7 +181,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     }
   end
 
-  def handle_info({:relay_disconnected, bridge_id}, socket) do
+  def handle_info({:bridge_disconnected, bridge_id}, socket) do
     socket =
       if bridge_id == socket.assigns.selected_bridge_id do
         socket

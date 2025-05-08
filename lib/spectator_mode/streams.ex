@@ -5,11 +5,14 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.BridgeRelay
   alias SpectatorMode.Slp.Events.GameStart
+  alias SpectatorMode.ReconnectTokenStore
 
   @pubsub_topic "streams"
   @index_subtopic "#{@pubsub_topic}:index"
 
   @type bridge_id() :: String.t()
+  @type reconnect_token() :: String.t()
+  @type connect_result() :: {:ok, pid(), bridge_id(), reconnect_token()} | {:error, term()}
 
   @doc """
   Subscribe to PubSub notifications about the state
@@ -29,8 +32,8 @@ defmodule SpectatorMode.Streams do
   which exits with the source and recovers from crashes, while a relay
   crash does not take down the source process.
   """
-  @spec start_and_link_relay(bridge_id(), pid()) :: DynamicSupervisor.on_start_child()
-  def start_and_link_relay(bridge_id, source_pid) do
+  @spec start_and_link_relay_old(bridge_id(), pid()) :: DynamicSupervisor.on_start_child()
+  def start_and_link_relay_old(bridge_id, source_pid) do
     DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, source_pid}})
   end
 
@@ -42,7 +45,41 @@ defmodule SpectatorMode.Streams do
   #     meanwhile bridge_disconnected can not remove it from those who already saw
   # - Show some kind of indicator that a listed stream is disconnected
   # - Handle trying to watch a disconnected stream
+  #   * Say a stream goes down only for a second and people join at this second. Still
+  #     want it to be smooth for them.
+  #   * What is relay didn't go down as soon as socket did? The socket can go in and out,
+  #     and once we determine it's not coming back (reconnect token deletion), we delete the
+  #     relay. This could even simplify reconnect token store logic.
   # - Make sure reconnect attempt goes through on server-side crash (may be a client-side issue)
+
+  @doc """
+  Start a supervised relay process, and link it to the calling process as the
+  bridge connection. On success, returns a tuple including the relay pid, the
+  generated bridge ID, and the generated reconnect token.
+  """
+  @spec start_and_link_relay() :: connect_result()
+  def start_and_link_relay do
+    source_pid = self()
+    bridge_id = Ecto.UUID.generate()
+    reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
+    {:ok, relay_pid} = DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, reconnect_token, source_pid}})
+
+    {:ok, relay_pid, bridge_id, reconnect_token}
+  end
+
+  @doc """
+  Reconnect a relay to the calling process as the bridge connection. Requires
+  the correct reconnect token. On success, returns a tuple including the relay
+  pid, the generated bridge ID, and the generated reconnect token.
+  """
+  @spec reconnect_relay(reconnect_token()) :: connect_result()
+  def reconnect_relay(reconnect_token) do
+    with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
+         relay_pid when is_pid(relay_pid) <- lookup(bridge_id),
+         {:ok, new_reconnect_token} <- BridgeRelay.reconnect(relay_pid) do
+      {:ok, relay_pid, bridge_id, new_reconnect_token}
+    end
+  end
 
   @doc """
   Fetch the IDs of all currently active bridge relays, and their metadata.
