@@ -16,7 +16,7 @@ defmodule SpectatorModeWeb.StreamsLive do
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
-            <%= for {bridge_id, %{game_start: active_game, disconnected: disconnected}} <- @relays do %>
+            <%= for {bridge_id, %{active_game: active_game, disconnected: disconnected}} <- @relays do %>
               <button phx-click="watch" phx-value-bridgeid={bridge_id}>
                 <.stream_card
                   bridge_id={bridge_id}
@@ -115,7 +115,7 @@ defmodule SpectatorModeWeb.StreamsLive do
 
     relays_bridge_id_to_metadata =
       for %{bridge_id: bridge_id, active_game: game_start, disconnected: disconnected} <- Streams.list_relays(), into: %{} do
-        {bridge_id, %{game_start: game_start, disconnected: disconnected}}
+        {bridge_id, %{active_game: game_start, disconnected: disconnected}}
       end
 
     {
@@ -159,7 +159,7 @@ defmodule SpectatorModeWeb.StreamsLive do
   def handle_info({:relay_created, bridge_id}, socket) do
     {:noreply,
      update(socket, :relays, fn old_relays ->
-       Map.put(old_relays, bridge_id, %{game_start: nil, disconnected: false})
+       Map.put(old_relays, bridge_id, %{active_game: nil, disconnected: false})
      end)}
   end
 
@@ -212,7 +212,7 @@ defmodule SpectatorModeWeb.StreamsLive do
 
   def handle_info({:game_update, {bridge_id, maybe_event}}, socket) do
     {:noreply,
-     update(socket, :relays, fn old_relays -> Map.put(old_relays, bridge_id, maybe_event) end)}
+     update(socket, :relays, fn relays -> put_in(relays[bridge_id].active_game, maybe_event) end)}
   end
 
   defp clear_watch(socket) do
