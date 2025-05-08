@@ -674,6 +674,7 @@ defmodule SpectatorModeWeb.CoreComponents do
   attr :bridge_id, :string, required: true
   attr :active_game, :any, required: true
   attr :selected, :boolean, required: true
+  attr :disconnected, :boolean, required: true
 
   def stream_card(assigns) do
     ~H"""
@@ -682,6 +683,9 @@ defmodule SpectatorModeWeb.CoreComponents do
       data-selected={@selected}
       class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md data-[selected]:border-2 data-[selected]:border-gray-700"
     >
+      <div :if={@disconnected} class="absolute top-2 left-2 text-red-500">
+        <.icon name="hero-signal-slash" class="h-5 w-5" />
+      </div>
       <div class="text-center">
         <.active_game_text event={@active_game} />
         <div><span class="text-xs font-extralight">{@bridge_id}</span></div>

@@ -1,4 +1,4 @@
-defmodule SpectatorModeWeb.ReconnectTokenStore do
+defmodule SpectatorMode.ReconnectTokenStore do
   @moduledoc """
   Track issued reconnect tokens and look up their associated bridge IDs.
   """
@@ -43,15 +43,6 @@ defmodule SpectatorModeWeb.ReconnectTokenStore do
     GenServer.call(server, {:delete, reconnect_token})
   end
 
-  @doc """
-  Remove a reconnect token from the store after the specified amount of time
-  in milliseconds.
-  """
-  @spec delete_after(GenServer.server(), String.t(), integer()) :: :ok
-  def delete_after(server, reconnect_token, timeout_ms) do
-    GenServer.call(server, {:delete_after, reconnect_token, timeout_ms})
-  end
-
   ## Callbacks
 
   @impl true
@@ -71,21 +62,7 @@ defmodule SpectatorModeWeb.ReconnectTokenStore do
   end
 
   def handle_call({:delete, reconnect_token}, _from, state) do
-    {:reply, :ok, delete_token(state, reconnect_token)}
-  end
-
-  def handle_call({:delete_after, reconnect_token, timeout_ms}, _from, state) do
-    Process.send_after(self(), {:delete, reconnect_token}, timeout_ms)
-    {:reply, :ok, state}
-  end
-
-  @impl true
-  def handle_info({:delete, reconnect_token}, state) do
-    {:noreply, delete_token(state, reconnect_token)}
-  end
-
-  defp delete_token(%{reconnect_tokens: reconnect_tokens} = state, reconnect_token) do
-    new_reconnect_tokens = Map.delete(reconnect_tokens, reconnect_token)
-    %{state | reconnect_tokens: new_reconnect_tokens}
+    new_reconnect_tokens = Map.delete(state.reconnect_tokens, reconnect_token)
+    {:reply, :ok, %{state | reconnect_tokens: new_reconnect_tokens}}
   end
 end

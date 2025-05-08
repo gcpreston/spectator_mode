@@ -4,10 +4,6 @@ defmodule SpectatorModeWeb.BridgeSocket do
   require Logger
   alias SpectatorMode.Streams
   alias SpectatorMode.BridgeRelay
-  alias SpectatorMode.BridgeRegistry
-  alias SpectatorModeWeb.ReconnectTokenStore
-
-  @reconnect_timeout_ms 30_000
 
   @impl true
   def child_spec(_opts) do
@@ -16,26 +12,26 @@ defmodule SpectatorModeWeb.BridgeSocket do
 
   @impl true
   def connect(state) do
-    # Would this want to deny the connection if an invalid token is provided?
-    {bridge_id, reconnect_token} =
-      with {:ok, reconnect_token} <- Map.fetch(state.params, "reconnect_token"),
-           {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token) do
-        new_reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
-        {bridge_id, new_reconnect_token}
+    connect_result =
+      if reconnect_token = state.params["reconnect_token"] do
+        Streams.reconnect_relay(reconnect_token)
       else
-        _ ->
-          bridge_id = Ecto.UUID.generate()
-          new_reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
-          {bridge_id, new_reconnect_token}
+        Streams.start_and_link_relay()
       end
 
-    {:ok, _pid} = Streams.start_and_link_relay(bridge_id, self())
-    send(self(), :after_join)
+    case connect_result do
+      {:ok, relay_pid, bridge_id, reconnect_token} ->
+        send(self(), :after_join)
 
-    {:ok,
-     state
-     |> Map.put(:bridge_id, bridge_id)
-     |> Map.put(:reconnect_token, reconnect_token)}
+        {:ok,
+          state
+          |> Map.put(:bridge_id, bridge_id)
+          |> Map.put(:reconnect_token, reconnect_token)
+          |> Map.put(:relay_pid, relay_pid)}
+
+      {:error, reason} ->
+        {:error, "Bridge connection failed: #{inspect(reason)}"}
+    end
   end
 
   @impl true
@@ -46,8 +42,12 @@ defmodule SpectatorModeWeb.BridgeSocket do
   @impl true
   def handle_in({payload, [opcode: :binary]}, state) do
     # Forward binary game data via the relay
-    BridgeRelay.forward({:via, Registry, {BridgeRegistry, state.bridge_id}}, payload)
+    BridgeRelay.forward(state.relay_pid, payload)
     {:ok, state}
+  end
+
+  def handle_in({"quit", [opcode: :text]}, state) do
+    {:stop, :bridge_quit, state}
   end
 
   @impl true
@@ -62,13 +62,7 @@ defmodule SpectatorModeWeb.BridgeSocket do
   end
 
   @impl true
-  def terminate(_reason, state) do
-    ReconnectTokenStore.delete_after(
-      {:global, ReconnectTokenStore},
-      state.reconnect_token,
-      @reconnect_timeout_ms
-    )
-
+  def terminate(_reason, _state) do
     :ok
   end
 end

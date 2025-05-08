@@ -23,6 +23,8 @@ config :spectator_mode, SpectatorModeWeb.Endpoint,
 # In test we don't send emails
 config :spectator_mode, SpectatorMode.Mailer, adapter: Swoosh.Adapters.Test
 
+config :spectator_mode, :reconnect_timeout_ms, 150
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
