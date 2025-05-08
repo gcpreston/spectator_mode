@@ -10,8 +10,6 @@ defmodule SpectatorMode.BridgeRelay do
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.ReconnectTokenStore
 
-  @reconnect_timeout_ms 10_000
-
   @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
             subscribers: MapSet.new(),
@@ -50,9 +48,9 @@ defmodule SpectatorMode.BridgeRelay do
   bridge connection. For this function, the bridge must be in a disconnected
   state. On success, returns `:ok`, otherwise `{:error, reason}`.
   """
-  @spec reconnect(GenServer.server()) :: {:ok, Streams.reconnect_token()} | {:error, term()}
-  def reconnect(relay) do
-    GenServer.call(relay, :reconnect)
+  @spec reconnect(GenServer.server(), pid()) :: {:ok, Streams.reconnect_token()} | {:error, term()}
+  def reconnect(relay, source_pid) do
+    GenServer.call(relay, {:reconnect, source_pid})
   end
 
   ## Callbacks
@@ -82,7 +80,7 @@ defmodule SpectatorMode.BridgeRelay do
       {:stop, reason, state}
     else
       notify_subscribers(:bridge_disconnected, state.bridge_id)
-      reconnect_timeout_ref = Process.send_after(self(), :reconnect_timeout, @reconnect_timeout_ms)
+      reconnect_timeout_ref = Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
       {:noreply, %{state | reconnect_timeout_ref: reconnect_timeout_ref}}
     end
   end
@@ -97,16 +95,16 @@ defmodule SpectatorMode.BridgeRelay do
      %{state | subscribers: MapSet.put(subscribers, from_pid)}}
   end
 
-  def handle_call(:reconnect, {from_pid, _tag}, state) do
+  def handle_call({:reconnect, source_pid}, _from, state) do
     if is_nil(state.reconnect_timeout_ref) do
-      {:reply, {:error, :relay_not_disconnected}, state}
+      {:reply, {:error, :not_disconnected}, state}
     else
       Process.cancel_timer(state.reconnect_timeout_ref)
       Logger.info("Reconnecting relay #{state.bridge_id}")
-      Process.link(from_pid)
+      Process.link(source_pid)
       Process.flag(:trap_exit, true)
       new_reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
-      notify_subscribers(:relay_reconnected, state.bridge_id)
+      notify_subscribers(:bridge_reconnected, state.bridge_id)
       {:reply, {:ok, new_reconnect_token}, %{state | reconnect_timeout_ref: nil, reconnect_token: new_reconnect_token}}
     end
   end
@@ -172,4 +170,8 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   defp handle_event(_event, state), do: state
+
+  defp reconnect_timeout_ms do
+    Application.get_env(:spectator_mode, :reconnect_timeout_ms)
+  end
 end

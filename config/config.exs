@@ -31,6 +31,8 @@ config :spectator_mode, SpectatorModeWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :spectator_mode, SpectatorMode.Mailer, adapter: Swoosh.Adapters.Local
 
+config :spectator_mode, :reconnect_timeout_ms, :timer.seconds(10)
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.17.11",

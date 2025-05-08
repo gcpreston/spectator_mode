@@ -76,7 +76,7 @@ defmodule SpectatorMode.Streams do
   def reconnect_relay(reconnect_token) do
     with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
          relay_pid when is_pid(relay_pid) <- lookup(bridge_id),
-         {:ok, new_reconnect_token} <- BridgeRelay.reconnect(relay_pid) do
+         {:ok, new_reconnect_token} <- BridgeRelay.reconnect(relay_pid, self()) do
       {:ok, relay_pid, bridge_id, new_reconnect_token}
     end
   end
