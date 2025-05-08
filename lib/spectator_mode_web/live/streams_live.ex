@@ -114,8 +114,8 @@ defmodule SpectatorModeWeb.StreamsLive do
     end
 
     relays_bridge_id_to_metadata =
-      for %{bridge_id: bridge_id, active_game: game_start} <- Streams.list_relays(), into: %{} do
-        {bridge_id, %{game_start: game_start, disconnected: false}}
+      for %{bridge_id: bridge_id, active_game: game_start, disconnected: disconnected} <- Streams.list_relays(), into: %{} do
+        {bridge_id, %{game_start: game_start, disconnected: disconnected}}
       end
 
     {

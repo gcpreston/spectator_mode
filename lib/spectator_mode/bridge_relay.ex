@@ -29,9 +29,13 @@ defmodule SpectatorMode.BridgeRelay do
 
   ## API
 
+  defmodule BridgeRegistryValue do
+    defstruct active_game: nil, disconnected: false
+  end
+
   def start_link({bridge_id, reconnect_token, source_pid}) do
     GenServer.start_link(__MODULE__, {bridge_id, reconnect_token, source_pid},
-      name: {:via, Registry, {SpectatorMode.BridgeRegistry, bridge_id}}
+      name: {:via, Registry, {SpectatorMode.BridgeRegistry, bridge_id, %BridgeRegistryValue{}}}
     )
   end
 
@@ -79,6 +83,7 @@ defmodule SpectatorMode.BridgeRelay do
     if reason == :bridge_quit do
       {:stop, reason, state}
     else
+      update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
       notify_subscribers(:bridge_disconnected, state.bridge_id)
       reconnect_timeout_ref = Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
       {:noreply, %{state | reconnect_timeout_ref: reconnect_timeout_ref}}
@@ -128,8 +133,8 @@ defmodule SpectatorMode.BridgeRelay do
     )
   end
 
-  defp update_registry_value(bridge_id, new_value) do
-    Registry.update_value(BridgeRegistry, bridge_id, fn _old_value -> new_value end)
+  defp update_registry_value(bridge_id, updater) do
+    Registry.update_value(BridgeRegistry, bridge_id, updater)
   end
 
   defp update_state_from_game_data(state, data) do
@@ -156,14 +161,14 @@ defmodule SpectatorMode.BridgeRelay do
   defp handle_event(%Slp.Events.GameStart{} = event, state) do
     # Store and broadcast parsed event the data; the binary is not needed
     game_settings = Map.put(event, :binary, nil)
-    update_registry_value(state.bridge_id, game_settings)
+    update_registry_value(state.bridge_id, fn value -> put_in(value.active_game, game_settings) end)
     notify_subscribers(:game_update, {state.bridge_id, game_settings})
 
     put_in(state.current_game_start, event)
   end
 
   defp handle_event(%Slp.Events.GameEnd{}, state) do
-    update_registry_value(state.bridge_id, nil)
+    update_registry_value(state.bridge_id, fn value -> put_in(value.active_game, nil) end)
     notify_subscribers(:game_update, {state.bridge_id, nil})
 
     state

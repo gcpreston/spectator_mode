@@ -84,9 +84,9 @@ defmodule SpectatorMode.Streams do
   @doc """
   Fetch the IDs of all currently active bridge relays, and their metadata.
   """
-  @spec list_relays() :: [%{bridge_id: bridge_id(), active_game: GameStart.t()}]
+  @spec list_relays() :: [%{bridge_id: bridge_id(), active_game: GameStart.t(), disconnected: boolean()}]
   def list_relays do
-    Registry.select(BridgeRegistry, [{{:"$1", :_, :"$2"}, [], [%{bridge_id: :"$1", active_game: :"$2"}]}])
+    Registry.select(BridgeRegistry, [{{:"$1", :_, %{active_game: :"$2", disconnected: :"$3"}}, [], [%{bridge_id: :"$1", active_game: :"$2", disconnected: :"$3"}]}])
   end
 
   @doc """
