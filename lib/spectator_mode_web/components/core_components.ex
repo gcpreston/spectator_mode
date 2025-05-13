@@ -721,7 +721,7 @@ defmodule SpectatorModeWeb.CoreComponents do
       character_id_1 = p1.external_character_id
       character_name_1 = Slp.Ids.get_character_name_by_external_id(character_id_1)
 
-      display_name_2 = Map.get(p1, :display_name)
+      display_name_2 = Map.get(p2, :display_name)
       character_id_2 = p2.external_character_id
       character_name_2 = Slp.Ids.get_character_name_by_external_id(character_id_2)
 
