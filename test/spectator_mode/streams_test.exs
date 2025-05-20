@@ -22,8 +22,8 @@ defmodule SpectatorMode.StreamsTest do
       assert_receive {:relay_created, ^bridge_id}
 
       Process.flag(:trap_exit, true)
-      Process.exit(relay_pid, :bridge_quit)
-      assert_receive {:EXIT, ^relay_pid, :bridge_quit}
+      Process.exit(relay_pid, :remote)
+      assert_receive {:EXIT, ^relay_pid, :remote}
       assert_receive {:relay_destroyed, ^bridge_id}
     end
   end

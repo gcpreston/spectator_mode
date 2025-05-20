@@ -28,10 +28,10 @@ defmodule SpectatorMode.BridgeRelayTest do
       # might happen too early
       Process.link(relay_pid)
       Process.flag(:trap_exit, true)
-      Process.exit(source_pid, :bridge_quit)
+      Process.exit(source_pid, :remote)
 
       assert_receive {:relay_destroyed, ^bridge_id}
-      assert_receive {:EXIT, ^relay_pid, :bridge_quit}
+      assert_receive {:EXIT, ^relay_pid, :remote}
       refute Process.alive?(relay_pid)
       refute_received {:bridge_disconnected, ^bridge_id}
     end
