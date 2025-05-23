@@ -81,23 +81,20 @@ defmodule SpectatorModeWeb.StreamsLive do
             <div class="text-left">
               <ul class="list-disc">
                 <li>
-                  <.link href="https://nodejs.org/en/download" target="_blank" class="underline">
-                    Download and install NodeJS >= 22.4.0
+                  <.link href="https://github.com/gcpreston/swb-rs/releases/latest" target="_blank" class="underline">
+                    Download the latest version of the swb client
                   </.link>
                 </li>
                 <li>Start Slippi Dolphin</li>
-                <li>
-                  In the terminal, run
-                  <.code>npx @gcpreston/swb start</.code>
-                </li>
-                <li>The stream ID will be given in the terminal upon successful connection</li>
+                <li>Extract the downloaded folder and run the swb program inside (double click, or launch from terminal)</li>
+                <li>The stream ID will be given upon successful connection</li>
               </ul>
               <p class="mt-4">
-                More information can be found in the <.link
-                  href="https://www.npmjs.com/package/@gcpreston/swb"
+                More information and troubleshooting instructions can be found on the <.link
+                  href="https://github.com/gcpreston/swb-rs/blob/main/README.md"
                   target="_blank"
                   class="underline"
-                >CLI package's README</.link>.
+                >repository's README</.link>.
               </p>
             </div>
           </:item>
