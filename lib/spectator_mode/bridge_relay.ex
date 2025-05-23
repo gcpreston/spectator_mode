@@ -80,7 +80,7 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def handle_info({:EXIT, _peer_pid, reason}, state) do
-    if reason == :bridge_quit do
+    if reason in [:bridge_quit, {:shutdown, :local_closed}] do
       {:stop, reason, state}
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
