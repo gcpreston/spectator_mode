@@ -30,7 +30,7 @@ defmodule SpectatorMode.BridgeRelay do
   ## API
 
   defmodule BridgeRegistryValue do
-    defstruct active_game: nil, disconnected: false
+    defstruct active_game: nil, disconnected: false, viewers: 0
   end
 
   def start_link({bridge_id, reconnect_token, source_pid}) do

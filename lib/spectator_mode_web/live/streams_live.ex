@@ -104,6 +104,9 @@ defmodule SpectatorModeWeb.StreamsLive do
     """
   end
 
+  # TODO: Track channel presence and show counts per stream
+  # https://hexdocs.pm/phoenix/presence.html
+
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
