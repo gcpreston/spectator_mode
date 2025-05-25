@@ -17,7 +17,7 @@ defmodule SpectatorModeWeb.StreamsLive do
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
-            <%= for {bridge_id, %{active_game: active_game, disconnected: disconnected, viewer_count: viewer_count}} <- @relays do %>
+            <%= for {bridge_id, %{active_game: active_game, disconnected: disconnected, viewer_count: viewer_count}} <- Enum.sort_by(@relays, fn {_bridge_id, metadata} -> metadata.viewer_count end, :desc) do %>
               <button phx-click="watch" phx-value-bridgeid={bridge_id}>
                 <.stream_card
                   bridge_id={bridge_id}
