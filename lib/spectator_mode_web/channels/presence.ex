@@ -4,18 +4,13 @@ defmodule SpectatorModeWeb.Presence do
     pubsub_server: SpectatorMode.PubSub
 
   ## API
-  # TODO: Implement handle_metas to notify proxy:viewers on viewer join
 
   def get_viewer_counts() do
-    # TODO: Does this want to use streams? flat_map_reduce?
     list("viewers")
-    |> Enum.map(fn {_id, presence} ->
+    |> Enum.reduce(%{}, fn {_id, presence}, acc ->
       meta = Enum.at(presence.metas, 0)
-      meta.bridge_id
+      Map.update(acc, meta.bridge_id, 1, fn viewer_count -> viewer_count + 1 end)
     end)
-    |> Enum.group_by(fn bridge_id -> bridge_id end)
-    |> Enum.map(fn {k, v} -> {k, Enum.count(v)} end)
-    |> Enum.into(%{})
   end
 
   def track_viewer(viewer_id, bridge_id) do
@@ -24,7 +19,7 @@ defmodule SpectatorModeWeb.Presence do
 
   def subscribe(), do: Phoenix.PubSub.subscribe(SpectatorMode.PubSub, "proxy:viewers")
 
-  ## Overwrites
+  ## Callbacks
 
   @impl true
   def init(_opts), do: {:ok, %{}}

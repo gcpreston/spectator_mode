@@ -106,8 +106,6 @@ defmodule SpectatorModeWeb.StreamsLive do
     """
   end
 
-  # https://hexdocs.pm/phoenix/presence.html
-
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -121,7 +119,6 @@ defmodule SpectatorModeWeb.StreamsLive do
       for %{bridge_id: bridge_id, active_game: game_start, disconnected: disconnected} <- Streams.list_relays(), into: %{} do
         {bridge_id, %{active_game: game_start, disconnected: disconnected, viewer_count: Map.get(viewer_counts, bridge_id, 0)}}
       end
-    # TODO: Display viewer count
 
     {
       :ok,
@@ -164,7 +161,7 @@ defmodule SpectatorModeWeb.StreamsLive do
   def handle_info({:relay_created, bridge_id}, socket) do
     {:noreply,
      update(socket, :relays, fn old_relays ->
-       Map.put(old_relays, bridge_id, %{active_game: nil, disconnected: false})
+       Map.put(old_relays, bridge_id, %{active_game: nil, disconnected: false, viewer_count: 0})
      end)}
   end
 
@@ -219,8 +216,6 @@ defmodule SpectatorModeWeb.StreamsLive do
     {:noreply,
      update(socket, :relays, fn relays -> put_in(relays[bridge_id].active_game, maybe_event) end)}
   end
-
-  # TODO: Handle spectator count change events from SpectatorModeWeb.Presence
 
   def handle_info({SpectatorModeWeb.Presence, {:join, %{bridge_id: bridge_id}}}, socket) do
     {:noreply, update(socket, :relays, fn relays -> update_in(relays[bridge_id].viewer_count, fn v -> v + 1 end) end)}
