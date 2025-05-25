@@ -19,6 +19,7 @@ defmodule SpectatorMode.Application do
       {Registry, name: SpectatorMode.BridgeRegistry, keys: :unique},
       {DynamicSupervisor, name: SpectatorMode.RelaySupervisor, strategy: :one_for_one},
       {SpectatorMode.ReconnectTokenStore, name: {:global, SpectatorMode.ReconnectTokenStore}},
+      SpectatorModeWeb.Presence,
       # Start to serve requests, typically the last entry
       SpectatorModeWeb.Endpoint
     ]

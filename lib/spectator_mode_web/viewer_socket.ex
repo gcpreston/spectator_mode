@@ -4,6 +4,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
   require Logger
   alias SpectatorMode.BridgeRelay
   alias SpectatorMode.BridgeRegistry
+  alias SpectatorModeWeb.Presence
 
   @impl true
   def child_spec(_opts) do
@@ -18,6 +19,10 @@ defmodule SpectatorModeWeb.ViewerSocket do
     if maybe_current_game do
       send(self(), {:after_join, maybe_current_game})
     end
+
+    # Track presence
+    viewer_id = Ecto.UUID.generate()
+    Presence.track_viewer(viewer_id, bridge_id)
 
     {:ok, state}
   end

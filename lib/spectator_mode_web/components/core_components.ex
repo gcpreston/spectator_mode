@@ -675,6 +675,7 @@ defmodule SpectatorModeWeb.CoreComponents do
   attr :active_game, :any, required: true
   attr :selected, :boolean, required: true
   attr :disconnected, :boolean, required: true
+  attr :viewer_count, :integer, required: true
 
   def stream_card(assigns) do
     ~H"""
@@ -690,6 +691,7 @@ defmodule SpectatorModeWeb.CoreComponents do
         <.active_game_text event={@active_game} />
         <div><span class="text-xs font-extralight">{@bridge_id}</span></div>
       </div>
+      <div>Viewers: {@viewer_count}</div>
     </div>
     """
   end
