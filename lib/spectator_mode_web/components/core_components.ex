@@ -678,6 +678,8 @@ defmodule SpectatorModeWeb.CoreComponents do
   attr :viewer_count, :integer, required: true
 
   def stream_card(assigns) do
+    assigns = assign(assigns, :has_viewers, assigns.viewer_count > 0)
+
     ~H"""
     <div
       id={"stream-card-#{@bridge_id}"}
@@ -691,7 +693,10 @@ defmodule SpectatorModeWeb.CoreComponents do
         <.active_game_text event={@active_game} />
         <div><span class="text-xs font-extralight">{@bridge_id}</span></div>
       </div>
-      <div>Viewers: {@viewer_count}</div>
+      <div :if={@has_viewers} class="absolute top-2 right-2">
+        <.icon name="hero-user" class="h-4 w-4" />
+        <span class="text-xs">{@viewer_count}</span>
+      </div>
     </div>
     """
   end
