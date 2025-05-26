@@ -9,15 +9,15 @@ defmodule SpectatorModeWeb.StreamsLive do
     ~H"""
     <div class="flex flex-row h-full">
       <div class={"w-full lg:w-96 flex-none h-full flex flex-col border-r border-gray-400 " <> if @selected_bridge_id, do: "hidden lg:flex", else: ""}>
-        <div class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">
+        <.link patch="/" class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">
           SpectatorMode
-        </div>
+        </.link>
 
         <div class="grow justify-start flex flex-col gap-4 overflow-y-auto bg-gray-100 p-4">
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
-            <%= for {bridge_id, %{active_game: active_game, disconnected: disconnected, viewer_count: viewer_count}} <- Enum.sort_by(@relays, fn {_bridge_id, metadata} -> metadata.viewer_count end, :desc) do %>
+            <%= for {bridge_id, %{active_game: active_game, disconnected: disconnected, viewer_count: viewer_count}} <- @relays do %>
               <button phx-click="watch" phx-value-bridgeid={bridge_id}>
                 <.stream_card
                   bridge_id={bridge_id}
