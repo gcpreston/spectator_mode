@@ -2,27 +2,29 @@ defmodule SpectatorModeWeb.StreamsLive do
   use SpectatorModeWeb, :live_view
 
   alias SpectatorMode.Streams
+  alias SpectatorModeWeb.Presence
 
   @impl true
   def render(assigns) do
     ~H"""
     <div class="flex flex-row h-full">
       <div class={"w-full lg:w-96 flex-none h-full flex flex-col border-r border-gray-400 " <> if @selected_bridge_id, do: "hidden lg:flex", else: ""}>
-        <div class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">
+        <.link patch="/" class="text-center font-semibold text-xl italic py-2 border-b border-gray-400">
           SpectatorMode
-        </div>
+        </.link>
 
         <div class="grow justify-start flex flex-col gap-4 overflow-y-auto bg-gray-100 p-4">
           <%= if map_size(@relays) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
-            <%= for {bridge_id, %{active_game: active_game, disconnected: disconnected}} <- @relays do %>
+            <%= for {bridge_id, %{active_game: active_game, disconnected: disconnected, viewer_count: viewer_count}} <- @relays do %>
               <button phx-click="watch" phx-value-bridgeid={bridge_id}>
                 <.stream_card
                   bridge_id={bridge_id}
                   active_game={active_game}
                   selected={bridge_id == @selected_bridge_id}
                   disconnected={disconnected}
+                  viewer_count={viewer_count}
                 />
               </button>
             <% end %>
@@ -108,11 +110,14 @@ defmodule SpectatorModeWeb.StreamsLive do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Streams.subscribe()
+      Presence.subscribe()
     end
+
+    viewer_counts = Presence.get_viewer_counts()
 
     relays_bridge_id_to_metadata =
       for %{bridge_id: bridge_id, active_game: game_start, disconnected: disconnected} <- Streams.list_relays(), into: %{} do
-        {bridge_id, %{active_game: game_start, disconnected: disconnected}}
+        {bridge_id, %{active_game: game_start, disconnected: disconnected, viewer_count: Map.get(viewer_counts, bridge_id, 0)}}
       end
 
     {
@@ -156,7 +161,7 @@ defmodule SpectatorModeWeb.StreamsLive do
   def handle_info({:relay_created, bridge_id}, socket) do
     {:noreply,
      update(socket, :relays, fn old_relays ->
-       Map.put(old_relays, bridge_id, %{active_game: nil, disconnected: false})
+       Map.put(old_relays, bridge_id, %{active_game: nil, disconnected: false, viewer_count: 0})
      end)}
   end
 
@@ -210,6 +215,14 @@ defmodule SpectatorModeWeb.StreamsLive do
   def handle_info({:game_update, {bridge_id, maybe_event}}, socket) do
     {:noreply,
      update(socket, :relays, fn relays -> put_in(relays[bridge_id].active_game, maybe_event) end)}
+  end
+
+  def handle_info({SpectatorModeWeb.Presence, {:join, %{bridge_id: bridge_id}}}, socket) do
+    {:noreply, update(socket, :relays, fn relays -> update_in(relays[bridge_id].viewer_count, fn v -> v + 1 end) end)}
+  end
+
+  def handle_info({SpectatorModeWeb.Presence, {:leave, %{bridge_id: bridge_id}}}, socket) do
+    {:noreply, update(socket, :relays, fn relays -> update_in(relays[bridge_id].viewer_count, fn v -> v - 1 end) end)}
   end
 
   defp clear_watch(socket) do
