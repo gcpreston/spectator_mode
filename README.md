@@ -2,16 +2,17 @@
 
 <img width="1274" alt="Screenshot 2025-04-22 at 11 33 12 AM" src="https://github.com/user-attachments/assets/14877f38-d7bc-47d9-bb5d-947626f6b3b3" />
 
-Stream and spectate SSBM games directly in the browser! This project is currently deployed at https://spectator-mode.fly.dev. The command line client can be found at https://github.com/gcpreston/swb.
+Stream and spectate SSBM games directly in the browser!
 
-## Usage
+This project is currently deployed at https://ssbm.tv. The client program can be found at https://github.com/gcpreston/swb-rs.
+
+## Client usage
 
 To use SpectatorMode, you must run the client locally, which forwards Slippi data to the web server. To do so:
 
-- Download and install [NodeJS](https://nodejs.org/en/download)
+- Download the [client program](https://github.com/gcpreston/swb-rs/releases/latest)
 - Open Slippi Dolphin
-- In the terminal, run `npx @gcpreston/swb start`
-  * If you'll be repeatedly streaming, install the client with `npm install -g @gcpreston/swb`, and then run it each time with `swb start`
+- Unarchive and launch the client
 
 ## Local development
 
@@ -21,7 +22,7 @@ The web server is built with Phoenix. To start the server locally:
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser. More information can be found in the [Phoenix installation and setup guide](https://hexdocs.pm/phoenix/installation.html).
 
-Instructions to run the client locally and connect to the local web server can be found in the [swb repository](https://github.com/gcpreston/swb).
+Instructions to connect the client to the local web server can be found in the [swb README](https://github.com/gcpreston/swb-rs?tab=readme-ov-file#supported-options).
 
 ## Acknowledgements
 
