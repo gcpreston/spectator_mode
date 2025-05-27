@@ -222,7 +222,16 @@ defmodule SpectatorModeWeb.StreamsLive do
   end
 
   def handle_info({SpectatorModeWeb.Presence, {:leave, %{bridge_id: bridge_id}}}, socket) do
-    {:noreply, update(socket, :relays, fn relays -> update_in(relays[bridge_id].viewer_count, fn v -> v - 1 end) end)}
+    {
+      :noreply,
+      update(socket, :relays, fn relays ->
+        if Map.has_key?(relays, bridge_id) do
+          update_in(relays[bridge_id].viewer_count, fn v -> v - 1 end)
+        else
+          relays
+        end
+      end)
+    }
   end
 
   defp clear_watch(socket) do
