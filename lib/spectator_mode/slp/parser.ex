@@ -45,6 +45,7 @@ defmodule SpectatorMode.Slp.Parser do
       case command do
         0x36 -> parse_game_start(data, payload_sizes)
         0x39 -> parse_game_end(data, payload_sizes)
+        0x3f -> parse_fod_platforms(data, payload_sizes)
         _ -> parse_skip(data, payload_sizes)
       end
 
@@ -97,6 +98,21 @@ defmodule SpectatorMode.Slp.Parser do
     {%Events.GameEnd{binary: ge_data}, rest}
   end
 
+  defp parse_fod_platforms(data, payload_sizes) do
+    fod_platforms_size = 1 + payload_sizes[0x3f]
+    <<ge_data::binary-size(fod_platforms_size), rest::binary>> = data
+
+    {
+      %Events.FodPlatforms{
+        binary: ge_data,
+        frame_number: read_int32(data, 0x1) + 123,
+        platform: (if read_uint8(data, 0x5) == 1, do: :left, else: :right),
+        height: read_float(data, 0x6)
+      },
+      rest
+    }
+  end
+
   defp parse_skip(<<command::8, _::binary>> = data, payload_sizes) do
     payload_size = 1 + payload_sizes[command]
     <<_event_data::binary-size(payload_size), rest::binary>> = data
@@ -104,12 +120,22 @@ defmodule SpectatorMode.Slp.Parser do
   end
 
   defp read_uint8(data, offset) do
-    <<_::binary-size(offset), n::8, _::binary>> = data
+    <<_::binary-size(offset), n::size(8)-unsigned, _::binary>> = data
     n
   end
 
   defp read_uint16(data, offset) do
-    <<_::binary-size(offset), n::16, _::binary>> = data
+    <<_::binary-size(offset), n::size(16)-unsigned, _::binary>> = data
+    n
+  end
+
+  defp read_int32(data, offset) do
+    <<_::binary-size(offset), n::size(32)-signed, _::binary>> = data
+    n
+  end
+
+  defp read_float(data, offset) do
+    <<_::binary-size(offset), n::size(32)-float, _::binary>> = data
     n
   end
 

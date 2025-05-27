@@ -41,4 +41,15 @@ defmodule SpectatorMode.Slp.Events do
     @enforce_keys [:binary]
     defstruct [:binary]
   end
+
+  defmodule FodPlatforms do
+    @type t :: %__MODULE__{
+      binary: binary(),
+      frame_number: integer(),
+      platform: :left | :right,
+      height: float()
+    }
+    @enforce_keys [:binary, :frame_number, :platform, :height]
+    defstruct [:binary, :frame_number, :platform, :height]
+  end
 end
