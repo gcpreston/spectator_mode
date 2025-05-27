@@ -103,10 +103,10 @@ defmodule SpectatorMode.BridgeRelay do
   def handle_call(:subscribe, {from_pid, _tag}, %{subscribers: subscribers} = state) do
     binary_to_send =
       [
-        state.event_payloads.binary,
-        state.current_game_start.binary,
-        state.current_game_state.fod_platforms.left,
-        state.current_game_state.fod_platforms.right
+        get_in(state.event_payloads.binary),
+        get_in(state.current_game_start.binary),
+        get_in(state.current_game_state.fod_platforms.left),
+        get_in(state.current_game_state.fod_platforms.right)
       ]
       |> Enum.filter(&(!is_nil(&1)))
       |> Enum.join()
