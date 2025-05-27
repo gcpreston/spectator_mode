@@ -109,8 +109,17 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def handle_call(:subscribe, {from_pid, _tag}, %{subscribers: subscribers} = state) do
-    {:reply, state.current_game_packets |> Enum.reverse() |> Enum.join(),
-     %{state | subscribers: MapSet.put(subscribers, from_pid)}}
+    binary_to_send =
+      [
+        state.event_payloads.binary,
+        state.current_game_start.binary,
+        state.current_game_state.fod_platforms.left,
+        state.current_game_state.fod_platforms.right
+      ]
+      |> Enum.filter(&(!is_nil(&1)))
+      |> Enum.join()
+
+    {:reply, binary_to_send, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
   end
 
   def handle_call({:reconnect, source_pid}, _from, state) do
