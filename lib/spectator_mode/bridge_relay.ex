@@ -20,15 +20,17 @@ defmodule SpectatorMode.BridgeRelay do
   @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
             subscribers: MapSet.new(),
-            payload_sizes: nil,
+            event_payloads: nil,
             current_game_start: nil,
-            current_game_packets: [],
+            current_game_state: %{fod_platforms: %{left: nil, right: nil}},
             reconnect_token: nil,
             reconnect_timeout_ref: nil
 
   # :current_game_start stores the parsed GameStart event for the current game.
-  # :current_game_packets stores all the packets of the current game, which are
-  #   sent to new viewers upon join.
+  # :current_game_state stores the ensemble of stateful information which may
+  #   be needed to properly render the game and may change over time.
+  #   Specifically, it stores the binary version of the latest event affecting
+  #   each different part of the game state, if one has been received.
   # :reconnect_token tracks the current reconnect token. This is for logic
   #   management purposes, as opposed to security purposes; the token would
   #   have had to be given higher in the call stack already to find the
@@ -59,7 +61,8 @@ defmodule SpectatorMode.BridgeRelay do
   bridge connection. For this function, the bridge must be in a disconnected
   state. On success, returns `:ok`, otherwise `{:error, reason}`.
   """
-  @spec reconnect(GenServer.server(), pid()) :: {:ok, Streams.reconnect_token()} | {:error, term()}
+  @spec reconnect(GenServer.server(), pid()) ::
+          {:ok, Streams.reconnect_token()} | {:error, term()}
   def reconnect(relay, source_pid) do
     GenServer.call(relay, {:reconnect, source_pid})
   end
@@ -92,7 +95,10 @@ defmodule SpectatorMode.BridgeRelay do
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
       notify_subscribers(:bridge_disconnected, state.bridge_id)
-      reconnect_timeout_ref = Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
+
+      reconnect_timeout_ref =
+        Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
+
       {:noreply, %{state | reconnect_timeout_ref: reconnect_timeout_ref}}
     end
   end
@@ -115,9 +121,14 @@ defmodule SpectatorMode.BridgeRelay do
       Logger.info("Reconnecting relay #{state.bridge_id}")
       Process.link(source_pid)
       Process.flag(:trap_exit, true)
-      new_reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
+
+      new_reconnect_token =
+        ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
+
       notify_subscribers(:bridge_reconnected, state.bridge_id)
-      {:reply, {:ok, new_reconnect_token}, %{state | reconnect_timeout_ref: nil, reconnect_token: new_reconnect_token}}
+
+      {:reply, {:ok, new_reconnect_token},
+       %{state | reconnect_timeout_ref: nil, reconnect_token: new_reconnect_token}}
     end
   end
 
@@ -145,10 +156,9 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   defp update_state_from_game_data(state, data) do
-    maybe_payload_sizes = state.payload_sizes
+    maybe_payload_sizes = get_in(state.event_payloads.payload_sizes)
     events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
-    new_state = handle_events(events, state)
-    update_in(new_state.current_game_packets, &[data | &1])
+    handle_events(events, state)
   end
 
   # handle_events/2 and handle_event/2 serve to
@@ -161,14 +171,18 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   defp handle_event(%Slp.Events.EventPayloads{} = event, state) do
-    new_state = put_in(state.payload_sizes, event.payload_sizes)
+    new_state = put_in(state.event_payloads, event)
     put_in(new_state.current_game_start, nil)
   end
 
   defp handle_event(%Slp.Events.GameStart{} = event, state) do
     # Store and broadcast parsed event the data; the binary is not needed
     game_settings = Map.put(event, :binary, nil)
-    update_registry_value(state.bridge_id, fn value -> put_in(value.active_game, game_settings) end)
+
+    update_registry_value(state.bridge_id, fn value ->
+      put_in(value.active_game, game_settings)
+    end)
+
     notify_subscribers(:game_update, {state.bridge_id, game_settings})
 
     put_in(state.current_game_start, event)
@@ -179,6 +193,10 @@ defmodule SpectatorMode.BridgeRelay do
     notify_subscribers(:game_update, {state.bridge_id, nil})
 
     state
+  end
+
+  defp handle_event(%Slp.Events.FodPlatforms{binary: binary, platform: platform}, state) do
+    put_in(state.current_game_state.fod_platforms[platform], binary)
   end
 
   defp handle_event(_event, state), do: state
