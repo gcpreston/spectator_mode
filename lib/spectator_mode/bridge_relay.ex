@@ -9,14 +9,6 @@ defmodule SpectatorMode.BridgeRelay do
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.ReconnectTokenStore
 
-  # TODO: Snappy join
-  # 1. Parse stage events (FoD platforms specifcially)
-  # 2. Track current stage state in BridgeRelay
-  # 3. Send current stage state on subscribe; don't send whole game
-  #    - whole game will still be received upon bridge connection,
-  #      but it will not be sent to viewers
-  #    - viewers won't be able to rewind before viewing point for this PR
-
   @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
             subscribers: MapSet.new(),
