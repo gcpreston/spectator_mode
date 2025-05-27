@@ -1,14 +1,21 @@
 defmodule SpectatorMode.BridgeRelay do
   use GenServer, restart: :temporary
-  # Use temporary restart while client closes on WebSocket error. Once the
-  # client is made to be more fault tolerant and can stay open, this can
-  # be transient.
+  # Temporary restart => new BridgeRelay upon bridge disconnect and reconnect.
+  # This is for simplicity, this can probably be optimized in the future.
 
   require Logger
   alias SpectatorMode.Streams
   alias SpectatorMode.Slp
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.ReconnectTokenStore
+
+  # TODO: Snappy join
+  # 1. Parse stage events (FoD platforms specifcially)
+  # 2. Track current stage state in BridgeRelay
+  # 3. Send current stage state on subscribe; don't send whole game
+  #    - whole game will still be received upon bridge connection,
+  #      but it will not be sent to viewers
+  #    - viewers won't be able to rewind before viewing point for this PR
 
   @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
