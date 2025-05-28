@@ -59,7 +59,8 @@ defmodule SpectatorMode.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       {:codepagex, "~> 0.1"},
-      {:corsica, "~> 2.1"}
+      {:corsica, "~> 2.1"},
+      {:websockex, "~> 0.4.3", only: :dev}
     ]
   end
 
