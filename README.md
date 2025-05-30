@@ -4,7 +4,7 @@
 
 Stream and spectate SSBM games directly in the browser!
 
-This project is currently deployed at https://ssbm.tv. The client program can be found at https://github.com/gcpreston/swb-rs.
+This project is currently deployed at https://spectatormode.tv. The client program can be found at https://github.com/gcpreston/swb-rs.
 
 ## Client usage
 
