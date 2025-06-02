@@ -170,7 +170,7 @@ defmodule SpectatorModeWeb.StreamsLive do
       if bridge_id == socket.assigns.selected_bridge_id do
         socket
         |> clear_watch()
-        |> put_flash(:info, "This stream is no longer available.")
+        |> put_flash(:info, "This stream has ended.")
       else
         socket
       end
