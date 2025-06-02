@@ -50,9 +50,10 @@ defmodule SpectatorMode.Streams do
   def start_and_link_relay(source_pid \\ self()) do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
-    {:ok, relay_pid} = DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, reconnect_token, source_pid}})
 
-    {:ok, relay_pid, bridge_id, reconnect_token}
+    with {:ok, relay_pid} <- DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, reconnect_token, source_pid}}) do
+       {:ok, relay_pid, bridge_id, reconnect_token}
+    end
   end
 
   @doc """
@@ -66,6 +67,9 @@ defmodule SpectatorMode.Streams do
          relay_pid when is_pid(relay_pid) <- lookup(bridge_id),
          {:ok, new_reconnect_token} <- BridgeRelay.reconnect(relay_pid, source_pid) do
       {:ok, relay_pid, bridge_id, new_reconnect_token}
+    else
+      :error -> {:error, :reconnect_token_not_found}
+      nil -> {:error, :relay_pid_not_found}
     end
   end
 
