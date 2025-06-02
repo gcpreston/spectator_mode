@@ -127,6 +127,7 @@ defmodule SpectatorMode.BridgeRelay do
         ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
 
       notify_subscribers(:bridge_reconnected, state.bridge_id)
+      update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, false) end)
 
       {:reply, {:ok, new_reconnect_token},
        %{state | reconnect_timeout_ref: nil, reconnect_token: new_reconnect_token}}
