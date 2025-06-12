@@ -91,13 +91,30 @@ defmodule SpectatorModeWeb.StreamsLive do
                 <li>Extract the downloaded folder and run the swb program inside (double click, or launch from terminal)</li>
                 <li>The stream ID will be given upon successful connection</li>
               </ul>
-              <p class="mt-4">
-                More information and troubleshooting instructions can be found on the <.link
-                  href="https://github.com/gcpreston/swb-rs/blob/main/README.md"
-                  target="_blank"
-                  class="underline"
-                >repository's README</.link>.
-              </p>
+            </div>
+          </:item>
+          <:item title="Troubleshooting">
+            <div>
+              <p class="font-bold">The streaming client won't open/connect?</p>
+              <ul class="list-disc">
+                <li>
+                  Check the troubleshooting instructions on the <.link
+                    href="https://github.com/gcpreston/swb-rs/blob/main/README.md#troubleshooting"
+                    target="_blank"
+                    class="underline"
+                  >repository's README</.link>.
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p class="mt-4 font-bold">The stream lags and jumps a lot?</p>
+              <ul class="list-disc">
+                <li>
+                  This can happen with Chrome's energy saver mode, which limits the animation framerate.
+                  It can be resolved by plugging in the device, or disabling energy saver mode in your browser settings.
+                </li>
+              </ul>
             </div>
           </:item>
         </.list>
