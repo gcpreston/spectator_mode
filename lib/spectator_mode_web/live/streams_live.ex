@@ -204,7 +204,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     socket =
       if bridge_id == socket.assigns.selected_bridge_id do
         socket
-        |> put_flash(:info, "Reconnecting to stream...")
+        |> put_flash(:info, "Stream source reconnecting...")
       else
         socket
       end
