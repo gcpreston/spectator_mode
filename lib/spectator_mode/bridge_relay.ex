@@ -119,8 +119,8 @@ defmodule SpectatorMode.BridgeRelay do
 
   @impl true
   def handle_cast({:forward, data}, state) do
-    {stream_id, _size} = parse_header(data)
-    Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, data)
+    {stream_id, _size, rest} = parse_header(data)
+    Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, rest)
     {:noreply, state}
   end
 
@@ -142,7 +142,7 @@ defmodule SpectatorMode.BridgeRelay do
     Application.get_env(:spectator_mode, :reconnect_timeout_ms)
   end
 
-  defp parse_header(<<stream_id::little-32>> <> <<size::little-32>> <> _rest) do
-    {stream_id, size}
+  defp parse_header(<<stream_id::little-32>> <> <<size::little-32>> <> rest) do
+    {stream_id, size, rest}
   end
 end

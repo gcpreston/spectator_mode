@@ -3,7 +3,10 @@ defmodule SpectatorMode.Streams do
   The Streams context provides a public API for stream management operations.
   """
   alias SpectatorMode.BridgeRegistry
+  alias SpectatorMode.BridgeRelaySupervisor
   alias SpectatorMode.BridgeRelay
+  alias SpectatorMode.LivestreamSupervisor
+  alias SpectatorMode.Livestream
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.ReconnectTokenStore
 
@@ -11,8 +14,9 @@ defmodule SpectatorMode.Streams do
   @index_subtopic "#{@pubsub_topic}:index"
 
   @type bridge_id() :: String.t()
+  @type stream_id() :: integer()
   @type reconnect_token() :: String.t()
-  @type connect_result() :: {:ok, pid(), bridge_id(), reconnect_token()} | {:error, term()}
+  @type connect_result() :: {:ok, pid(), bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
 
   @doc """
   Subscribe to PubSub notifications about the state
@@ -44,15 +48,21 @@ defmodule SpectatorMode.Streams do
   @doc """
   Start a supervised relay process, and link it to the calling process as the
   bridge connection. On success, returns a tuple including the relay pid, the
-  generated bridge ID, and the generated reconnect token.
+  generated bridge ID, the generated stream IDs, and the generated reconnect token.
   """
-  @spec start_and_link_relay(pid()) :: connect_result()
-  def start_and_link_relay(source_pid \\ self()) do
+  @spec start_and_link_relay(integer(), pid()) :: connect_result() | :error
+  def start_and_link_relay(stream_count, source_pid \\ self()) do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
 
-    with {:ok, relay_pid} <- DynamicSupervisor.start_child(SpectatorMode.RelaySupervisor, {BridgeRelay, {bridge_id, reconnect_token, source_pid}}) do
-       {:ok, relay_pid, bridge_id, reconnect_token}
+    with {:ok, livestream_ids_and_pids} <- start_supervised_livestreams(stream_count),
+         {:ok, relay_pid} <- DynamicSupervisor.start_child(BridgeRelaySupervisor, {BridgeRelay, {bridge_id, reconnect_token, source_pid}}) do
+       {:ok, relay_pid, bridge_id, Enum.map(livestream_ids_and_pids, fn {stream_id, _pid} -> stream_id end), reconnect_token}
+    else
+      # TODO: This does not handle if an issue arises with BridgeRelaySupervisor
+      {:error, started_livestreams} ->
+        cleanup_livestreams(started_livestreams)
+        :error
     end
   end
 
@@ -90,6 +100,33 @@ defmodule SpectatorMode.Streams do
     case Registry.lookup(BridgeRegistry, bridge_id) do
       [{pid, _value} | _rest] -> pid # _rest should always be [] due to unique keys
       _ -> nil
+    end
+  end
+
+  ## Helpers
+
+  defp start_supervised_livestreams(stream_count) do
+    start_supervised_livestreams(stream_count, [])
+  end
+
+  defp start_supervised_livestreams(stream_count, acc) when stream_count <= 0 do
+    {:ok, acc}
+  end
+
+  defp start_supervised_livestreams(stream_count, acc) do
+    # TODO: Track used IDs so as to not re-use
+    stream_id = Enum.random(0..((2**32)-1))
+
+    if {:ok, stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, stream_id}) do
+      start_supervised_livestreams(stream_count - 1, [{stream_id, stream_pid} | acc])
+    else
+      {:error, acc}
+    end
+  end
+
+  defp cleanup_livestreams(started_livestreams) do
+    for {_stream_id, stream_pid} <- started_livestreams do
+      DynamicSupervisor.terminate_child(LivestreamSupervisor, stream_pid)
     end
   end
 end
