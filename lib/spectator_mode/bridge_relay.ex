@@ -4,14 +4,15 @@ defmodule SpectatorMode.BridgeRelay do
   # This is for simplicity, this can probably be optimized in the future.
 
   require Logger
+
   alias SpectatorMode.Streams
-  alias SpectatorMode.Slp
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.ReconnectTokenStore
+  alias SpectatorMode.Livestream
+  alias SpectatorMode.LivestreamRegistry
 
   @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
-            subscribers: MapSet.new(),
             event_payloads: nil,
             current_game_start: nil,
             current_game_state: %{fod_platforms: %{left: nil, right: nil}},
@@ -31,7 +32,7 @@ defmodule SpectatorMode.BridgeRelay do
   ## API
 
   defmodule BridgeRegistryValue do
-    defstruct active_game: nil, disconnected: false
+    defstruct disconnected: false
   end
 
   def start_link({bridge_id, reconnect_token, source_pid}) do
@@ -42,10 +43,6 @@ defmodule SpectatorMode.BridgeRelay do
 
   def forward(relay, data) do
     GenServer.cast(relay, {:forward, data})
-  end
-
-  def subscribe(relay) do
-    GenServer.call(relay, :subscribe)
   end
 
   @doc """
@@ -100,20 +97,6 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   @impl true
-  def handle_call(:subscribe, {from_pid, _tag}, %{subscribers: subscribers} = state) do
-    binary_to_send =
-      [
-        get_in(state.event_payloads.binary),
-        get_in(state.current_game_start.binary),
-        get_in(state.current_game_state.fod_platforms.left),
-        get_in(state.current_game_state.fod_platforms.right)
-      ]
-      |> Enum.filter(&(!is_nil(&1)))
-      |> Enum.join()
-
-    {:reply, binary_to_send, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
-  end
-
   def handle_call({:reconnect, source_pid}, _from, state) do
     if is_nil(state.reconnect_timeout_ref) do
       {:reply, {:error, :not_disconnected}, state}
@@ -135,12 +118,10 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   @impl true
-  def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
-    for subscriber_pid <- subscribers do
-      send(subscriber_pid, {:game_data, data})
-    end
-
-    {:noreply, update_state_from_game_data(state, data)}
+  def handle_cast({:forward, data}, state) do
+    {stream_id, _size} = parse_header(data)
+    Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, data)
+    {:noreply, state}
   end
 
   ## Helpers
@@ -157,53 +138,11 @@ defmodule SpectatorMode.BridgeRelay do
     Registry.update_value(BridgeRegistry, bridge_id, updater)
   end
 
-  defp update_state_from_game_data(state, data) do
-    maybe_payload_sizes = get_in(state.event_payloads.payload_sizes)
-    events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
-    handle_events(events, state)
-  end
-
-  # handle_events/2 and handle_event/2 serve to
-  # 1. execute any necessary side-effects based on a Slippi event
-  #    (i.e. sending PubSub messages)
-  # 2. return the modified state based on the event
-
-  defp handle_events(events, state) do
-    Enum.reduce(events, state, &handle_event(&1, &2))
-  end
-
-  defp handle_event(%Slp.Events.EventPayloads{} = event, state) do
-    new_state = put_in(state.event_payloads, event)
-    put_in(new_state.current_game_start, nil)
-  end
-
-  defp handle_event(%Slp.Events.GameStart{} = event, state) do
-    # Store and broadcast parsed event the data; the binary is not needed
-    game_settings = Map.put(event, :binary, nil)
-
-    update_registry_value(state.bridge_id, fn value ->
-      put_in(value.active_game, game_settings)
-    end)
-
-    notify_subscribers(:game_update, {state.bridge_id, game_settings})
-
-    put_in(state.current_game_start, event)
-  end
-
-  defp handle_event(%Slp.Events.GameEnd{}, state) do
-    update_registry_value(state.bridge_id, fn value -> put_in(value.active_game, nil) end)
-    notify_subscribers(:game_update, {state.bridge_id, nil})
-
-    state
-  end
-
-  defp handle_event(%Slp.Events.FodPlatforms{binary: binary, platform: platform}, state) do
-    put_in(state.current_game_state.fod_platforms[platform], binary)
-  end
-
-  defp handle_event(_event, state), do: state
-
   defp reconnect_timeout_ms do
     Application.get_env(:spectator_mode, :reconnect_timeout_ms)
+  end
+
+  defp parse_header(<<stream_id::little-32>> <> <<size::little-32>> <> _rest) do
+    {stream_id, size}
   end
 end
