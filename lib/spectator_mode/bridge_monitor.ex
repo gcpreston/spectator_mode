@@ -1,4 +1,4 @@
-defmodule SpectatorMode.BridgeRelay do
+defmodule SpectatorMode.BridgeMonitor do
   use GenServer, restart: :temporary
   # Temporary restart => new BridgeRelay upon bridge disconnect and reconnect.
   # This is for simplicity, this can probably be optimized in the future.
