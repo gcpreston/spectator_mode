@@ -1,6 +1,6 @@
 defmodule SpectatorMode.BridgeMonitor do
   use GenServer, restart: :temporary
-  # Temporary restart => new BridgeRelay upon bridge disconnect and reconnect.
+  # Temporary restart => new BridgeMonitor upon bridge disconnect and reconnect.
   # This is for simplicity, this can probably be optimized in the future.
 
   require Logger
@@ -11,17 +11,9 @@ defmodule SpectatorMode.BridgeMonitor do
 
   @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
-            event_payloads: nil,
-            current_game_start: nil,
-            current_game_state: %{fod_platforms: %{left: nil, right: nil}},
             reconnect_token: nil,
             reconnect_timeout_ref: nil
 
-  # :current_game_start stores the parsed GameStart event for the current game.
-  # :current_game_state stores the ensemble of stateful information which may
-  #   be needed to properly render the game and may change over time.
-  #   Specifically, it stores the binary version of the latest event affecting
-  #   each different part of the game state, if one has been received.
   # :reconnect_token tracks the current reconnect token. This is for logic
   #   management purposes, as opposed to security purposes; the token would
   #   have had to be given higher in the call stack already to find the

@@ -17,7 +17,8 @@ defmodule SpectatorMode.Application do
       # Start a worker by calling: SpectatorMode.Worker.start_link(arg)
       # {SpectatorMode.Worker, arg},
       {Registry, name: SpectatorMode.BridgeRegistry, keys: :unique},
-      {DynamicSupervisor, name: SpectatorMode.BridgeRelaySupervisor, strategy: :one_for_one},
+      {Registry, name: SpectatorMode.LivestreamRegistry, keys: :unique},
+      {DynamicSupervisor, name: SpectatorMode.BridgeMonitorSupervisor, strategy: :one_for_one},
       {DynamicSupervisor, name: SpectatorMode.LivestreamSupervisor, strategy: :one_for_one},
       {SpectatorMode.ReconnectTokenStore, name: {:global, SpectatorMode.ReconnectTokenStore}},
       SpectatorModeWeb.Presence,

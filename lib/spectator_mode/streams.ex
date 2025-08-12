@@ -3,8 +3,8 @@ defmodule SpectatorMode.Streams do
   The Streams context provides a public API for stream management operations.
   """
   alias SpectatorMode.BridgeRegistry
-  alias SpectatorMode.BridgeRelaySupervisor
-  alias SpectatorMode.BridgeRelay
+  alias SpectatorMode.BridgeMonitorSupervisor
+  alias SpectatorMode.BridgeMonitor
   alias SpectatorMode.LivestreamSupervisor
   alias SpectatorMode.Livestream
   alias SpectatorMode.Slp.Events.GameStart
@@ -56,16 +56,17 @@ defmodule SpectatorMode.Streams do
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
 
     with {:ok, livestream_ids_and_pids} <- start_supervised_livestreams(stream_count),
-         {:ok, relay_pid} <- DynamicSupervisor.start_child(BridgeRelaySupervisor, {BridgeRelay, {bridge_id, reconnect_token, source_pid}}) do
+         {:ok, relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, reconnect_token, source_pid}}) do
        {:ok, relay_pid, bridge_id, Enum.map(livestream_ids_and_pids, fn {stream_id, _pid} -> stream_id end), reconnect_token}
     else
-      # TODO: This does not handle if an issue arises with BridgeRelaySupervisor
+      # TODO: This does not handle if an issue arises with BridgeMonitorSupervisor
       {:error, started_livestreams} ->
         cleanup_livestreams(started_livestreams)
         :error
     end
   end
 
+  # TODO: Store bridge_id instead of pid, look up via registry
   @doc """
   Reconnect a relay to the calling process as the bridge connection. Requires
   the correct reconnect token. On success, returns a tuple including the relay
@@ -75,7 +76,7 @@ defmodule SpectatorMode.Streams do
   def reconnect_relay(reconnect_token, source_pid \\ self()) do
     with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
          relay_pid when is_pid(relay_pid) <- lookup(bridge_id),
-         {:ok, new_reconnect_token} <- BridgeRelay.reconnect(relay_pid, source_pid) do
+         {:ok, new_reconnect_token} <- BridgeMonitor.reconnect(relay_pid, source_pid) do
       {:ok, relay_pid, bridge_id, new_reconnect_token}
     else
       :error -> {:error, :reconnect_token_not_found}

@@ -1,7 +1,7 @@
-defmodule SpectatorMode.BridgeRelayTest do
+defmodule SpectatorMode.BridgeMonitorTest do
   use ExUnit.Case, async: true
 
-  alias SpectatorMode.BridgeRelay
+  alias SpectatorMode.BridgeMonitor
   alias SpectatorMode.Streams
 
   defp dummy_source do
@@ -17,7 +17,7 @@ defmodule SpectatorMode.BridgeRelayTest do
       source_pid = dummy_source()
 
       bridge_id = "test_id"
-      {:ok, relay_pid} = start_supervised({BridgeRelay, {bridge_id, "test_token", source_pid}})
+      {:ok, relay_pid} = start_supervised({BridgeMonitor, {bridge_id, "test_token", source_pid}})
       %{relay_pid: relay_pid, source_pid: source_pid, bridge_id: bridge_id}
     end
 
@@ -56,7 +56,7 @@ defmodule SpectatorMode.BridgeRelayTest do
       crash_and_assert_reconnect = fn {source_pid, new_source_pid} ->
         send(source_pid, :crash)
         assert_receive {:bridge_disconnected, ^bridge_id}
-        {:ok, _new_reconnect_token} = BridgeRelay.reconnect(relay_pid, new_source_pid)
+        {:ok, _new_reconnect_token} = BridgeMonitor.reconnect(relay_pid, new_source_pid)
 
         assert_receive {:bridge_reconnected, ^bridge_id}
         assert Process.alive?(relay_pid)
@@ -73,7 +73,7 @@ defmodule SpectatorMode.BridgeRelayTest do
     end
 
     test "does not allow reconnect if source hasn't exited", %{relay_pid: relay_pid} do
-      {:error, :not_disconnected} = BridgeRelay.reconnect(relay_pid, spawn(fn -> nil end))
+      {:error, :not_disconnected} = BridgeMonitor.reconnect(relay_pid, spawn(fn -> nil end))
     end
   end
 end
