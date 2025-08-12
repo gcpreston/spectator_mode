@@ -16,7 +16,7 @@ defmodule SpectatorMode.Application do
       {Finch, name: SpectatorMode.Finch},
       # Start a worker by calling: SpectatorMode.Worker.start_link(arg)
       # {SpectatorMode.Worker, arg},
-      {Registry, name: SpectatorMode.BridgeRegistry, keys: :unique},
+      {Registry, name: SpectatorMode.BridgeMonitorRegistry, keys: :unique},
       {Registry, name: SpectatorMode.LivestreamRegistry, keys: :unique},
       {DynamicSupervisor, name: SpectatorMode.BridgeMonitorSupervisor, strategy: :one_for_one},
       {DynamicSupervisor, name: SpectatorMode.LivestreamSupervisor, strategy: :one_for_one},

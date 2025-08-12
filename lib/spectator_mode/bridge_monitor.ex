@@ -6,7 +6,7 @@ defmodule SpectatorMode.BridgeMonitor do
   require Logger
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.BridgeRegistry
+  alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.ReconnectTokenStore
 
   @enforce_keys [:bridge_id, :reconnect_token]
@@ -21,13 +21,13 @@ defmodule SpectatorMode.BridgeMonitor do
 
   ## API
 
-  defmodule BridgeRegistryValue do
+  defmodule BridgeMonitorRegistryValue do
     defstruct disconnected: false
   end
 
   def start_link({bridge_id, reconnect_token, source_pid}) do
     GenServer.start_link(__MODULE__, {bridge_id, reconnect_token, source_pid},
-      name: {:via, Registry, {SpectatorMode.BridgeRegistry, bridge_id, %BridgeRegistryValue{}}}
+      name: {:via, Registry, {SpectatorMode.BridgeMonitorRegistry, bridge_id, %BridgeMonitorRegistryValue{}}}
     )
   end
 
@@ -113,7 +113,7 @@ defmodule SpectatorMode.BridgeMonitor do
   end
 
   defp update_registry_value(bridge_id, updater) do
-    Registry.update_value(BridgeRegistry, bridge_id, updater)
+    Registry.update_value(BridgeMonitorRegistry, bridge_id, updater)
   end
 
   defp reconnect_timeout_ms do

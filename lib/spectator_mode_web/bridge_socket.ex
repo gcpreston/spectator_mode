@@ -20,14 +20,13 @@ defmodule SpectatorModeWeb.BridgeSocket do
       end
 
     case connect_result do
-      {:ok, relay_pid, bridge_id, reconnect_token} ->
+      {:ok, bridge_id, reconnect_token} ->
         send(self(), :after_join)
 
         {:ok,
           state
           |> Map.put(:bridge_id, bridge_id)
-          |> Map.put(:reconnect_token, reconnect_token)
-          |> Map.put(:relay_pid, relay_pid)}
+          |> Map.put(:reconnect_token, reconnect_token)}
 
       {:error, reason} ->
         {:error, "Bridge connection failed: #{inspect(reason)}"}
