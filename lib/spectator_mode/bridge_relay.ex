@@ -8,8 +8,6 @@ defmodule SpectatorMode.BridgeRelay do
   alias SpectatorMode.Streams
   alias SpectatorMode.BridgeRegistry
   alias SpectatorMode.ReconnectTokenStore
-  alias SpectatorMode.Livestream
-  alias SpectatorMode.LivestreamRegistry
 
   @enforce_keys [:bridge_id, :reconnect_token]
   defstruct bridge_id: nil,
@@ -41,10 +39,6 @@ defmodule SpectatorMode.BridgeRelay do
     )
   end
 
-  def forward(relay, data) do
-    GenServer.cast(relay, {:forward, data})
-  end
-
   @doc """
   Reconnect this relay to the calling process, which is expected to act as the
   bridge connection. For this function, the bridge must be in a disconnected
@@ -61,8 +55,7 @@ defmodule SpectatorMode.BridgeRelay do
   @impl true
   def init({bridge_id, reconnect_token, source_pid}) do
     Logger.info("Starting bridge relay #{bridge_id}")
-    Process.link(source_pid)
-    Process.flag(:trap_exit, true)
+    Process.monitor(source_pid)
     notify_subscribers(:relay_created, bridge_id)
     {:ok, %__MODULE__{bridge_id: bridge_id, reconnect_token: reconnect_token}}
   end
@@ -78,7 +71,7 @@ defmodule SpectatorMode.BridgeRelay do
   end
 
   @impl true
-  def handle_info({:EXIT, _peer_pid, reason}, state) do
+  def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
     if reason in [:bridge_quit, {:shutdown, :local_closed}] do
       {:stop, reason, state}
     else
@@ -117,13 +110,6 @@ defmodule SpectatorMode.BridgeRelay do
     end
   end
 
-  @impl true
-  def handle_cast({:forward, data}, state) do
-    {stream_id, _size, rest} = parse_header(data)
-    Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, rest)
-    {:noreply, state}
-  end
-
   ## Helpers
 
   defp notify_subscribers(event, result) do
@@ -140,9 +126,5 @@ defmodule SpectatorMode.BridgeRelay do
 
   defp reconnect_timeout_ms do
     Application.get_env(:spectator_mode, :reconnect_timeout_ms)
-  end
-
-  defp parse_header(<<stream_id::little-32>> <> <<size::little-32>> <> rest) do
-    {stream_id, size, rest}
   end
 end

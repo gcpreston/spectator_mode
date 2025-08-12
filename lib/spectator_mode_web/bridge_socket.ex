@@ -3,7 +3,7 @@ defmodule SpectatorModeWeb.BridgeSocket do
 
   require Logger
   alias SpectatorMode.Streams
-  alias SpectatorMode.BridgeRelay
+  alias SpectatorMode.Livestream
 
   @impl true
   def child_spec(_opts) do
@@ -41,8 +41,9 @@ defmodule SpectatorModeWeb.BridgeSocket do
 
   @impl true
   def handle_in({payload, [opcode: :binary]}, state) do
-    # Forward binary game data via the relay
-    BridgeRelay.forward(state.relay_pid, payload)
+    # Forward binary game data to the appropriate livestream
+    {stream_id, _size, rest} = parse_header(payload)
+    Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, rest)
     {:ok, state}
   end
 
@@ -64,5 +65,11 @@ defmodule SpectatorModeWeb.BridgeSocket do
   @impl true
   def terminate(_reason, _state) do
     :ok
+  end
+
+  ## Helpers
+
+  defp parse_header(<<stream_id::little-32>> <> <<size::little-32>> <> rest) do
+    {stream_id, size, rest}
   end
 end
