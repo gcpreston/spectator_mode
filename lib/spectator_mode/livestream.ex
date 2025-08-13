@@ -50,7 +50,7 @@ defmodule SpectatorMode.Livestream do
   @doc """
   Subscribe the calling process to receive data from this livestream.
   """
-  @spec subscribe(GenServer.server()) :: nil
+  @spec subscribe(GenServer.server()) :: {:ok, binary()}
   def subscribe(server) do
     GenServer.call(server, :subscribe)
   end

@@ -16,7 +16,8 @@ defmodule SpectatorMode.Streams do
   @type bridge_id() :: String.t()
   @type stream_id() :: integer()
   @type reconnect_token() :: String.t()
-  @type connect_result() :: {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
+  @type bridge_connect_result() :: {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
+  @type viewer_connect_result() :: {:ok, binary()}
 
   @doc """
   Subscribe to PubSub notifications about the state
@@ -42,49 +43,65 @@ defmodule SpectatorMode.Streams do
   # - Make sure reconnect attempt goes through on server-side crash (may be a client-side issue)
 
   @doc """
-  Start a supervised relay process, and link it to the calling process as the
-  bridge connection. On success, returns a tuple including the relay pid, the
-  generated bridge ID, the generated stream IDs, and the generated reconnect token.
+  Register a bridge to the system. This function will start the specified
+  number of Livestream processes, as well as a process to monitor the bridge's
+  connection.
+
+  This will generate both the bridge ID and a stream ID for each stream.
   """
-  @spec start_and_link_relay(integer(), pid()) :: connect_result() | :error
-  def start_and_link_relay(stream_count, source_pid \\ self()) do
+  @spec register_bridge(integer(), pid()) :: bridge_connect_result()
+  def register_bridge(stream_count, pid \\ self()) do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
 
     with {:ok, livestream_ids_and_pids} <- start_supervised_livestreams(stream_count),
-         {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, reconnect_token, source_pid}}) do
+         {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, reconnect_token, pid}}) do
        {:ok, bridge_id, Enum.map(livestream_ids_and_pids, fn {stream_id, _pid} -> stream_id end), reconnect_token}
     else
       # TODO: This does not handle if an issue arises with BridgeMonitorSupervisor
       {:error, started_livestreams} ->
         cleanup_livestreams(started_livestreams)
-        :error
+        {:error, :livestream_start_failure}
     end
   end
 
-  # TODO: Store bridge_id instead of pid, look up via registry
   @doc """
-  Reconnect a relay to the calling process as the bridge connection. Requires
-  the correct reconnect token. On success, returns a tuple including the relay
-  pid, the generated bridge ID, and the generated reconnect token.
+  Reconnect a bridge via a reconnect token.
   """
-  @spec reconnect_relay(reconnect_token(), pid()) :: connect_result()
-  def reconnect_relay(reconnect_token, source_pid \\ self()) do
+  @spec reconnect_bridge(reconnect_token(), pid()) :: bridge_connect_result()
+  def reconnect_bridge(reconnect_token, pid \\ self()) do
     with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
-         {:ok, new_reconnect_token} <- BridgeMonitor.reconnect({:via, Registry, {BridgeMonitorRegistry, bridge_id}}, source_pid) do
+         {:ok, new_reconnect_token} <- BridgeMonitor.reconnect({:via, Registry, {BridgeMonitorRegistry, bridge_id}}, pid) do
       {:ok, bridge_id, new_reconnect_token}
     else
+      # TODO: Test case of monitor having died. Should not run into this case
+      #   but might need a try-catch to handle it anyways.
       :error -> {:error, :reconnect_token_not_found}
-      nil -> {:error, :relay_pid_not_found}
     end
   end
 
   @doc """
-  Fetch the IDs of all currently active bridge relays, and their metadata.
+  Register the calling process to receive data from a specified livestream.
   """
-  @spec list_relays() :: [%{bridge_id: bridge_id(), active_game: GameStart.t(), disconnected: boolean()}]
-  def list_relays do
-    Registry.select(BridgeMonitorRegistry, [{{:"$1", :_, %{active_game: :"$2", disconnected: :"$3"}}, [], [%{bridge_id: :"$1", active_game: :"$2", disconnected: :"$3"}]}])
+  @spec register_viewer(stream_id()) :: viewer_connect_result()
+  def register_viewer(stream_id) do
+    Livestream.subscribe({:via, Registry, {LivestreamRegistry, stream_id}})
+  end
+
+  @doc """
+  Forward binary data to a specified livestream.
+  """
+  @spec forward(stream_id(), binary()) :: nil
+  def forward(stream_id, data) do
+    Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, data)
+  end
+
+  @doc """
+  Fetch the stream IDs of all currently active streams, and their metadata.
+  """
+  @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}]
+  def list_streams do
+    Registry.select(LivestreamRegistry, [{{:"$1", :_, %{active_game: :"$2", disconnected: :"$3"}}, [], [%{stream_id: :"$1", active_game: :"$2", disconnected: :"$3"}]}])
   end
 
   @spec notify_subscribers(atom(), term()) :: nil
