@@ -14,18 +14,19 @@ defmodule SpectatorModeWeb.BridgeSocket do
   def connect(state) do
     connect_result =
       if reconnect_token = state.params["reconnect_token"] do
-        Streams.reconnect_relay(reconnect_token)
+        Streams.reconnect_bridge(reconnect_token)
       else
-        Streams.start_and_link_relay()
+        Streams.register_bridge(1)
       end
 
     case connect_result do
-      {:ok, bridge_id, reconnect_token} ->
+      {:ok, bridge_id, stream_ids, reconnect_token} ->
         send(self(), :after_join)
 
         {:ok,
           state
           |> Map.put(:bridge_id, bridge_id)
+          |> Map.put(:stream_ids, stream_ids)
           |> Map.put(:reconnect_token, reconnect_token)}
 
       {:error, reason} ->

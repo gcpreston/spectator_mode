@@ -2,8 +2,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
   @behaviour Phoenix.Socket.Transport
 
   require Logger
-  alias SpectatorMode.BridgeRelay
-  alias SpectatorMode.BridgeRegistry
+  alias SpectatorMode.Streams
   alias SpectatorModeWeb.Presence
 
   @impl true
@@ -11,10 +10,12 @@ defmodule SpectatorModeWeb.ViewerSocket do
     :ignore
   end
 
+  # IDEA: Cursor tracking
+  # Desired behavior: On viewer reconnect case, send missing frames
+
   @impl true
-  def connect(%{params: %{"bridge_id" => bridge_id}} = state) do
-    bridge_relay_name = {:via, Registry, {BridgeRegistry, bridge_id}}
-    join_payload = BridgeRelay.subscribe(bridge_relay_name)
+  def connect(%{params: %{"stream_id" => stream_id}} = state) do
+    join_payload = Streams.register_viewer(stream_id)
 
     # Send initial data to viewer after connect
     if join_payload do
@@ -23,7 +24,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
 
     # Track presence
     viewer_id = Ecto.UUID.generate()
-    Presence.track_viewer(viewer_id, bridge_id)
+    Presence.track_viewer(viewer_id, stream_id)
 
     {:ok, state}
   end
@@ -34,9 +35,9 @@ defmodule SpectatorModeWeb.ViewerSocket do
   end
 
   @impl true
-  def handle_in({payload, [opcode: :binary]}, state) do
-    BridgeRelay.forward(state.bridge_relay, payload)
-    {:reply, :ok, {:binary, payload}, state}
+  def handle_in({_message, _opts}, state) do
+    # TODO: I think this was doing nothing. When was data being sent from the user?
+    {:ok, state}
   end
 
   @impl true

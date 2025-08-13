@@ -45,21 +45,20 @@ defmodule SpectatorMode.BridgeMonitor do
 
   @impl true
   def init({bridge_id, reconnect_token, source_pid}) do
-    Logger.info("Starting bridge relay #{bridge_id}")
+    Logger.info("Starting monitor for bridge #{bridge_id}")
     Process.monitor(source_pid)
-    Streams.notify_subscribers(:relay_created, bridge_id)
     {:ok, %__MODULE__{bridge_id: bridge_id, reconnect_token: reconnect_token}}
   end
 
   @impl true
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
+    IO.inspect(reason, label: "bridge monitor got DOWN:")
     if reason in [:bridge_quit, {:shutdown, :local_closed}] do
       Logger.info("Bridge #{state.bridge_id} terminating, reason: #{inspect(reason)}")
-      Streams.notify_subscribers(:bridge_destroyed, state.bridge_id)
       BridgeSignals.notify_subscribers(state.bridge_id, :bridge_destroyed)
       ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
 
-      {:stop, reason, state}
+      {:stop, :normal, state}
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
       Streams.notify_subscribers(:bridge_disconnected, state.bridge_id)

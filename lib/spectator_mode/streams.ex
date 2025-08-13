@@ -5,6 +5,7 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.BridgeMonitorSupervisor
   alias SpectatorMode.BridgeMonitor
+  alias SpectatorMode.LivestreamRegistry
   alias SpectatorMode.LivestreamSupervisor
   alias SpectatorMode.Livestream
   alias SpectatorMode.Slp.Events.GameStart
@@ -54,7 +55,7 @@ defmodule SpectatorMode.Streams do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
 
-    with {:ok, livestream_ids_and_pids} <- start_supervised_livestreams(stream_count),
+    with {:ok, livestream_ids_and_pids} <- start_supervised_livestreams(bridge_id, stream_count),
          {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, reconnect_token, pid}}) do
        {:ok, bridge_id, Enum.map(livestream_ids_and_pids, fn {stream_id, _pid} -> stream_id end), reconnect_token}
     else
@@ -99,9 +100,31 @@ defmodule SpectatorMode.Streams do
   @doc """
   Fetch the stream IDs of all currently active streams, and their metadata.
   """
-  @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}]
+  @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t()}]
   def list_streams do
-    Registry.select(LivestreamRegistry, [{{:"$1", :_, %{active_game: :"$2", disconnected: :"$3"}}, [], [%{stream_id: :"$1", active_game: :"$2", disconnected: :"$3"}]}])
+    Registry.select(
+      LivestreamRegistry,
+      [
+        {{:"$1", :_, %{active_game: :"$2"}},
+        [],
+        [%{stream_id: :"$1", active_game: :"$2"}]}
+      ]
+    )
+  end
+
+  @doc """
+  Fetch the bridge IDs of all currently active streams, and their metadata.
+  """
+  @spec list_bridges() :: [%{bridge_id: bridge_id(), disconnected: GameStart.t()}]
+  def list_bridges do
+    Registry.select(
+      BridgeMonitorRegistry,
+      [
+        {{:"$1", :_, %{active_game: :"$2"}},
+        [],
+        [%{stream_id: :"$1", active_game: :"$2"}]}
+      ]
+    )
   end
 
   @spec notify_subscribers(atom(), term()) :: nil
@@ -115,20 +138,20 @@ defmodule SpectatorMode.Streams do
 
   ## Helpers
 
-  defp start_supervised_livestreams(stream_count) do
-    start_supervised_livestreams(stream_count, [])
+  defp start_supervised_livestreams(bridge_id, stream_count) do
+    start_supervised_livestreams(bridge_id, stream_count, [])
   end
 
-  defp start_supervised_livestreams(stream_count, acc) when stream_count <= 0 do
+  defp start_supervised_livestreams(_bridge_id, stream_count, acc) when stream_count <= 0 do
     {:ok, acc}
   end
 
-  defp start_supervised_livestreams(stream_count, acc) do
+  defp start_supervised_livestreams(bridge_id, stream_count, acc) do
     # TODO: Track used IDs so as to not re-use
     stream_id = Enum.random(0..((2**32)-1))
 
-    if {:ok, stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, stream_id}) do
-      start_supervised_livestreams(stream_count - 1, [{stream_id, stream_pid} | acc])
+    if {:ok, stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, {stream_id, bridge_id}}) do
+      start_supervised_livestreams(bridge_id, stream_count - 1, [{stream_id, stream_pid} | acc])
     else
       {:error, acc}
     end

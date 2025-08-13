@@ -101,8 +101,8 @@ defmodule SpectatorMode.Livestream do
   # TODO: Would like to prefix the event with the module from which it was sent
   #   for clarity between Streams and BridgeSignals (and potential future ones).
   @impl true
-  def handle_info(:bridge_destroyed, _state) do
-    {:stop, :normal}
+  def handle_info(:bridge_destroyed, state) do
+    {:stop, :normal, state}
   end
 
   ## Helpers
