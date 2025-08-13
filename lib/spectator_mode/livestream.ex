@@ -9,6 +9,7 @@ defmodule SpectatorMode.Livestream do
   require Logger
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.BridgeSignals
   alias SpectatorMode.Slp
   alias SpectatorMode.LivestreamRegistry
 
@@ -30,8 +31,8 @@ defmodule SpectatorMode.Livestream do
 
   ## API
 
-  def start_link(stream_id) do
-    GenServer.start_link(__MODULE__, stream_id,
+  def start_link({stream_id, bridge_id}) do
+    GenServer.start_link(__MODULE__, {stream_id, bridge_id},
       name: {:via, Registry, {SpectatorMode.LivestreamRegistry, stream_id, %LivestreamRegistryValue{}}}
     )
   end
@@ -57,9 +58,10 @@ defmodule SpectatorMode.Livestream do
   ## Callbacks
 
   @impl true
-  def init(stream_id) do
+  def init({stream_id, bridge_id}) do
     Logger.info("Starting livestream #{stream_id}")
-    notify_subscribers(:livestream_created, stream_id)
+    Streams.notify_subscribers(:livestream_created, stream_id)
+    BridgeSignals.subscribe(bridge_id)
     {:ok, %__MODULE__{stream_id: stream_id}}
   end
 
@@ -69,7 +71,7 @@ defmodule SpectatorMode.Livestream do
     # callback not being invoked in a crash is not concerning, because
     # any such crash would invoke a restart from the supervisor.
     Logger.info("Relay #{state.stream_id} terminating, reason: #{inspect(reason)}")
-    notify_subscribers(:livestream_destroyed, state.stream_id)
+    Streams.notify_subscribers(:livestream_destroyed, state.stream_id)
   end
 
   @impl true
@@ -96,15 +98,14 @@ defmodule SpectatorMode.Livestream do
     {:noreply, update_state_from_game_data(state, data)}
   end
 
-  ## Helpers
-
-  defp notify_subscribers(event, result) do
-    Phoenix.PubSub.broadcast(
-      SpectatorMode.PubSub,
-      Streams.index_subtopic(),
-      {event, result}
-    )
+  # TODO: Would like to prefix the event with the module from which it was sent
+  #   for clarity between Streams and BridgeSignals (and potential future ones).
+  @impl true
+  def handle_info(:bridge_destroyed, _state) do
+    {:stop, :normal}
   end
+
+  ## Helpers
 
   defp update_registry_value(stream_id, updater) do
     Registry.update_value(LivestreamRegistry, stream_id, updater)
@@ -138,14 +139,14 @@ defmodule SpectatorMode.Livestream do
       put_in(value.active_game, game_settings)
     end)
 
-    notify_subscribers(:game_update, {state.bridge_id, game_settings})
+    Streams.notify_subscribers(:game_update, {state.bridge_id, game_settings})
 
     put_in(state.current_game_start, event)
   end
 
   defp handle_event(%Slp.Events.GameEnd{}, state) do
     update_registry_value(state.bridge_id, fn value -> put_in(value.active_game, nil) end)
-    notify_subscribers(:game_update, {state.bridge_id, nil})
+    Streams.notify_subscribers(:game_update, {state.bridge_id, nil})
 
     state
   end

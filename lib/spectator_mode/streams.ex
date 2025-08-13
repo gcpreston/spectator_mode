@@ -26,10 +26,6 @@ defmodule SpectatorMode.Streams do
     Phoenix.PubSub.subscribe(SpectatorMode.PubSub, @index_subtopic)
   end
 
-  def index_subtopic do
-    @index_subtopic
-  end
-
   # CHANGES DESIRED
   # - Differentiate between bridge_disconnected and bridge_stopped events
   #   * Show reconnecting message instead of exiting stream on disconnect; exit on stop
@@ -89,6 +85,15 @@ defmodule SpectatorMode.Streams do
   @spec list_relays() :: [%{bridge_id: bridge_id(), active_game: GameStart.t(), disconnected: boolean()}]
   def list_relays do
     Registry.select(BridgeMonitorRegistry, [{{:"$1", :_, %{active_game: :"$2", disconnected: :"$3"}}, [], [%{bridge_id: :"$1", active_game: :"$2", disconnected: :"$3"}]}])
+  end
+
+  @spec notify_subscribers(atom(), term()) :: nil
+  def notify_subscribers(event, result) do
+    Phoenix.PubSub.broadcast(
+      SpectatorMode.PubSub,
+      @index_subtopic,
+      {event, result}
+    )
   end
 
   ## Helpers

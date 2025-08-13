@@ -182,7 +182,7 @@ defmodule SpectatorModeWeb.StreamsLive do
      end)}
   end
 
-  def handle_info({:relay_destroyed, bridge_id}, socket) do
+  def handle_info({:bridge_destroyed, bridge_id}, socket) do
     socket =
       if bridge_id == socket.assigns.selected_bridge_id do
         socket

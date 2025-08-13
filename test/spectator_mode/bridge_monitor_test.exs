@@ -30,7 +30,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
       Process.flag(:trap_exit, true)
       Process.exit(source_pid, :remote)
 
-      assert_receive {:relay_destroyed, ^bridge_id}
+      assert_receive {:bridge_destroyed, ^bridge_id}
       assert_receive {:EXIT, ^relay_pid, :remote}
       refute Process.alive?(relay_pid)
       refute_received {:bridge_disconnected, ^bridge_id}
@@ -46,7 +46,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
 
       reconnect_timeout_ms = Application.get_env(:spectator_mode, :reconnect_timeout_ms)
       Process.sleep(reconnect_timeout_ms + 20)
-      assert_received {:relay_destroyed, ^bridge_id}
+      assert_received {:bridge_destroyed, ^bridge_id}
       refute Process.alive?(relay_pid)
     end
 
@@ -69,7 +69,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
       |> crash_and_assert_reconnect.()
       |> crash_and_assert_reconnect.()
 
-      refute_received {:relay_destroyed, ^bridge_id}
+      refute_received {:bridge_destroyed, ^bridge_id}
     end
 
     test "does not allow reconnect if source hasn't exited", %{relay_pid: relay_pid} do

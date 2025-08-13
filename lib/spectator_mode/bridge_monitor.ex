@@ -1,11 +1,10 @@
 defmodule SpectatorMode.BridgeMonitor do
-  use GenServer, restart: :temporary
-  # Temporary restart => new BridgeMonitor upon bridge disconnect and reconnect.
-  # This is for simplicity, this can probably be optimized in the future.
+  use GenServer
 
   require Logger
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.BridgeSignals
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.ReconnectTokenStore
 
@@ -48,27 +47,22 @@ defmodule SpectatorMode.BridgeMonitor do
   def init({bridge_id, reconnect_token, source_pid}) do
     Logger.info("Starting bridge relay #{bridge_id}")
     Process.monitor(source_pid)
-    notify_subscribers(:relay_created, bridge_id)
+    Streams.notify_subscribers(:relay_created, bridge_id)
     {:ok, %__MODULE__{bridge_id: bridge_id, reconnect_token: reconnect_token}}
-  end
-
-  @impl true
-  def terminate(reason, state) do
-    # Notify subscribers on normal shutdowns. The possibility of this
-    # callback not being invoked in a crash is not concerning, because
-    # any such crash would invoke a restart from the supervisor.
-    Logger.info("Relay #{state.bridge_id} terminating, reason: #{inspect(reason)}")
-    notify_subscribers(:relay_destroyed, state.bridge_id)
-    ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
   end
 
   @impl true
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
     if reason in [:bridge_quit, {:shutdown, :local_closed}] do
+      Logger.info("Bridge #{state.bridge_id} terminating, reason: #{inspect(reason)}")
+      Streams.notify_subscribers(:bridge_destroyed, state.bridge_id)
+      BridgeSignals.notify_subscribers(state.bridge_id, :bridge_destroyed)
+      ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
+
       {:stop, reason, state}
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
-      notify_subscribers(:bridge_disconnected, state.bridge_id)
+      Streams.notify_subscribers(:bridge_disconnected, state.bridge_id)
 
       reconnect_timeout_ref =
         Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
@@ -94,7 +88,7 @@ defmodule SpectatorMode.BridgeMonitor do
       new_reconnect_token =
         ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
 
-      notify_subscribers(:bridge_reconnected, state.bridge_id)
+      Streams.notify_subscribers(:bridge_reconnected, state.bridge_id)
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, false) end)
 
       {:reply, {:ok, new_reconnect_token},
@@ -103,14 +97,6 @@ defmodule SpectatorMode.BridgeMonitor do
   end
 
   ## Helpers
-
-  defp notify_subscribers(event, result) do
-    Phoenix.PubSub.broadcast(
-      SpectatorMode.PubSub,
-      Streams.index_subtopic(),
-      {event, result}
-    )
-  end
 
   defp update_registry_value(bridge_id, updater) do
     Registry.update_value(BridgeMonitorRegistry, bridge_id, updater)
