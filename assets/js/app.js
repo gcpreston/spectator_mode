@@ -25,34 +25,34 @@ import "@gcpreston/slippi-viewer"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 
-function spectateStream(bridgeId) {
+function spectateStream(streamId) {
   const viewer = document.querySelector("#viewer");
   const wsProtocol = document.location.protocol === "http:" ? "ws:" : "wss:";
 
-  if (!bridgeId) {
+  if (!streamId) {
     viewer.clear();
   } else {
     // can't just use relaative path because connection is made from a blob file
-    viewer.spectate(`${wsProtocol}//${document.location.host}/viewer_socket/websocket?bridge_id=${bridgeId}`);
+    viewer.spectate(`${wsProtocol}//${document.location.host}/viewer_socket/websocket?stream_id=${streamId}`);
   }
 }
 
-const BridgeIdHook = {
+const StreamIdHook = {
   mounted() {
-    const bridgeId = this.el.getAttribute("bridgeid");
-    spectateStream(bridgeId);
+    const streamId = this.el.getAttribute("streamId");
+    spectateStream(streamId);
   },
 
   updated() {
-    const bridgeId = this.el.getAttribute("bridgeid");
-    spectateStream(bridgeId);
+    const streamId = this.el.getAttribute("bridstreamIdgeid");
+    spectateStream(streamId);
   }
 }
 
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 8000,
   params: {_csrf_token: csrfToken},
-  hooks: {BridgeIdHook}
+  hooks: {StreamIdHook}
 })
 
 // Show progress bar on live navigation and form submits
