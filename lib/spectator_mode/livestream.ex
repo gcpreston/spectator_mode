@@ -9,7 +9,7 @@ defmodule SpectatorMode.Livestream do
   require Logger
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.BridgeSignals
+  alias SpectatorMode.StreamSignals
   alias SpectatorMode.Slp
   alias SpectatorMode.LivestreamRegistry
 
@@ -31,8 +31,8 @@ defmodule SpectatorMode.Livestream do
 
   ## API
 
-  def start_link({stream_id, bridge_id}) do
-    GenServer.start_link(__MODULE__, {stream_id, bridge_id},
+  def start_link(stream_id) do
+    GenServer.start_link(__MODULE__, stream_id,
       name: {:via, Registry, {SpectatorMode.LivestreamRegistry, stream_id, %LivestreamRegistryValue{}}}
     )
   end
@@ -58,10 +58,10 @@ defmodule SpectatorMode.Livestream do
   ## Callbacks
 
   @impl true
-  def init({stream_id, bridge_id}) do
+  def init(stream_id) do
     Logger.info("Starting livestream #{stream_id}")
     Streams.notify_subscribers(:livestream_created, stream_id)
-    BridgeSignals.subscribe(bridge_id)
+    StreamSignals.subscribe(stream_id)
     {:ok, %__MODULE__{stream_id: stream_id}}
   end
 
@@ -102,7 +102,7 @@ defmodule SpectatorMode.Livestream do
   # TODO: Would like to prefix the event with the module from which it was sent
   #   for clarity between Streams and BridgeSignals (and potential future ones).
   @impl true
-  def handle_info(:bridge_destroyed, state) do
+  def handle_info({:stream_destroyed, _bridge_id}, state) do
     {:stop, :normal, state}
   end
 

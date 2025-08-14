@@ -4,7 +4,7 @@ defmodule SpectatorMode.BridgeMonitor do
   require Logger
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.BridgeSignals
+  alias SpectatorMode.StreamSignals
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.ReconnectTokenStore
 
@@ -65,7 +65,7 @@ defmodule SpectatorMode.BridgeMonitor do
     IO.inspect(reason, label: "bridge monitor got DOWN:")
     if reason in [:bridge_quit, {:shutdown, :local_closed}, :noproc] do
       Logger.info("Bridge #{state.bridge_id} terminating, reason: #{inspect(reason)}")
-      BridgeSignals.notify_subscribers(state.bridge_id, :bridge_destroyed)
+      StreamSignals.destroyed_signal(state.stream_ids)
       ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
 
       {:stop, :normal, state}

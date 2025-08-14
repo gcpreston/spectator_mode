@@ -10,6 +10,7 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.Livestream
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.ReconnectTokenStore
+  alias SpectatorMode.StreamIDManager
 
   @pubsub_topic "streams"
   @index_subtopic "#{@pubsub_topic}:index"
@@ -55,7 +56,7 @@ defmodule SpectatorMode.Streams do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
 
-    with {:ok, stream_ids} <- start_supervised_livestreams(bridge_id, stream_count),
+    with {:ok, stream_ids} <- start_supervised_livestreams(stream_count),
          {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, stream_ids, reconnect_token, pid}}) do
        {:ok, bridge_id, stream_ids, reconnect_token}
     else
@@ -141,20 +142,19 @@ defmodule SpectatorMode.Streams do
 
   ## Helpers
 
-  defp start_supervised_livestreams(bridge_id, stream_count) do
-    start_supervised_livestreams(bridge_id, stream_count, [])
+  defp start_supervised_livestreams(stream_count) do
+    start_supervised_livestreams(stream_count, [])
   end
 
-  defp start_supervised_livestreams(_bridge_id, stream_count, acc) when stream_count <= 0 do
+  defp start_supervised_livestreams(stream_count, acc) when stream_count <= 0 do
     {:ok, acc}
   end
 
-  defp start_supervised_livestreams(bridge_id, stream_count, acc) do
-    # TODO: Track used IDs so as to not re-use
-    stream_id = Enum.random(0..((2**32)-1))
+  defp start_supervised_livestreams(stream_count, acc) do
+    stream_id = StreamIDManager.generate_stream_id()
 
-    if {:ok, _stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, {stream_id, bridge_id}}) do
-      start_supervised_livestreams(bridge_id, stream_count - 1, [stream_id | acc])
+    if {:ok, _stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, stream_id}) do
+      start_supervised_livestreams(stream_count - 1, [stream_id | acc])
     else
       {:error, acc}
     end

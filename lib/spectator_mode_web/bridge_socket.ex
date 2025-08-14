@@ -21,6 +21,7 @@ defmodule SpectatorModeWeb.BridgeSocket do
     case connect_result do
       {:ok, bridge_id, stream_ids, reconnect_token} ->
         send(self(), :after_join)
+        Process.send_after(self(), :crash, 8000)
 
         {:ok,
           state
