@@ -133,8 +133,8 @@ defmodule SpectatorModeWeb.StreamsLive do
     viewer_counts = Presence.get_viewer_counts()
 
     stream_id_to_metadata =
-      for %{stream_id: stream_id, active_game: game_start, disconnected: disconnected} <- Streams.list_streams(), into: %{} do
-        {stream_id, %{active_game: game_start, disconnected: disconnected, viewer_count: Map.get(viewer_counts, stream_id, 0)}}
+      for %{stream_id: stream_id, active_game: game_start} <- Streams.list_streams(), into: %{} do
+        {stream_id, %{active_game: game_start, disconnected: false, viewer_count: Map.get(viewer_counts, stream_id, 0)}}
       end
 
     {
@@ -156,6 +156,8 @@ defmodule SpectatorModeWeb.StreamsLive do
 
   @impl true
   def handle_params(%{"watch" => stream_id}, _uri, socket) do
+    stream_id = String.to_integer(stream_id)
+
     socket =
       cond do
         !Map.has_key?(socket.assigns.livestreams, stream_id) ->
