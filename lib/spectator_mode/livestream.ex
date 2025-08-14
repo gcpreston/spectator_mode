@@ -91,6 +91,7 @@ defmodule SpectatorMode.Livestream do
 
   @impl true
   def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
+    # TODO: This feels like it could just be a pubsub broadcast
     for subscriber_pid <- subscribers do
       send(subscriber_pid, {:game_data, data})
     end
@@ -135,18 +136,18 @@ defmodule SpectatorMode.Livestream do
     # Store and broadcast parsed event the data; the binary is not needed
     game_settings = Map.put(event, :binary, nil)
 
-    update_registry_value(state.bridge_id, fn value ->
+    update_registry_value(state.stream_id, fn value ->
       put_in(value.active_game, game_settings)
     end)
 
-    Streams.notify_subscribers(:game_update, {state.bridge_id, game_settings})
+    Streams.notify_subscribers(:game_update, {state.stream_id, game_settings})
 
     put_in(state.current_game_start, event)
   end
 
   defp handle_event(%Slp.Events.GameEnd{}, state) do
-    update_registry_value(state.bridge_id, fn value -> put_in(value.active_game, nil) end)
-    Streams.notify_subscribers(:game_update, {state.bridge_id, nil})
+    update_registry_value(state.stream_id, fn value -> put_in(value.active_game, nil) end)
+    Streams.notify_subscribers(:game_update, {state.stream_id, nil})
 
     state
   end

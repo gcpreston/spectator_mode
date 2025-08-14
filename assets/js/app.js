@@ -44,7 +44,7 @@ const StreamIdHook = {
   },
 
   updated() {
-    const streamId = this.el.getAttribute("bridstreamIdgeid");
+    const streamId = this.el.getAttribute("streamId");
     spectateStream(streamId);
   }
 }

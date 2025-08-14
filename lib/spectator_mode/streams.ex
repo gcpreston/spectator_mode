@@ -92,8 +92,8 @@ defmodule SpectatorMode.Streams do
   @doc """
   Forward binary data to a specified livestream.
   """
-  @spec forward(stream_id(), binary()) :: nil
-  def forward(stream_id, data) do
+  @spec forward(binary(), stream_id()) :: nil
+  def forward(data, stream_id) do
     Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, data)
   end
 

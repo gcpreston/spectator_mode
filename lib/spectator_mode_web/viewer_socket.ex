@@ -15,6 +15,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
 
   @impl true
   def connect(%{params: %{"stream_id" => stream_id}} = state) do
+    stream_id = String.to_integer(stream_id)
     join_payload = Streams.register_viewer(stream_id)
 
     # Send initial data to viewer after connect
