@@ -55,9 +55,9 @@ defmodule SpectatorMode.Streams do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
 
-    with {:ok, livestream_ids_and_pids} <- start_supervised_livestreams(bridge_id, stream_count),
-         {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, reconnect_token, pid}}) do
-       {:ok, bridge_id, Enum.map(livestream_ids_and_pids, fn {stream_id, _pid} -> stream_id end), reconnect_token}
+    with {:ok, stream_ids} <- start_supervised_livestreams(bridge_id, stream_count),
+         {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, stream_ids, reconnect_token, pid}}) do
+       {:ok, bridge_id, stream_ids, reconnect_token}
     else
       # TODO: This does not handle if an issue arises with BridgeMonitorSupervisor
       {:error, started_livestreams} ->
@@ -73,7 +73,10 @@ defmodule SpectatorMode.Streams do
   def reconnect_bridge(reconnect_token, pid \\ self()) do
     with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
          {:ok, new_reconnect_token} <- BridgeMonitor.reconnect({:via, Registry, {BridgeMonitorRegistry, bridge_id}}, pid) do
-      {:ok, bridge_id, new_reconnect_token}
+      # TODO: Either look up which stream IDs belong to this bridge and send those back,
+      #   or send only a new reconnect token since that's all swb needs
+      #   (make sure swb can parse this though, will need to tell the difference between connect and reconnect)
+      {:ok, bridge_id, [], new_reconnect_token}
     else
       # TODO: Test case of monitor having died. Should not run into this case
       #   but might need a try-catch to handle it anyways.
@@ -150,8 +153,8 @@ defmodule SpectatorMode.Streams do
     # TODO: Track used IDs so as to not re-use
     stream_id = Enum.random(0..((2**32)-1))
 
-    if {:ok, stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, {stream_id, bridge_id}}) do
-      start_supervised_livestreams(bridge_id, stream_count - 1, [{stream_id, stream_pid} | acc])
+    if {:ok, _stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, {stream_id, bridge_id}}) do
+      start_supervised_livestreams(bridge_id, stream_count - 1, [stream_id | acc])
     else
       {:error, acc}
     end

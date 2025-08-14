@@ -17,13 +17,13 @@ defmodule SpectatorModeWeb.StreamsLive do
           <%= if map_size(@livestreams) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
-            <%= for {stream_id, %{active_game: active_game, viewer_count: viewer_count}} <- @livestreams do %>
+            <%= for {stream_id, %{active_game: active_game, viewer_count: viewer_count, disconnected: disconnected}} <- @livestreams do %>
               <button phx-click="watch" phx-value-streamid={stream_id}>
                 <.stream_card
                   stream_id={stream_id}
                   active_game={active_game}
                   selected={stream_id == @selected_stream_id}
-                  disconnected={false}
+                  disconnected={disconnected}
                   viewer_count={viewer_count}
                 />
               </button>
@@ -132,6 +132,12 @@ defmodule SpectatorModeWeb.StreamsLive do
 
     viewer_counts = Presence.get_viewer_counts()
 
+    # TODO: Get stream disconnected status on load
+    #   Right now this is stored separately in BridgeRegistry. Not sure if this
+    #   wants to be the case.
+    #   Think about the individual console connections within the bridge. We
+    #   will want to communicate from the bridge about the status of each of
+    #   those, and do reconnections on them, etc (eventually).
     stream_id_to_metadata =
       for %{stream_id: stream_id, active_game: game_start} <- Streams.list_streams(), into: %{} do
         {stream_id, %{active_game: game_start, disconnected: false, viewer_count: Map.get(viewer_counts, stream_id, 0)}}
@@ -202,39 +208,42 @@ defmodule SpectatorModeWeb.StreamsLive do
     }
   end
 
-  def handle_info({:bridge_disconnected, bridge_id}, socket) do
-    # socket =
-    #   if bridge_id == socket.assigns.selected_stream_id do
-    #     socket
-    #     |> put_flash(:info, "Stream source reconnecting...")
-    #   else
-    #     socket
-    #   end
+  def handle_info({:streams_disconnected, stream_ids}, socket) do
+    socket =
+      if socket.assigns.selected_stream_id in stream_ids do
+        socket
+        |> put_flash(:info, "Stream source reconnecting...")
+      else
+        socket
+      end
 
-    # {
-    #   :noreply,
-    #   update(socket, :livestreams, fn relays ->
-    #     put_in(relays[bridge_id].disconnected, true)
-    #   end)
-    # }
-    # TODO
-    IO.puts("got bridge disconnected #{bridge_id}")
-    {:noreply, socket}
+    {
+      :noreply,
+      update(socket, :livestreams, fn livestreams ->
+        Enum.reduce(stream_ids, livestreams, fn stream_id, acc ->
+          put_in(acc[stream_id].disconnected, true)
+        end)
+      end)
+    }
   end
 
-  def handle_info({:bridge_reconnected, bridge_id}, socket) do
-    # socket =
-    #   if bridge_id == socket.assigns.selected_stream_id do
-    #     socket
-    #     |> clear_flash()
-    #   else
-    #     socket
-    #   end
+  def handle_info({:streams_reconnected, stream_ids}, socket) do
+    socket =
+      if socket.assigns.selected_stream_id in stream_ids do
+        socket
+        |> clear_flash()
+      else
+        socket
+      end
 
-    # {:noreply, update(socket, :livestreams, fn relays -> put_in(relays[bridge_id].disconnected, false) end)}
-    # TODO
-    IO.puts("got bridge reconnected #{bridge_id}")
-    {:noreply, socket}
+    {
+      :noreply,
+      update(socket, :livestreams, fn livestreams ->
+        Enum.reduce(stream_ids, livestreams, fn stream_id, acc ->
+          put_in(acc[stream_id].disconnected, false)
+        end)
+      end)
+    }
   end
 
   def handle_info({:game_update, {stream_id, maybe_event}}, socket) do

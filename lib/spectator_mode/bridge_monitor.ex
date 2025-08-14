@@ -8,8 +8,9 @@ defmodule SpectatorMode.BridgeMonitor do
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.ReconnectTokenStore
 
-  @enforce_keys [:bridge_id, :reconnect_token]
+  @enforce_keys [:bridge_id, :stream_ids, :reconnect_token]
   defstruct bridge_id: nil,
+            stream_ids: nil,
             reconnect_token: nil,
             reconnect_timeout_ref: nil
 
@@ -24,8 +25,17 @@ defmodule SpectatorMode.BridgeMonitor do
     defstruct disconnected: false
   end
 
-  def start_link({bridge_id, reconnect_token, source_pid}) do
-    GenServer.start_link(__MODULE__, {bridge_id, reconnect_token, source_pid},
+  # TODO: Does this work if BridgeMonitor crashes after a reconnect?
+  #   I'd imagine it would attempt to reconnect to the original pid, instead of
+  #   its most recent one.
+  #
+  # IDEA
+  # - Bridge crash => monitor sends out notifications, exits, and is restarted with new source pid on bridge reconnect
+  # - Monitor crash => restart with same initialization params
+  #   * if bridge crashed before monitor restart, Process.monitor will send a DOWN immediately and monitor will do its job
+  # BUT: How does the reconnect timer work in this case? Maybe it could exit once bridge reconnects
+  def start_link({bridge_id, stream_ids, reconnect_token, source_pid}) do
+    GenServer.start_link(__MODULE__, {bridge_id, stream_ids, reconnect_token, source_pid},
       name: {:via, Registry, {SpectatorMode.BridgeMonitorRegistry, bridge_id, %BridgeMonitorRegistryValue{}}}
     )
   end
@@ -44,10 +54,10 @@ defmodule SpectatorMode.BridgeMonitor do
   ## Callbacks
 
   @impl true
-  def init({bridge_id, reconnect_token, source_pid}) do
+  def init({bridge_id, stream_ids, reconnect_token, source_pid}) do
     Logger.info("Starting monitor for bridge #{bridge_id}")
     Process.monitor(source_pid)
-    {:ok, %__MODULE__{bridge_id: bridge_id, reconnect_token: reconnect_token}}
+    {:ok, %__MODULE__{bridge_id: bridge_id, stream_ids: stream_ids, reconnect_token: reconnect_token}}
   end
 
   @impl true
@@ -61,7 +71,7 @@ defmodule SpectatorMode.BridgeMonitor do
       {:stop, :normal, state}
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
-      Streams.notify_subscribers(:bridge_disconnected, state.bridge_id)
+      Streams.notify_subscribers(:streams_disconnected, state.stream_ids)
 
       reconnect_timeout_ref =
         Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
@@ -81,13 +91,12 @@ defmodule SpectatorMode.BridgeMonitor do
     else
       Process.cancel_timer(state.reconnect_timeout_ref)
       Logger.info("Reconnecting relay #{state.bridge_id}")
-      Process.link(source_pid)
-      Process.flag(:trap_exit, true)
+      Process.monitor(source_pid)
 
       new_reconnect_token =
         ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
 
-      Streams.notify_subscribers(:bridge_reconnected, state.bridge_id)
+      Streams.notify_subscribers(:streams_reconnected, state.stream_ids)
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, false) end)
 
       {:reply, {:ok, new_reconnect_token},
