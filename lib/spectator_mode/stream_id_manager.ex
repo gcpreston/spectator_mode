@@ -49,7 +49,7 @@ defmodule SpectatorMode.StreamIDManager do
   ## Helpers
 
   defp generate_stream_id_helper do
-    # random u8
+    # random u32
     test_id = Enum.random(0..(2 ** 32 - 1))
 
     if :ets.insert_new(@stream_ids_table_name, {test_id, true}) do

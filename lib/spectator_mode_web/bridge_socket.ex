@@ -11,17 +11,18 @@ defmodule SpectatorModeWeb.BridgeSocket do
 
   @impl true
   def connect(state) do
+    stream_count = state.params["stream_count"] |> String.to_integer()
+
     connect_result =
       if reconnect_token = state.params["reconnect_token"] do
         Streams.reconnect_bridge(reconnect_token)
       else
-        Streams.register_bridge(1)
+        Streams.register_bridge(stream_count)
       end
 
     case connect_result do
       {:ok, bridge_id, stream_ids, reconnect_token} ->
         send(self(), :after_join)
-        Process.send_after(self(), :crash, 8000)
 
         {:ok,
           state
