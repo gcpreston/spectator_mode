@@ -70,7 +70,7 @@ defmodule SpectatorMode.Livestream do
     # Notify subscribers on normal shutdowns. The possibility of this
     # callback not being invoked in a crash is not concerning, because
     # any such crash would invoke a restart from the supervisor.
-    Logger.info("Relay #{state.stream_id} terminating, reason: #{inspect(reason)}")
+    Logger.info("Livestream #{state.stream_id} terminating, reason: #{inspect(reason)}")
     Streams.notify_subscribers(:livestream_destroyed, state.stream_id)
   end
 

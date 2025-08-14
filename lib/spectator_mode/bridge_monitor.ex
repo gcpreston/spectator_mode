@@ -53,7 +53,7 @@ defmodule SpectatorMode.BridgeMonitor do
   @impl true
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
     IO.inspect(reason, label: "bridge monitor got DOWN:")
-    if reason in [:bridge_quit, {:shutdown, :local_closed}] do
+    if reason in [:bridge_quit, {:shutdown, :local_closed}, :noproc] do
       Logger.info("Bridge #{state.bridge_id} terminating, reason: #{inspect(reason)}")
       BridgeSignals.notify_subscribers(state.bridge_id, :bridge_destroyed)
       ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
@@ -71,7 +71,7 @@ defmodule SpectatorMode.BridgeMonitor do
   end
 
   def handle_info(:reconnect_timeout, state) do
-    {:stop, :bridge_disconnected, state}
+    {:stop, :normal, state}
   end
 
   @impl true

@@ -48,7 +48,8 @@ defmodule SpectatorModeWeb.BridgeSocket do
   end
 
   def handle_in({"quit", [opcode: :text]}, state) do
-    {:stop, :bridge_quit, state}
+    Logger.info("Bridge #{state.bridge_id} quit")
+    {:stop, :normal, state}
   end
 
   @impl true
