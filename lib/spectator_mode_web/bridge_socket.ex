@@ -54,11 +54,11 @@ defmodule SpectatorModeWeb.BridgeSocket do
 
   @impl true
   def handle_info(:after_join, state) do
-    # Notify the bridge of its generated id and reconnect token
+    # Notify the bridge of its generated id, stream ids, and reconnect token
     {
       :push,
       {:text,
-       Jason.encode!(%{bridge_id: state.bridge_id, reconnect_token: state.reconnect_token})},
+       Jason.encode!(%{bridge_id: state.bridge_id, stream_ids: state.stream_ids, reconnect_token: state.reconnect_token})},
       state
     }
   end
