@@ -1,5 +1,5 @@
 defmodule SpectatorMode.BridgeMonitor do
-  use GenServer
+  use GenServer, restart: :transient
 
   require Logger
 
@@ -61,14 +61,14 @@ defmodule SpectatorMode.BridgeMonitor do
   end
 
   @impl true
-  def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
-    IO.inspect(reason, label: "bridge monitor got DOWN:")
-    if reason in [:bridge_quit, {:shutdown, :local_closed}, :noproc] do
-      Logger.info("Bridge #{state.bridge_id} terminating, reason: #{inspect(reason)}")
+  def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
+    Logger.debug("Monitor got DOWN for pid #{inspect(pid)}")
+    if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}, :noproc] do
+      Logger.info("Bridge #{state.bridge_id} terminated, reason: #{inspect(reason)}")
       StreamSignals.destroyed_signal(state.stream_ids)
       ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
 
-      {:stop, :normal, state}
+      {:stop, :shutdown, state}
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
       Streams.notify_subscribers(:streams_disconnected, state.stream_ids)
@@ -81,7 +81,7 @@ defmodule SpectatorMode.BridgeMonitor do
   end
 
   def handle_info(:reconnect_timeout, state) do
-    {:stop, :normal, state}
+    {:stop, {:shutdown, :reconnect_timeout}, state}
   end
 
   @impl true

@@ -3,8 +3,7 @@ defmodule SpectatorMode.Livestream do
   A process to represent a Slippi stream. This process serves to receive data
   from a provider and to forward it to clients.
   """
-
-  use GenServer
+  use GenServer, restart: :transient
 
   require Logger
 
@@ -62,6 +61,7 @@ defmodule SpectatorMode.Livestream do
     Logger.info("Starting livestream #{stream_id}")
     Streams.notify_subscribers(:livestream_created, stream_id)
     StreamSignals.subscribe(stream_id)
+    Process.send_after(self(), :crash, 8000)
     {:ok, %__MODULE__{stream_id: stream_id}}
   end
 
@@ -70,7 +70,7 @@ defmodule SpectatorMode.Livestream do
     # Notify subscribers on normal shutdowns. The possibility of this
     # callback not being invoked in a crash is not concerning, because
     # any such crash would invoke a restart from the supervisor.
-    Logger.info("Livestream #{state.stream_id} terminating, reason: #{inspect(reason)}")
+    Logger.info("Livestream #{state.stream_id} (#{inspect(self())}) terminating, reason: #{inspect(reason)}")
     Streams.notify_subscribers(:livestream_destroyed, state.stream_id)
   end
 
@@ -103,7 +103,7 @@ defmodule SpectatorMode.Livestream do
   #   for clarity between Streams and BridgeSignals (and potential future ones).
   @impl true
   def handle_info({:stream_destroyed, _bridge_id}, state) do
-    {:stop, :normal, state}
+    {:stop, :shutdown, state}
   end
 
   ## Helpers
