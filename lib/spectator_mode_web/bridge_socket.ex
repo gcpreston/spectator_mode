@@ -45,7 +45,7 @@ defmodule SpectatorModeWeb.BridgeSocket do
   def handle_in({payload, [opcode: :binary]}, state) do
     # Forward binary game data to the appropriate livestream
     {stream_id, _size, data} = parse_header(payload)
-    Streams.forward(data, stream_id)
+    Streams.forward(stream_id, data)
     {:ok, state}
   end
 

@@ -21,7 +21,8 @@ defmodule SpectatorMode.Application do
       {DynamicSupervisor, name: SpectatorMode.BridgeMonitorSupervisor, strategy: :one_for_one},
       {DynamicSupervisor, name: SpectatorMode.LivestreamSupervisor, strategy: :one_for_one},
       {SpectatorMode.ReconnectTokenStore, name: {:global, SpectatorMode.ReconnectTokenStore}},
-      {SpectatorMode.StreamIDManager, name: {:global, SpectatorMode.StreamIDManager}},
+      SpectatorMode.GameTracker,
+      SpectatorMode.StreamIDManager,
       SpectatorModeWeb.Presence,
       # Start to serve requests, typically the last entry
       SpectatorModeWeb.Endpoint

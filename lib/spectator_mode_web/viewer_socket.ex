@@ -19,8 +19,8 @@ defmodule SpectatorModeWeb.ViewerSocket do
     join_payload = Streams.register_viewer(stream_id)
 
     # Send initial data to viewer after connect
-    if join_payload do
-      send(self(), {:after_join, join_payload})
+    if {:ok, p} = join_payload do
+      send(self(), {:after_join, p})
     end
 
     # Track presence

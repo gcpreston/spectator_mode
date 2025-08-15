@@ -11,6 +11,7 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.ReconnectTokenStore
   alias SpectatorMode.StreamIDManager
+  alias SpectatorMode.GameTracker
 
   @pubsub_topic "streams"
   @index_subtopic "#{@pubsub_topic}:index"
@@ -27,6 +28,10 @@ defmodule SpectatorMode.Streams do
   """
   def subscribe do
     Phoenix.PubSub.subscribe(SpectatorMode.PubSub, @index_subtopic)
+  end
+
+  def stream_subtopic(stream_id) do
+    "#{@pubsub_topic}:#{stream_id}"
   end
 
   # CHANGES DESIRED
@@ -90,14 +95,17 @@ defmodule SpectatorMode.Streams do
   """
   @spec register_viewer(stream_id()) :: viewer_connect_result()
   def register_viewer(stream_id) do
-    Livestream.subscribe({:via, Registry, {LivestreamRegistry, stream_id}})
+    # Livestream.subscribe({:via, Registry, {LivestreamRegistry, stream_id}})
+
+    Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
+    GameTracker.join_payload(stream_id)
   end
 
   @doc """
   Forward binary data to a specified livestream.
   """
-  @spec forward(binary(), stream_id()) :: nil
-  def forward(data, stream_id) do
+  @spec forward(stream_id(), binary()) :: nil
+  def forward(stream_id, data) do
     Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, data)
   end
 
@@ -106,14 +114,15 @@ defmodule SpectatorMode.Streams do
   """
   @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t()}]
   def list_streams do
-    Registry.select(
-      LivestreamRegistry,
-      [
-        {{:"$1", :_, %{active_game: :"$2"}},
-        [],
-        [%{stream_id: :"$1", active_game: :"$2"}]}
-      ]
-    )
+    # Registry.select(
+    #   LivestreamRegistry,
+    #   [
+    #     {{:"$1", :_, %{active_game: :"$2"}},
+    #     [],
+    #     [%{stream_id: :"$1", active_game: :"$2"}]}
+    #   ]
+    # )
+    GameTracker.list_streams()
   end
 
   @doc """

@@ -10,13 +10,9 @@ defmodule SpectatorMode.Livestream do
   alias SpectatorMode.Streams
   alias SpectatorMode.StreamSignals
   alias SpectatorMode.Slp
-  alias SpectatorMode.LivestreamRegistry
+  alias SpectatorMode.GameTracker
 
-  defstruct stream_id: nil,
-            subscribers: MapSet.new(),
-            event_payloads: nil,
-            current_game_start: nil,
-            current_game_state: %{fod_platforms: %{left: nil, right: nil}}
+  defstruct stream_id: nil, event_payloads: nil
 
   # :current_game_start stores the parsed GameStart event for the current game.
   # :current_game_state stores the ensemble of stateful information which may
@@ -46,14 +42,6 @@ defmodule SpectatorMode.Livestream do
     GenServer.cast(server, {:forward, data})
   end
 
-  @doc """
-  Subscribe the calling process to receive data from this livestream.
-  """
-  @spec subscribe(GenServer.server()) :: {:ok, binary()}
-  def subscribe(server) do
-    GenServer.call(server, :subscribe)
-  end
-
   ## Callbacks
 
   @impl true
@@ -61,8 +49,38 @@ defmodule SpectatorMode.Livestream do
     Logger.info("Starting livestream #{stream_id}")
     Streams.notify_subscribers(:livestream_created, stream_id)
     StreamSignals.subscribe(stream_id)
-    Process.send_after(self(), :crash, 8000)
-    {:ok, %__MODULE__{stream_id: stream_id}}
+
+    event_payloads =
+      case GameTracker.get_event_payloads(stream_id) do
+        {:ok, p} -> p
+        :error -> nil
+      end
+
+    # PROBLEM
+    # Recovering fully from crash in this way basically just means storing all state in ETS.
+    # But then when we have that, why store anything in GenServers at all? It feels like
+    # redelegating to "solve" a problem, but really you don't solve it you just move it
+    # elsewhere and centralize it even more for the possiblity of a bigger failure.
+    #
+    # To handle subscribers, it could make sense to have them resubscribe upon restart.
+    # So to make it work, ViewerSocket processes could also just link this Livestream
+    # process and then die with it and re-sub on restart, or something like that.
+    #
+    # Past that, maybe the rest of the state just belongs in ETS after all. It appears
+    # all necessary functions are available on the :ets API to implement gets and sets
+    # of the current game info stored in this process' state.
+    #
+    # The concern would be the ETS owner process crashing, but with it just being a shell
+    # for table updates it should be lower risk than Livestream, which has more message types
+    # sent and received.
+    #
+    # And what would need to happen to recover from the ETS owner process crashing and taking
+    # the table down with it? That feels like a question for tomorrow
+    #
+    # --------
+    # Why not just make subscriptions work via Phoenix PubSub, and game state work via ETS?
+
+    {:ok, %__MODULE__{stream_id: stream_id, event_payloads: event_payloads}}
   end
 
   @impl true
@@ -75,26 +93,12 @@ defmodule SpectatorMode.Livestream do
   end
 
   @impl true
-  def handle_call(:subscribe, {from_pid, _tag}, %{subscribers: subscribers} = state) do
-    binary_to_send =
-      [
-        get_in(state.event_payloads.binary),
-        get_in(state.current_game_start.binary),
-        get_in(state.current_game_state.fod_platforms.left),
-        get_in(state.current_game_state.fod_platforms.right)
-      ]
-      |> Enum.filter(&(!is_nil(&1)))
-      |> Enum.join()
-
-    {:reply, binary_to_send, %{state | subscribers: MapSet.put(subscribers, from_pid)}}
-  end
-
-  @impl true
-  def handle_cast({:forward, data}, %{subscribers: subscribers} = state) do
-    # TODO: This feels like it could just be a pubsub broadcast
-    for subscriber_pid <- subscribers do
-      send(subscriber_pid, {:game_data, data})
-    end
+  def handle_cast({:forward, data}, %{stream_id: stream_id} = state) do
+    Phoenix.PubSub.broadcast(
+      SpectatorMode.PubSub,
+      Streams.stream_subtopic(stream_id),
+      {:game_data, data}
+    )
 
     {:noreply, update_state_from_game_data(state, data)}
   end
@@ -102,15 +106,12 @@ defmodule SpectatorMode.Livestream do
   # TODO: Would like to prefix the event with the module from which it was sent
   #   for clarity between Streams and BridgeSignals (and potential future ones).
   @impl true
-  def handle_info({:stream_destroyed, _bridge_id}, state) do
+  def handle_info({:stream_destroyed, stream_id}, state) do
+    GameTracker.delete(stream_id)
     {:stop, :shutdown, state}
   end
 
   ## Helpers
-
-  defp update_registry_value(stream_id, updater) do
-    Registry.update_value(LivestreamRegistry, stream_id, updater)
-  end
 
   defp update_state_from_game_data(state, data) do
     maybe_payload_sizes = get_in(state.event_payloads.payload_sizes)
@@ -127,33 +128,34 @@ defmodule SpectatorMode.Livestream do
     Enum.reduce(events, state, &handle_event(&1, &2))
   end
 
-  defp handle_event(%Slp.Events.EventPayloads{} = event, state) do
-    new_state = put_in(state.event_payloads, event)
-    put_in(new_state.current_game_start, nil)
+  defp handle_event(%Slp.Events.EventPayloads{} = event, %{stream_id: stream_id} = state) do
+    GameTracker.set_event_payloads(stream_id, event)
+    put_in(state.event_payloads, event)
   end
 
-  defp handle_event(%Slp.Events.GameStart{} = event, state) do
+  defp handle_event(%Slp.Events.GameStart{} = event, %{stream_id: stream_id} = state) do
     # Store and broadcast parsed event the data; the binary is not needed
     game_settings = Map.put(event, :binary, nil)
 
-    update_registry_value(state.stream_id, fn value ->
-      put_in(value.active_game, game_settings)
-    end)
-
+    # TODO: Some kind of consolidation here?
+    GameTracker.set_game_start(stream_id, event)
     Streams.notify_subscribers(:game_update, {state.stream_id, game_settings})
 
-    put_in(state.current_game_start, event)
+    state
   end
 
   defp handle_event(%Slp.Events.GameEnd{}, state) do
-    update_registry_value(state.stream_id, fn value -> put_in(value.active_game, nil) end)
+    # TODO: Some kind of consolidation here?
+    GameTracker.set_game_start(state.stream_id, nil)
     Streams.notify_subscribers(:game_update, {state.stream_id, nil})
 
     state
   end
 
-  defp handle_event(%Slp.Events.FodPlatforms{binary: binary, platform: platform}, state) do
-    put_in(state.current_game_state.fod_platforms[platform], binary)
+  defp handle_event(%Slp.Events.FodPlatforms{binary: _binary, platform: _platform}, state) do
+    # TODO
+    # put_in(state.current_game_state.fod_platforms[platform], binary)
+    state
   end
 
   defp handle_event(_event, state), do: state

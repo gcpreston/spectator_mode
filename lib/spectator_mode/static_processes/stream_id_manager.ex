@@ -50,7 +50,7 @@ defmodule SpectatorMode.StreamIDManager do
     # random u32
     test_id = Enum.random(0..(2 ** 32 - 1))
 
-    if MapSet.member?(unavailable_stream_ids, test_id) do
+    if !MapSet.member?(unavailable_stream_ids, test_id) do
       test_id
     else
       generate_stream_id_helper(unavailable_stream_ids)
