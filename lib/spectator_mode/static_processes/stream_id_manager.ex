@@ -2,19 +2,19 @@ defmodule SpectatorMode.StreamIDManager do
   @doc """
   A process to take care of handing out unique stream IDs.
 
-  This process owns an ETS table named `:stream_ids`.
+  When a livestream finishes, its ID will be freed to possibly be reassigned.
   """
   use GenServer
 
   alias SpectatorMode.Streams
   alias SpectatorMode.StreamSignals
 
-  @stream_ids_table_name :stream_ids
+  @global_name {:global, __MODULE__}
 
   ## API
 
   def start_link(_) do
-    GenServer.start_link(__MODULE__, nil, name: {:global, __MODULE__})
+    GenServer.start_link(__MODULE__, nil, name: @global_name)
   end
 
   @doc """
@@ -22,40 +22,38 @@ defmodule SpectatorMode.StreamIDManager do
   """
   @spec generate_stream_id() :: Streams.stream_id()
   def generate_stream_id do
-    GenServer.call({:global, __MODULE__}, :generate_stream_id)
+    GenServer.call(@global_name, :generate_stream_id)
   end
 
   ## Callbacks
 
   @impl true
   def init(_) do
-    :ets.new(@stream_ids_table_name, [:set, :protected, :named_table])
     StreamSignals.subscribe()
-
-    {:ok, nil}
+    {:ok, MapSet.new()}
   end
 
   @impl true
   def handle_call(:generate_stream_id, _from, state) do
-    {:reply, generate_stream_id_helper(), state}
+    stream_id = generate_stream_id_helper(state)
+    {:reply, stream_id, MapSet.put(state, stream_id)}
   end
 
   @impl true
   def handle_info({:stream_destroyed, stream_id}, state) do
-    :ets.delete(@stream_ids_table_name, stream_id)
-    {:noreply, state}
+    {:noreply, MapSet.delete(state, stream_id)}
   end
 
   ## Helpers
 
-  defp generate_stream_id_helper do
+  defp generate_stream_id_helper(unavailable_stream_ids) do
     # random u32
     test_id = Enum.random(0..(2 ** 32 - 1))
 
-    if :ets.insert_new(@stream_ids_table_name, {test_id, true}) do
+    if MapSet.member?(unavailable_stream_ids, test_id) do
       test_id
     else
-      generate_stream_id_helper()
+      generate_stream_id_helper(unavailable_stream_ids)
     end
   end
 end
