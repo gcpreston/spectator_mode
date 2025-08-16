@@ -17,6 +17,7 @@ defmodule SpectatorMode.GameTracker do
 
   @current_games_table_name :livestreams
   @global_name {:global, __MODULE__}
+  @event_types [:event_payloads, :game_start, :game_state]
 
   # ETS schema
   # {stream_id(), :event_payloads} => Slp.Events.EventPayloads.t()
@@ -27,6 +28,11 @@ defmodule SpectatorMode.GameTracker do
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, [], name: @global_name)
+  end
+
+  @spec initialize_stream(Streams.stream_id()) :: :ok
+  def initialize_stream(stream_id) do
+     GenServer.call(@global_name, {:initialize_stream, stream_id})
   end
 
   @spec get_event_payloads(Streams.stream_id()) :: {:ok, Slp.Events.EventPayloads.t() | nil} | :error
@@ -98,6 +104,13 @@ defmodule SpectatorMode.GameTracker do
   end
 
   @impl true
+  def handle_call({:initialize_stream, stream_id}, _from, state) do
+    for event_type <- @event_types do
+      :ets.insert(@current_games_table_name, {{stream_id, event_type}, nil})
+    end
+    {:reply, :ok, state}
+  end
+
   def handle_call({:set_event_payloads, stream_id, event_payloads}, _from, state) do
     # TODO: Protect against inserting for invalid stream?
     :ets.insert(@current_games_table_name, {{stream_id, :event_payloads}, event_payloads})
@@ -111,9 +124,9 @@ defmodule SpectatorMode.GameTracker do
   end
 
   def handle_call({:delete, stream_id}, _from, state) do
-    :ets.delete(@current_games_table_name, {stream_id, :event_payloads})
-    :ets.delete(@current_games_table_name, {stream_id, :game_start})
-    :ets.delete(@current_games_table_name, {stream_id, :game_state})
+    for event_type <- @event_types do
+      :ets.delete(@current_games_table_name, {stream_id, event_type})
+    end
     {:reply, :ok, state}
   end
 

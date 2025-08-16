@@ -4,9 +4,11 @@ defmodule SpectatorMode.BridgeMonitor do
   require Logger
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.StreamSignals
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.ReconnectTokenStore
+  alias SpectatorMode.GameTracker
+  alias SpectatorMode.StreamIDManager
+  alias SpectatorMode.LivestreamRegistry
 
   @enforce_keys [:bridge_id, :stream_ids, :reconnect_token]
   defstruct bridge_id: nil,
@@ -65,8 +67,7 @@ defmodule SpectatorMode.BridgeMonitor do
     Logger.debug("Monitor got DOWN for pid #{inspect(pid)}")
     if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}, :noproc] do
       Logger.info("Bridge #{state.bridge_id} terminated, reason: #{inspect(reason)}")
-      StreamSignals.destroyed_signal(state.stream_ids)
-      ReconnectTokenStore.delete({:global, ReconnectTokenStore}, state.reconnect_token)
+      bridge_cleanup(state.stream_ids, state.reconnect_token, reason)
 
       {:stop, :shutdown, state}
     else
@@ -112,5 +113,15 @@ defmodule SpectatorMode.BridgeMonitor do
 
   defp reconnect_timeout_ms do
     Application.get_env(:spectator_mode, :reconnect_timeout_ms)
+  end
+
+  defp bridge_cleanup(stream_ids, reconnect_token, exit_reason) do
+    for stream_id <- stream_ids do
+      GameTracker.delete(stream_id)
+      StreamIDManager.delete(stream_id)
+      GenServer.stop({:via, Registry, {LivestreamRegistry, stream_id}}, exit_reason)
+    end
+
+    ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token)
   end
 end

@@ -63,7 +63,11 @@ defmodule SpectatorMode.Streams do
 
     with {:ok, stream_ids} <- start_supervised_livestreams(stream_count),
          {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, stream_ids, reconnect_token, pid}}) do
-       {:ok, bridge_id, stream_ids, reconnect_token}
+      for stream_id <- stream_ids do
+        GameTracker.initialize_stream(stream_id)
+      end
+
+      {:ok, bridge_id, stream_ids, reconnect_token}
     else
       # TODO: This does not handle if an issue arises with BridgeMonitorSupervisor
       {:error, started_livestreams} ->
@@ -170,6 +174,7 @@ defmodule SpectatorMode.Streams do
   end
 
   defp cleanup_livestreams(started_livestreams) do
+    # TODO: This wouldn't work since we removed the pids from the previous helper
     for {_stream_id, stream_pid} <- started_livestreams do
       DynamicSupervisor.terminate_child(LivestreamSupervisor, stream_pid)
     end

@@ -7,7 +7,6 @@ defmodule SpectatorMode.StreamIDManager do
   use GenServer
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.StreamSignals
 
   @global_name {:global, __MODULE__}
 
@@ -25,11 +24,18 @@ defmodule SpectatorMode.StreamIDManager do
     GenServer.call(@global_name, :generate_stream_id)
   end
 
+  @doc """
+  Ensures the given stream ID is no longer registered.
+  """
+  @spec delete(Streams.stream_id()) :: :ok
+  def delete(stream_id) do
+    GenServer.call(@global_name, {:delete, stream_id})
+  end
+
   ## Callbacks
 
   @impl true
   def init(_) do
-    StreamSignals.subscribe()
     {:ok, MapSet.new()}
   end
 
@@ -39,9 +45,8 @@ defmodule SpectatorMode.StreamIDManager do
     {:reply, stream_id, MapSet.put(state, stream_id)}
   end
 
-  @impl true
-  def handle_info({:stream_destroyed, stream_id}, state) do
-    {:noreply, MapSet.delete(state, stream_id)}
+  def handle_call({:delete, stream_id}, _from, state) do
+    {:reply, :ok, MapSet.delete(state, stream_id)}
   end
 
   ## Helpers

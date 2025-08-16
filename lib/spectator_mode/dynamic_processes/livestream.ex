@@ -8,7 +8,6 @@ defmodule SpectatorMode.Livestream do
   require Logger
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.StreamSignals
   alias SpectatorMode.Slp
   alias SpectatorMode.GameTracker
 
@@ -48,37 +47,12 @@ defmodule SpectatorMode.Livestream do
   def init(stream_id) do
     Logger.info("Starting livestream #{stream_id}")
     Streams.notify_subscribers(:livestream_created, stream_id)
-    StreamSignals.subscribe(stream_id)
 
     event_payloads =
       case GameTracker.get_event_payloads(stream_id) do
         {:ok, p} -> p
         :error -> nil
       end
-
-    # PROBLEM
-    # Recovering fully from crash in this way basically just means storing all state in ETS.
-    # But then when we have that, why store anything in GenServers at all? It feels like
-    # redelegating to "solve" a problem, but really you don't solve it you just move it
-    # elsewhere and centralize it even more for the possiblity of a bigger failure.
-    #
-    # To handle subscribers, it could make sense to have them resubscribe upon restart.
-    # So to make it work, ViewerSocket processes could also just link this Livestream
-    # process and then die with it and re-sub on restart, or something like that.
-    #
-    # Past that, maybe the rest of the state just belongs in ETS after all. It appears
-    # all necessary functions are available on the :ets API to implement gets and sets
-    # of the current game info stored in this process' state.
-    #
-    # The concern would be the ETS owner process crashing, but with it just being a shell
-    # for table updates it should be lower risk than Livestream, which has more message types
-    # sent and received.
-    #
-    # And what would need to happen to recover from the ETS owner process crashing and taking
-    # the table down with it? That feels like a question for tomorrow
-    #
-    # --------
-    # Why not just make subscriptions work via Phoenix PubSub, and game state work via ETS?
 
     {:ok, %__MODULE__{stream_id: stream_id, event_payloads: event_payloads}}
   end
@@ -101,14 +75,6 @@ defmodule SpectatorMode.Livestream do
     )
 
     {:noreply, update_state_from_game_data(state, data)}
-  end
-
-  # TODO: Would like to prefix the event with the module from which it was sent
-  #   for clarity between Streams and BridgeSignals (and potential future ones).
-  @impl true
-  def handle_info({:stream_destroyed, stream_id}, state) do
-    GameTracker.delete(stream_id)
-    {:stop, :shutdown, state}
   end
 
   ## Helpers
