@@ -11,6 +11,7 @@ defmodule SpectatorMode.StreamsTest do
     spawn(fn ->
       receive do
         :crash -> raise "Some error occurred!"
+        :stop -> nil
       end
     end)
   end
@@ -71,6 +72,8 @@ defmodule SpectatorMode.StreamsTest do
 
       assert reconnect_token != new_reconnect_token
       assert_receive {:livestreams_reconnected, ^stream_ids}
+
+      send(new_source_pid, :stop)
     end
   end
 end
