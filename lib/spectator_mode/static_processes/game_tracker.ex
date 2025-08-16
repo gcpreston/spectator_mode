@@ -50,20 +50,12 @@ defmodule SpectatorMode.GameTracker do
     GenServer.call(@global_name, {:set_game_start, stream_id, game_start})
   end
 
-  @spec get_game_state(Streams.stream_id()) :: [Slp.Events.FodPlatforms.t()]
-  def get_game_state(stream_id) do
-    case lookup_helper(stream_id, stream_id) do
-      {:ok, game_state} -> Map.values(game_state[:fod_platforms])
-      _ -> []
-    end
-  end
-
   @spec set_fod_platform(Streams.stream_id(), :left | :right, Slp.Events.FodPlatforms.t()) :: :ok
   def set_fod_platform(stream_id, side, event) do
     GenServer.call(@global_name, {:set_fod_platform, stream_id, side, event})
   end
 
-  @spec join_payload(Streams.stream_id()) :: {:ok, binary()} | :error
+  @spec join_payload(Streams.stream_id()) :: binary()
   def join_payload(stream_id) do
     stream_objects = :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}])
 
@@ -81,7 +73,7 @@ defmodule SpectatorMode.GameTracker do
       |> Enum.map(fn e -> e.binary end)
       |> Enum.join()
 
-    {:ok, binary_to_send}
+    binary_to_send
   end
 
   @spec delete(Streams.stream_id()) :: :ok
@@ -127,12 +119,13 @@ defmodule SpectatorMode.GameTracker do
   def handle_call({:set_game_start, stream_id, game_start}, _from, state) do
     # TODO: Protect against inserting for invalid stream?
     :ets.insert(@current_games_table_name, {{stream_id, :game_start}, game_start})
+    :ets.insert(@current_games_table_name, {{stream_id, :game_state}, @initial_game_state})
     {:reply, :ok, state}
   end
 
   def handle_call({:set_fod_platform, stream_id, side, event}, _from, state) do
     # TODO: Protect against inserting for invalid stream?
-    {:ok, {{_stream_id, :game_state}, current_game_state}} = lookup_helper(stream_id, :game_state)
+    {:ok, current_game_state} = lookup_helper(stream_id, :game_state)
     :ets.insert(@current_games_table_name, {{stream_id, :game_state}, put_in(current_game_state, [:fod_platforms, side], event)})
     {:reply, :ok, state}
   end
