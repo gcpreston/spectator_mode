@@ -120,6 +120,7 @@ defmodule SpectatorMode.BridgeMonitor do
       GameTracker.delete(stream_id)
       StreamIDManager.delete(stream_id)
       GenServer.stop({:via, Registry, {LivestreamRegistry, stream_id}}, exit_reason)
+      Streams.notify_subscribers(:livestream_destroyed, stream_id)
     end
 
     ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token)

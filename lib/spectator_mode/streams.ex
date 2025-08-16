@@ -159,6 +159,7 @@ defmodule SpectatorMode.Streams do
     stream_id = StreamIDManager.generate_stream_id()
 
     if {:ok, _stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, stream_id}) do
+      notify_subscribers(:livestream_created, stream_id)
       start_supervised_livestreams(stream_count - 1, [stream_id | acc])
     else
       {:error, acc}

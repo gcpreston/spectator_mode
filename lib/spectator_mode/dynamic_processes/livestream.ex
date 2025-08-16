@@ -46,7 +46,6 @@ defmodule SpectatorMode.Livestream do
   @impl true
   def init(stream_id) do
     Logger.info("Starting livestream #{stream_id}")
-    Streams.notify_subscribers(:livestream_created, stream_id)
 
     event_payloads =
       case GameTracker.get_event_payloads(stream_id) do
@@ -59,11 +58,7 @@ defmodule SpectatorMode.Livestream do
 
   @impl true
   def terminate(reason, state) do
-    # Notify subscribers on normal shutdowns. The possibility of this
-    # callback not being invoked in a crash is not concerning, because
-    # any such crash would invoke a restart from the supervisor.
     Logger.info("Livestream #{state.stream_id} (#{inspect(self())}) terminating, reason: #{inspect(reason)}")
-    Streams.notify_subscribers(:livestream_destroyed, state.stream_id)
   end
 
   @impl true
