@@ -82,7 +82,7 @@ defmodule SpectatorMode.Livestream do
 
   # handle_events/2 and handle_event/2 serve to
   # 1. execute any necessary side-effects based on a Slippi event
-  #    (i.e. sending PubSub messages)
+  #    (i.e. sending PubSub messages, updating GameTracker)
   # 2. return the modified state based on the event
 
   defp handle_events(events, state) do

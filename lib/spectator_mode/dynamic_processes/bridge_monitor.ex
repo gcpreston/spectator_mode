@@ -72,7 +72,7 @@ defmodule SpectatorMode.BridgeMonitor do
       {:stop, :shutdown, state}
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
-      Streams.notify_subscribers(:streams_disconnected, state.stream_ids)
+      Streams.notify_subscribers(:livestreams_disconnected, state.stream_ids)
 
       reconnect_timeout_ref =
         Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
@@ -82,7 +82,9 @@ defmodule SpectatorMode.BridgeMonitor do
   end
 
   def handle_info(:reconnect_timeout, state) do
-    {:stop, {:shutdown, :reconnect_timeout}, state}
+    exit_reason = {:shutdown, :reconnect_timeout}
+    bridge_cleanup(state.stream_ids, state.reconnect_token, exit_reason)
+    {:stop, exit_reason, state}
   end
 
   @impl true
@@ -97,7 +99,7 @@ defmodule SpectatorMode.BridgeMonitor do
       new_reconnect_token =
         ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
 
-      Streams.notify_subscribers(:streams_reconnected, state.stream_ids)
+      Streams.notify_subscribers(:livestreams_reconnected, state.stream_ids)
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, false) end)
 
       {:reply, {:ok, new_reconnect_token},
@@ -120,9 +122,9 @@ defmodule SpectatorMode.BridgeMonitor do
       GameTracker.delete(stream_id)
       StreamIDManager.delete(stream_id)
       GenServer.stop({:via, Registry, {LivestreamRegistry, stream_id}}, exit_reason)
-      Streams.notify_subscribers(:livestream_destroyed, stream_id)
     end
 
     ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token)
+    Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
   end
 end

@@ -185,14 +185,14 @@ defmodule SpectatorModeWeb.StreamsLive do
   @impl true
   def handle_info({:livestream_created, stream_id}, socket) do
     {:noreply,
-     update(socket, :livestreams, fn old_relays ->
-       Map.put(old_relays, stream_id, %{active_game: nil, disconnected: false, viewer_count: 0})
+     update(socket, :livestreams, fn livestreams ->
+       Map.put(livestreams, stream_id, %{active_game: nil, disconnected: false, viewer_count: 0})
      end)}
   end
 
-  def handle_info({:livestream_destroyed, stream_id}, socket) do
+  def handle_info({:livestreams_destroyed, stream_ids}, socket) do
     socket =
-      if stream_id == socket.assigns.selected_stream_id do
+      if socket.assigns.selected_stream_id in stream_ids do
         socket
         |> clear_watch()
         |> put_flash(:info, "This stream has ended.")
@@ -202,13 +202,13 @@ defmodule SpectatorModeWeb.StreamsLive do
 
     {
       :noreply,
-      update(socket, :livestreams, fn old_relays ->
-        Map.delete(old_relays, stream_id)
+      update(socket, :livestreams, fn livestreams ->
+        Map.drop(livestreams, stream_ids)
       end)
     }
   end
 
-  def handle_info({:streams_disconnected, stream_ids}, socket) do
+  def handle_info({:livestreams_disconnected, stream_ids}, socket) do
     socket =
       if socket.assigns.selected_stream_id in stream_ids do
         socket
@@ -227,7 +227,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     }
   end
 
-  def handle_info({:streams_reconnected, stream_ids}, socket) do
+  def handle_info({:livestreams_reconnected, stream_ids}, socket) do
     socket =
       if socket.assigns.selected_stream_id in stream_ids do
         socket
