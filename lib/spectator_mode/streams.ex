@@ -118,14 +118,6 @@ defmodule SpectatorMode.Streams do
   """
   @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t()}]
   def list_streams do
-    # Registry.select(
-    #   LivestreamRegistry,
-    #   [
-    #     {{:"$1", :_, %{active_game: :"$2"}},
-    #     [],
-    #     [%{stream_id: :"$1", active_game: :"$2"}]}
-    #   ]
-    # )
     GameTracker.list_streams()
   end
 

@@ -17,12 +17,12 @@ defmodule SpectatorMode.GameTracker do
 
   @current_games_table_name :livestreams
   @global_name {:global, __MODULE__}
-  @event_types [:event_payloads, :game_start, :game_state]
+  @initial_game_state %{fod_platforms: %{left: nil, right: nil}}
 
   # ETS schema
   # {stream_id(), :event_payloads} => Slp.Events.EventPayloads.t()
   # {stream_id(), :game_start} => Slp.Events.GameStart.t()
-  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.Events.FodPlatform.t(), right: Slp.Events.FodPlatform.t()}}
+  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.Events.FodPlatforms.t(), right: Slp.Events.FodPlatforms.t()}}
 
   ## API
 
@@ -45,31 +45,38 @@ defmodule SpectatorMode.GameTracker do
     GenServer.call(@global_name, {:set_event_payloads, stream_id, event_payloads})
   end
 
-  @spec get_game_start(Streams.stream_id()) :: {:ok, Slp.Events.GameStart.t() | nil} | :error
-  def get_game_start(stream_id) do
-    lookup_helper(stream_id, :game_start)
-  end
-
   @spec set_game_start(Streams.stream_id(), Slp.Events.GameStart.t() | nil) :: :ok
   def set_game_start(stream_id, game_start) do
     GenServer.call(@global_name, {:set_game_start, stream_id, game_start})
   end
 
-  # TODO: Game state setters
+  @spec get_game_state(Streams.stream_id()) :: [Slp.Events.FodPlatforms.t()]
+  def get_game_state(stream_id) do
+    case lookup_helper(stream_id, stream_id) do
+      {:ok, game_state} -> Map.values(game_state[:fod_platforms])
+      _ -> []
+    end
+  end
+
+  @spec set_fod_platform(Streams.stream_id(), :left | :right, Slp.Events.FodPlatforms.t()) :: :ok
+  def set_fod_platform(stream_id, side, event) do
+    GenServer.call(@global_name, {:set_fod_platform, stream_id, side, event})
+  end
 
   @spec join_payload(Streams.stream_id()) :: {:ok, binary()} | :error
   def join_payload(stream_id) do
-    stream_objects = :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}]) |> dbg()
+    stream_objects = :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}])
 
     event_payloads = Enum.find(stream_objects, fn o -> match?(%Slp.Events.EventPayloads{}, o) end)
     game_start = Enum.find(stream_objects, fn o -> match?(%Slp.Events.GameStart{}, o) end)
-    stage_states = Enum.filter(stream_objects, fn o -> match?(%Slp.Events.FodPlatforms{}, o) end)
+    game_state = Enum.find(stream_objects, fn o -> match?(%{fod_platforms: _}, o) end)
+    state_stages = if is_nil(game_state), do: [], else: Map.values(game_state[:fod_platforms])
 
     binary_to_send =
       [
         event_payloads,
         game_start
-      ] ++ stage_states
+      ] ++ state_stages
       |> Enum.filter(&(!is_nil(&1)))
       |> Enum.map(fn e -> e.binary end)
       |> Enum.join()
@@ -92,7 +99,6 @@ defmodule SpectatorMode.GameTracker do
         [%{stream_id: :"$1", active_game: :"$2"}]}
       ]
     )
-    |> dbg()
   end
 
   ## Callbacks
@@ -105,9 +111,10 @@ defmodule SpectatorMode.GameTracker do
 
   @impl true
   def handle_call({:initialize_stream, stream_id}, _from, state) do
-    for event_type <- @event_types do
-      :ets.insert(@current_games_table_name, {{stream_id, event_type}, nil})
-    end
+    :ets.insert(@current_games_table_name, {{stream_id, :event_payloads}, nil})
+    :ets.insert(@current_games_table_name, {{stream_id, :game_start}, nil})
+    :ets.insert(@current_games_table_name, {{stream_id, :game_state}, @initial_game_state})
+
     {:reply, :ok, state}
   end
 
@@ -123,8 +130,15 @@ defmodule SpectatorMode.GameTracker do
     {:reply, :ok, state}
   end
 
+  def handle_call({:set_fod_platform, stream_id, side, event}, _from, state) do
+    # TODO: Protect against inserting for invalid stream?
+    {:ok, {{_stream_id, :game_state}, current_game_state}} = lookup_helper(stream_id, :game_state)
+    :ets.insert(@current_games_table_name, {{stream_id, :game_state}, put_in(current_game_state, [:fod_platforms, side], event)})
+    {:reply, :ok, state}
+  end
+
   def handle_call({:delete, stream_id}, _from, state) do
-    for event_type <- @event_types do
+    for event_type <- [:event_payloads, :game_start, :game_state] do
       :ets.delete(@current_games_table_name, {stream_id, event_type})
     end
     {:reply, :ok, state}
@@ -133,7 +147,7 @@ defmodule SpectatorMode.GameTracker do
   defp lookup_helper(stream_id, event_type) do
     case :ets.lookup(@current_games_table_name, {stream_id, event_type}) do
       [] -> :error
-      [event] -> {:ok, event}
+      [{{^stream_id, ^event_type}, object}] -> {:ok, object}
     end
   end
 end

@@ -118,9 +118,8 @@ defmodule SpectatorMode.Livestream do
     state
   end
 
-  defp handle_event(%Slp.Events.FodPlatforms{binary: _binary, platform: _platform}, state) do
-    # TODO
-    # put_in(state.current_game_state.fod_platforms[platform], binary)
+  defp handle_event(%Slp.Events.FodPlatforms{platform: platform} = event, state) do
+    GameTracker.set_fod_platform(state.stream_id, platform, event)
     state
   end
 

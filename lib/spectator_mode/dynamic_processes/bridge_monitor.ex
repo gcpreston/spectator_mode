@@ -64,8 +64,8 @@ defmodule SpectatorMode.BridgeMonitor do
 
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
-    Logger.debug("Monitor got DOWN for pid #{inspect(pid)}")
-    if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}, :noproc] do
+    Logger.debug("Monitor got DOWN for pid #{inspect(pid)}: #{inspect(reason)}")
+    if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}] do
       Logger.info("Bridge #{state.bridge_id} terminated, reason: #{inspect(reason)}")
       bridge_cleanup(state.stream_ids, state.reconnect_token, reason)
 
