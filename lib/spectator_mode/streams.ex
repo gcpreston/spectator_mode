@@ -82,6 +82,7 @@ defmodule SpectatorMode.Streams do
   @spec reconnect_bridge(reconnect_token(), pid()) :: bridge_connect_result()
   def reconnect_bridge(reconnect_token, pid \\ self()) do
     with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
+         :ok <- ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token),
          {:ok, new_reconnect_token} <- BridgeMonitor.reconnect({:via, Registry, {BridgeMonitorRegistry, bridge_id}}, pid) do
       # TODO: Either look up which stream IDs belong to this bridge and send those back,
       #   or send only a new reconnect token since that's all swb needs
