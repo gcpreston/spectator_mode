@@ -69,7 +69,7 @@ defmodule SpectatorMode.BridgeMonitor do
       Logger.info("Bridge #{state.bridge_id} terminated, reason: #{inspect(reason)}")
       bridge_cleanup(state.stream_ids, state.reconnect_token, reason)
 
-      {:stop, :shutdown, state}
+      {:stop, {:shutdown, :bridge_quit}, state}
     else
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
       Streams.notify_subscribers(:livestreams_disconnected, state.stream_ids)
@@ -121,7 +121,12 @@ defmodule SpectatorMode.BridgeMonitor do
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
       StreamIDManager.delete(stream_id)
-      GenServer.stop({:via, Registry, {LivestreamRegistry, stream_id}}, exit_reason)
+
+      livestream_name = {:via, Registry, {LivestreamRegistry, stream_id}}
+
+      if GenServer.whereis({:via, Registry, {LivestreamRegistry, stream_id}}) != nil do
+        GenServer.stop(livestream_name, exit_reason)
+      end
     end
 
     ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token)

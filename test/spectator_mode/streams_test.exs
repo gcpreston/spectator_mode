@@ -26,13 +26,9 @@ defmodule SpectatorMode.StreamsTest do
       assert MapSet.new(stream_ids) |> MapSet.size() == 5
 
       # Check that there are 5 correct processes in the registry
-      registry_stream_ids =
-        Registry.select(
-          LivestreamRegistry,
-          [{{:"$1", :_, :_}, [], [:"$1"]}]
-        )
-
-      assert MapSet.new(registry_stream_ids) == MapSet.new(stream_ids)
+      for stream_id <- stream_ids do
+        assert [{_pid, _value}] = Registry.lookup(LivestreamRegistry, stream_id)
+      end
 
       # Check that PubSub notifications are received
       for stream_id <- stream_ids do
