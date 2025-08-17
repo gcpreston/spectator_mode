@@ -101,7 +101,7 @@ defmodule SpectatorMode.BridgeMonitor do
       Streams.notify_subscribers(:livestreams_reconnected, state.stream_ids)
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, false) end)
 
-      {:reply, {:ok, new_reconnect_token},
+      {:reply, {:ok, new_reconnect_token, state.stream_ids},
        %{state | reconnect_timeout_ref: nil, reconnect_token: new_reconnect_token}}
     end
   end

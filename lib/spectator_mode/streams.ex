@@ -80,11 +80,8 @@ defmodule SpectatorMode.Streams do
   def reconnect_bridge(reconnect_token, pid \\ self()) do
     with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
          :ok <- ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token),
-         {:ok, new_reconnect_token} <- BridgeMonitor.reconnect({:via, Registry, {BridgeMonitorRegistry, bridge_id}}, pid) do
-      # TODO: Either look up which stream IDs belong to this bridge and send those back,
-      #   or send only a new reconnect token since that's all swb needs
-      #   (make sure swb can parse this though, will need to tell the difference between connect and reconnect)
-      {:ok, bridge_id, [], new_reconnect_token}
+         {:ok, new_reconnect_token, stream_ids} <- BridgeMonitor.reconnect({:via, Registry, {BridgeMonitorRegistry, bridge_id}}, pid) do
+      {:ok, bridge_id, stream_ids, new_reconnect_token}
     else
       # TODO: Test case of monitor having died. Should not run into this case
       #   but might need a try-catch to handle it anyways.
@@ -97,8 +94,6 @@ defmodule SpectatorMode.Streams do
   """
   @spec register_viewer(stream_id()) :: viewer_connect_result()
   def register_viewer(stream_id) do
-    # Livestream.subscribe({:via, Registry, {LivestreamRegistry, stream_id}})
-
     Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
     GameTracker.join_payload(stream_id)
   end
