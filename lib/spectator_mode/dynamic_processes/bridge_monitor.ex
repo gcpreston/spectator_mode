@@ -7,7 +7,6 @@ defmodule SpectatorMode.BridgeMonitor do
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.ReconnectTokenStore
   alias SpectatorMode.GameTracker
-  alias SpectatorMode.StreamIDManager
   alias SpectatorMode.LivestreamRegistry
 
   @enforce_keys [:bridge_id, :stream_ids, :reconnect_token]
@@ -120,7 +119,6 @@ defmodule SpectatorMode.BridgeMonitor do
   defp bridge_cleanup(stream_ids, reconnect_token, exit_reason) do
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
-      StreamIDManager.delete(stream_id)
 
       livestream_name = {:via, Registry, {LivestreamRegistry, stream_id}}
 

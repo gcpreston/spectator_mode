@@ -20,9 +20,9 @@ defmodule SpectatorMode.GameTracker do
   @initial_game_state %{fod_platforms: %{left: nil, right: nil}}
 
   # ETS schema
-  # {stream_id(), :event_payloads} => Slp.Events.EventPayloads.t()
-  # {stream_id(), :game_start} => Slp.Events.GameStart.t()
-  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.Events.FodPlatforms.t(), right: Slp.Events.FodPlatforms.t()}}
+  # {stream_id(), :event_payloads} => Slp.Events.EventPayloads.t() | nil
+  # {stream_id(), :game_start} => Slp.Events.GameStart.t() | nil
+  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.Events.FodPlatforms.t() | nil, right: Slp.Events.FodPlatforms.t() | nil}}
 
   ## API
 
@@ -30,9 +30,9 @@ defmodule SpectatorMode.GameTracker do
     GenServer.start_link(__MODULE__, [], name: @global_name)
   end
 
-  @spec initialize_stream(Streams.stream_id()) :: :ok
-  def initialize_stream(stream_id) do
-     GenServer.call(@global_name, {:initialize_stream, stream_id})
+  @spec initialize_stream() :: Streams.stream_id()
+  def initialize_stream do
+     GenServer.call(@global_name, :initialize_stream)
   end
 
   @spec get_event_payloads(Streams.stream_id()) :: {:ok, Slp.Events.EventPayloads.t() | nil} | :error
@@ -102,12 +102,18 @@ defmodule SpectatorMode.GameTracker do
   end
 
   @impl true
-  def handle_call({:initialize_stream, stream_id}, _from, state) do
+  def handle_call(:initialize_stream, _from, state) do
+    # Generate an unused stream ID.
+    # Since this happens in a GenServer call, it is the only message being
+    # served at the moment, so there is no risk of the same stream_id being
+    # handed out again before the first recipient inserts their keys.
+    stream_id = generate_stream_id()
+
     :ets.insert(@current_games_table_name, {{stream_id, :event_payloads}, nil})
     :ets.insert(@current_games_table_name, {{stream_id, :game_start}, nil})
     :ets.insert(@current_games_table_name, {{stream_id, :game_state}, @initial_game_state})
 
-    {:reply, :ok, state}
+    {:reply, stream_id, state}
   end
 
   def handle_call({:set_event_payloads, stream_id, event_payloads}, _from, state) do
@@ -141,6 +147,24 @@ defmodule SpectatorMode.GameTracker do
     case :ets.lookup(@current_games_table_name, {stream_id, event_type}) do
       [] -> :error
       [{{^stream_id, ^event_type}, object}] -> {:ok, object}
+    end
+  end
+
+  defp generate_stream_id do
+    # random u32
+    test_id = Enum.random(0..(2 ** 32 - 1))
+
+    if !stream_exists?(test_id) do
+      test_id
+    else
+      generate_stream_id()
+    end
+  end
+
+  defp stream_exists?(stream_id) do
+    case :ets.lookup(@current_games_table_name, {stream_id, :game_start}) do
+      [] -> false
+      _ -> true
     end
   end
 end

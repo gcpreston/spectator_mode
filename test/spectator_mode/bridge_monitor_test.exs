@@ -19,7 +19,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
   setup do
     source_pid = dummy_source()
     bridge_id = "bridge_monitor_test_id"
-    stream_ids = [123, 456]
+    stream_ids = Enum.map(1..2, fn _ -> GameTracker.initialize_stream() end)
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
     monitor_pid = start_supervised!({BridgeMonitor, {bridge_id, stream_ids, reconnect_token, source_pid}})
 
@@ -96,10 +96,6 @@ defmodule SpectatorMode.BridgeMonitorTest do
     test "on reconnect timeout, cleans up other processes", %{monitor_pid: monitor_pid, source_pid: source_pid, bridge_id: bridge_id, stream_ids: stream_ids, reconnect_token: reconnect_token} do
       Streams.subscribe()
 
-      for stream_id <- stream_ids do
-        GameTracker.initialize_stream(stream_id)
-      end
-
       # State assertions before exit
       assert GameTracker.list_streams() |> length() >= length(stream_ids)
       assert {:ok, ^bridge_id} = ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token)
@@ -113,10 +109,6 @@ defmodule SpectatorMode.BridgeMonitorTest do
 
     test "on bridge quit, cleans up other processes", %{monitor_pid: monitor_pid, source_pid: source_pid, bridge_id: bridge_id, stream_ids: stream_ids, reconnect_token: reconnect_token} do
       Streams.subscribe()
-
-      for stream_id <- stream_ids do
-        GameTracker.initialize_stream(stream_id)
-      end
 
       # State assertions before exit
       assert GameTracker.list_streams() |> length() >= length(stream_ids)
@@ -136,7 +128,6 @@ defmodule SpectatorMode.BridgeMonitorTest do
     assert_receive {:livestreams_destroyed, ^stream_ids}, destroy_event_wait_time
 
     # Assert cleanup of other resources
-    # StreamIDManager does not provide an API to check if a stream ID is taken or not
     assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: stream_id} -> stream_id in stream_ids end) |> Enum.empty?()
     assert ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token) == :error
 

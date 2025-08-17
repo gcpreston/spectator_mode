@@ -10,7 +10,6 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.Livestream
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.ReconnectTokenStore
-  alias SpectatorMode.StreamIDManager
   alias SpectatorMode.GameTracker
 
   @pubsub_topic "streams"
@@ -60,12 +59,10 @@ defmodule SpectatorMode.Streams do
   def register_bridge(stream_count, pid \\ self()) do
     bridge_id = Ecto.UUID.generate()
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
+    stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
 
-    with {:ok, stream_ids} <- start_supervised_livestreams(stream_count),
+    with {:ok, _start_result} <- start_supervised_livestreams(stream_ids),
          {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, stream_ids, reconnect_token, pid}}) do
-      for stream_id <- stream_ids do
-        GameTracker.initialize_stream(stream_id)
-      end
 
       {:ok, bridge_id, stream_ids, reconnect_token}
     else
@@ -152,16 +149,16 @@ defmodule SpectatorMode.Streams do
     start_supervised_livestreams(stream_count, [])
   end
 
-  defp start_supervised_livestreams(stream_count, acc) when stream_count <= 0 do
+  defp start_supervised_livestreams([], acc) do
     {:ok, acc}
   end
 
-  defp start_supervised_livestreams(stream_count, acc) do
-    stream_id = StreamIDManager.generate_stream_id()
-
-    if {:ok, _stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, stream_id}) do
+  defp start_supervised_livestreams([stream_id | rest], acc) do
+    if {:ok, stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, stream_id}) do
+      # TODO: This feels like a recipe for bad frontend state,
+      # would rather an all-at-once notification on success
       notify_subscribers(:livestream_created, stream_id)
-      start_supervised_livestreams(stream_count - 1, [stream_id | acc])
+      start_supervised_livestreams(rest, [{stream_id, stream_pid} | acc])
     else
       {:error, acc}
     end

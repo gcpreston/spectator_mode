@@ -4,38 +4,22 @@ defmodule SpectatorMode.GameTrackerTest do
   alias SpectatorMode.GameTracker
   alias SpectatorMode.Slp.EventsFixtures
 
-  setup do
-    %{stream_id: "game_tracker_test_id"}
-  end
+  test "initialize_stream/1 sets appropriate keys, delete/1 removes stream data" do
+    event_payloads = EventsFixtures.event_payloads_fixture()
+    game_start = EventsFixtures.game_start_fixture()
+    fod_platform = EventsFixtures.fod_platforms_fixture()
 
-  describe "initialize, list, and delete streams" do
-    test "initialize_stream/1 sets appropriate keys", %{stream_id: stream_id} do
-      assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) |> Enum.empty?()
-      assert GameTracker.join_payload(stream_id) == <<>>
+    stream_id = GameTracker.initialize_stream()
+    GameTracker.set_event_payloads(stream_id, event_payloads)
+    GameTracker.set_game_start(stream_id, game_start)
+    GameTracker.set_fod_platform(stream_id, fod_platform.platform, fod_platform)
 
-      GameTracker.initialize_stream(stream_id)
+    assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) == [%{stream_id: stream_id, active_game: game_start}]
+    assert GameTracker.join_payload(stream_id) == event_payloads.binary <> game_start.binary <> fod_platform.binary
 
-      assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) == [%{stream_id: stream_id, active_game: nil}]
-      assert GameTracker.join_payload(stream_id) == <<>>
-    end
+    GameTracker.delete(stream_id)
 
-    test "delete/1 removes stream data", %{stream_id: stream_id} do
-      event_payloads = EventsFixtures.event_payloads_fixture()
-      game_start = EventsFixtures.game_start_fixture()
-      fod_platform = EventsFixtures.fod_platforms_fixture()
-
-      GameTracker.initialize_stream(stream_id)
-      GameTracker.set_event_payloads(stream_id, event_payloads)
-      GameTracker.set_game_start(stream_id, game_start)
-      GameTracker.set_fod_platform(stream_id, fod_platform.platform, fod_platform)
-
-      assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) == [%{stream_id: stream_id, active_game: game_start}]
-      assert GameTracker.join_payload(stream_id) == event_payloads.binary <> game_start.binary <> fod_platform.binary
-
-      GameTracker.delete(stream_id)
-
-      assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) |> Enum.empty?()
-      assert GameTracker.join_payload(stream_id) == <<>>
-    end
+    assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) |> Enum.empty?()
+    assert GameTracker.join_payload(stream_id) == <<>>
   end
 end
