@@ -1,5 +1,8 @@
 defmodule SpectatorMode.Livestream do
-  # TODO: What is a better name for this module now?
+  @moduledoc """
+  A GenServer to parse packets from a livestream and handle executing
+  appropriate side-effects.
+  """
   use GenServer, restart: :transient
 
   require Logger
@@ -18,9 +21,6 @@ defmodule SpectatorMode.Livestream do
     )
   end
 
-  @doc """
-  Parse a packet for this livestream and execute appropriate side effects.
-  """
   @spec handle_packet(GenServer.server(), binary()) :: nil
   def handle_packet(server, data) do
     GenServer.cast(server, {:handle_packet, data})
@@ -75,7 +75,6 @@ defmodule SpectatorMode.Livestream do
     # Store and broadcast parsed event the data; the binary is not needed
     game_settings = Map.put(event, :binary, nil)
 
-    # TODO: Some kind of consolidation here?
     GameTracker.set_game_start(stream_id, event)
     Streams.notify_subscribers(:game_update, {state.stream_id, game_settings})
 
@@ -83,7 +82,6 @@ defmodule SpectatorMode.Livestream do
   end
 
   defp handle_event(%Slp.Events.GameEnd{}, state) do
-    # TODO: Some kind of consolidation here?
     GameTracker.set_game_start(state.stream_id, nil)
     Streams.notify_subscribers(:game_update, {state.stream_id, nil})
 

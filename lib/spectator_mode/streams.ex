@@ -33,21 +33,6 @@ defmodule SpectatorMode.Streams do
     "#{@pubsub_topic}:#{stream_id}"
   end
 
-  # CHANGES DESIRED
-  # - Differentiate between bridge_disconnected and bridge_stopped events
-  #   * Show reconnecting message instead of exiting stream on disconnect; exit on stop
-  # - Can keep registry as source of truth for listing streams
-  #   * relay_created event on reconnect can show it to people on the page,
-  #     meanwhile bridge_disconnected can not remove it from those who already saw
-  # - Show some kind of indicator that a listed stream is disconnected
-  # - Handle trying to watch a disconnected stream
-  #   * Say a stream goes down only for a second and people join at this second. Still
-  #     want it to be smooth for them.
-  #   * What is relay didn't go down as soon as socket did? The socket can go in and out,
-  #     and once we determine it's not coming back (reconnect token deletion), we delete the
-  #     relay. This could even simplify reconnect token store logic.
-  # - Make sure reconnect attempt goes through on server-side crash (may be a client-side issue)
-
   @doc """
   Register a bridge to the system. This function will start the specified
   number of Livestream processes, as well as a process to monitor the bridge's

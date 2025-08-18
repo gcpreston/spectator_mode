@@ -1,9 +1,3 @@
-# What functionality is needed?
-# - streams_live looks up all game states in one fell swoop
-# - streams_live receives a :game_update event from Streams to give new game states
-# - Livestream MUST to be able to recover it from somewhere. The existing functionaltiy
-#   can't be broken, but can have implementations changed if it makes sense.
-
 defmodule SpectatorMode.GameTracker do
   @moduledoc """
   Track the current game info for each active stream.
