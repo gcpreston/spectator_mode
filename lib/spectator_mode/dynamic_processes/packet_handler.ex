@@ -1,4 +1,4 @@
-defmodule SpectatorMode.Livestream do
+defmodule SpectatorMode.PacketHandler do
   @moduledoc """
   A GenServer to parse packets from a livestream and handle executing
   appropriate side-effects.
@@ -17,7 +17,7 @@ defmodule SpectatorMode.Livestream do
 
   def start_link(stream_id) do
     GenServer.start_link(__MODULE__, stream_id,
-      name: {:via, Registry, {SpectatorMode.LivestreamRegistry, stream_id}}
+      name: {:via, Registry, {SpectatorMode.PacketHandlerRegistry, stream_id}}
     )
   end
 
@@ -34,8 +34,14 @@ defmodule SpectatorMode.Livestream do
 
     payload_sizes =
       case GameTracker.get_event_payloads(stream_id) do
-        {:ok, ep} -> if %Slp.Events.EventPayloads{payload_sizes: ps} = ep, do: ps
-        :error -> nil
+        {:ok, ep} ->
+          case ep do
+            %Slp.Events.EventPayloads{payload_sizes: ps} -> ps
+            _ -> nil
+          end
+
+        :error ->
+          nil
       end
 
     {:ok, %__MODULE__{stream_id: stream_id, payload_sizes: payload_sizes}}

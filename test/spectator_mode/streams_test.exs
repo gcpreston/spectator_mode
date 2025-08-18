@@ -2,7 +2,7 @@ defmodule SpectatorMode.StreamsTest do
   use ExUnit.Case, async: false
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.LivestreamRegistry
+  alias SpectatorMode.PacketHandlerRegistry
 
   # TODO: Clean up dummy sources
   # can create a test support genserver which is started with start_supervised
@@ -27,7 +27,7 @@ defmodule SpectatorMode.StreamsTest do
 
       # Check that there are 5 correct processes in the registry
       for stream_id <- stream_ids do
-        assert [{_pid, _value}] = Registry.lookup(LivestreamRegistry, stream_id)
+        assert [{_pid, _value}] = Registry.lookup(PacketHandlerRegistry, stream_id)
       end
 
       # Check that PubSub notifications are received
@@ -63,7 +63,7 @@ defmodule SpectatorMode.StreamsTest do
 
       new_source_pid = dummy_source()
 
-      assert {:ok, ^bridge_id, [], new_reconnect_token} =
+      assert {:ok, ^bridge_id, ^stream_ids, new_reconnect_token} =
                Streams.reconnect_bridge(reconnect_token, new_source_pid)
 
       assert reconnect_token != new_reconnect_token

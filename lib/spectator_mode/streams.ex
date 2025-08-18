@@ -5,9 +5,9 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.BridgeMonitorSupervisor
   alias SpectatorMode.BridgeMonitor
-  alias SpectatorMode.LivestreamRegistry
-  alias SpectatorMode.LivestreamSupervisor
-  alias SpectatorMode.Livestream
+  alias SpectatorMode.PacketHandlerRegistry
+  alias SpectatorMode.PacketHandlerSupervisor
+  alias SpectatorMode.PacketHandler
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.ReconnectTokenStore
   alias SpectatorMode.GameTracker
@@ -35,7 +35,7 @@ defmodule SpectatorMode.Streams do
 
   @doc """
   Register a bridge to the system. This function will start the specified
-  number of Livestream processes, as well as a process to monitor the bridge's
+  number of PacketHandler processes, as well as a process to monitor the bridge's
   connection.
 
   This will generate both the bridge ID and a stream ID for each stream.
@@ -46,14 +46,14 @@ defmodule SpectatorMode.Streams do
     reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
     stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
 
-    with {:ok, _start_result} <- start_supervised_livestreams(stream_ids),
+    with {:ok, _start_result} <- start_supervised_packet_handlers(stream_ids),
          {:ok, _relay_pid} <- DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, stream_ids, reconnect_token, pid}}) do
 
       {:ok, bridge_id, stream_ids, reconnect_token}
     else
       # TODO: This does not handle if an issue arises with BridgeMonitorSupervisor
-      {:error, started_livestreams} ->
-        cleanup_livestreams(started_livestreams)
+      {:error, started_packet_handlers} ->
+        cleanup_packet_handlers(started_packet_handlers)
         {:error, :livestream_start_failure}
     end
   end
@@ -97,8 +97,8 @@ defmodule SpectatorMode.Streams do
       {:game_data, data}
     )
 
-    # Parse and update tracked game info as needed
-    Livestream.handle_packet({:via, Registry, {LivestreamRegistry, stream_id}}, data)
+    # Asynchronously parse and update tracked game info as needed
+    PacketHandler.handle_packet({:via, Registry, {PacketHandlerRegistry, stream_id}}, data)
   end
 
   @doc """
@@ -120,29 +120,28 @@ defmodule SpectatorMode.Streams do
 
   ## Helpers
 
-  defp start_supervised_livestreams(stream_count) do
-    start_supervised_livestreams(stream_count, [])
+  defp start_supervised_packet_handlers(stream_count) do
+    start_supervised_packet_handlers(stream_count, [])
   end
 
-  defp start_supervised_livestreams([], acc) do
+  defp start_supervised_packet_handlers([], acc) do
     {:ok, acc}
   end
 
-  defp start_supervised_livestreams([stream_id | rest], acc) do
-    if {:ok, stream_pid} = DynamicSupervisor.start_child(LivestreamSupervisor, {Livestream, stream_id}) do
+  defp start_supervised_packet_handlers([stream_id | rest], acc) do
+    if {:ok, stream_pid} = DynamicSupervisor.start_child(PacketHandlerSupervisor, {PacketHandler, stream_id}) do
       # TODO: This feels like a recipe for bad frontend state,
       # would rather an all-at-once notification on success
       notify_subscribers(:livestream_created, stream_id)
-      start_supervised_livestreams(rest, [{stream_id, stream_pid} | acc])
+      start_supervised_packet_handlers(rest, [{stream_id, stream_pid} | acc])
     else
       {:error, acc}
     end
   end
 
-  defp cleanup_livestreams(started_livestreams) do
-    # TODO: This wouldn't work since we removed the pids from the previous helper
-    for {_stream_id, stream_pid} <- started_livestreams do
-      DynamicSupervisor.terminate_child(LivestreamSupervisor, stream_pid)
+  defp cleanup_packet_handlers(started_packet_handlers) do
+    for {_stream_id, stream_pid} <- started_packet_handlers do
+      DynamicSupervisor.terminate_child(PacketHandlerSupervisor, stream_pid)
     end
   end
 end

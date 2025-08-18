@@ -5,7 +5,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
   alias SpectatorMode.Streams
   alias SpectatorMode.ReconnectTokenStore
   alias SpectatorMode.GameTracker
-  alias SpectatorMode.LivestreamRegistry
+  alias SpectatorMode.PacketHandlerRegistry
 
   defp dummy_source do
     spawn(fn ->
@@ -71,7 +71,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
       crash_and_assert_reconnect = fn {source_pid, new_source_pid} ->
         send(source_pid, :crash)
         assert_receive {:livestreams_disconnected, ^stream_ids}
-        {:ok, _new_reconnect_token} = BridgeMonitor.reconnect(monitor_pid, new_source_pid)
+        {:ok, _new_reconnect_token, ^stream_ids} = BridgeMonitor.reconnect(monitor_pid, new_source_pid)
 
         assert_receive {:livestreams_reconnected, ^stream_ids}
         assert Process.alive?(monitor_pid)
@@ -132,7 +132,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
     assert ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token) == :error
 
     for stream_id <- stream_ids do
-      assert is_nil(GenServer.whereis({:via, Registry, {LivestreamRegistry, stream_id}}))
+      assert is_nil(GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}))
     end
 
     # Assert monitor process is gone

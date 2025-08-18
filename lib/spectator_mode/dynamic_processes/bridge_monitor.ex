@@ -7,7 +7,7 @@ defmodule SpectatorMode.BridgeMonitor do
   alias SpectatorMode.BridgeMonitorRegistry
   alias SpectatorMode.ReconnectTokenStore
   alias SpectatorMode.GameTracker
-  alias SpectatorMode.LivestreamRegistry
+  alias SpectatorMode.PacketHandlerRegistry
 
   @enforce_keys [:bridge_id, :stream_ids, :reconnect_token]
   defstruct bridge_id: nil,
@@ -47,7 +47,7 @@ defmodule SpectatorMode.BridgeMonitor do
   state. On success, returns `:ok`, otherwise `{:error, reason}`.
   """
   @spec reconnect(GenServer.server(), pid()) ::
-          {:ok, Streams.reconnect_token()} | {:error, term()}
+          {:ok, Streams.reconnect_token(), [Streams.stream_id()]} | {:error, term()}
   def reconnect(relay, source_pid) do
     GenServer.call(relay, {:reconnect, source_pid})
   end
@@ -120,9 +120,9 @@ defmodule SpectatorMode.BridgeMonitor do
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
 
-      livestream_name = {:via, Registry, {LivestreamRegistry, stream_id}}
+      livestream_name = {:via, Registry, {PacketHandlerRegistry, stream_id}}
 
-      if GenServer.whereis({:via, Registry, {LivestreamRegistry, stream_id}}) != nil do
+      if GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}) != nil do
         GenServer.stop(livestream_name, exit_reason)
       end
     end
