@@ -19,7 +19,7 @@ defmodule SpectatorMode.Streams do
   @type stream_id() :: integer()
   @type reconnect_token() :: String.t()
   @type bridge_connect_result() :: {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
-  @type viewer_connect_result() :: {:ok, binary()}
+  @type viewer_connect_result() :: binary()
 
   @doc """
   Subscribe to PubSub notifications about the state
@@ -99,11 +99,21 @@ defmodule SpectatorMode.Streams do
   end
 
   @doc """
-  Forward binary data to a specified livestream.
+  Forward binary data to livestream subscribers.
+
+  Data is delivered as a message: `{:game_data, binary()}`.
   """
   @spec forward(stream_id(), binary()) :: nil
   def forward(stream_id, data) do
-    Livestream.forward({:via, Registry, {LivestreamRegistry, stream_id}}, data)
+    # Send binary to pubsub subscribers
+    Phoenix.PubSub.broadcast(
+      SpectatorMode.PubSub,
+      stream_subtopic(stream_id),
+      {:game_data, data}
+    )
+
+    # Parse and update tracked game info as needed
+    Livestream.handle_packet({:via, Registry, {LivestreamRegistry, stream_id}}, data)
   end
 
   @doc """
@@ -112,21 +122,6 @@ defmodule SpectatorMode.Streams do
   @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t()}]
   def list_streams do
     GameTracker.list_streams()
-  end
-
-  @doc """
-  Fetch the bridge IDs of all currently active streams, and their metadata.
-  """
-  @spec list_bridges() :: [%{bridge_id: bridge_id(), disconnected: GameStart.t()}]
-  def list_bridges do
-    Registry.select(
-      BridgeMonitorRegistry,
-      [
-        {{:"$1", :_, %{active_game: :"$2"}},
-        [],
-        [%{stream_id: :"$1", active_game: :"$2"}]}
-      ]
-    )
   end
 
   @spec notify_subscribers(atom(), term()) :: nil

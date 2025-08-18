@@ -1,8 +1,5 @@
 defmodule SpectatorMode.Livestream do
-  @moduledoc """
-  A process to represent a Slippi stream. This process serves to receive data
-  from a provider and to forward it to clients.
-  """
+  # TODO: What is a better name for this module now?
   use GenServer, restart: :transient
 
   require Logger
@@ -11,34 +8,22 @@ defmodule SpectatorMode.Livestream do
   alias SpectatorMode.Slp
   alias SpectatorMode.GameTracker
 
-  defstruct stream_id: nil, event_payloads: nil
-
-  # :current_game_start stores the parsed GameStart event for the current game.
-  # :current_game_state stores the ensemble of stateful information which may
-  #   be needed to properly render the game and may change over time.
-  #   Specifically, it stores the binary version of the latest event affecting
-  #   each different part of the game state, if one has been received.
-
-  defmodule LivestreamRegistryValue do
-    defstruct active_game: nil
-  end
+  defstruct stream_id: nil, payload_sizes: nil
 
   ## API
 
   def start_link(stream_id) do
     GenServer.start_link(__MODULE__, stream_id,
-      name: {:via, Registry, {SpectatorMode.LivestreamRegistry, stream_id, %LivestreamRegistryValue{}}}
+      name: {:via, Registry, {SpectatorMode.LivestreamRegistry, stream_id}}
     )
   end
 
   @doc """
-  Forward binary data to all subscribing processes.
-
-  Data is delivered as a message: `{:game_data, binary()}`.
+  Parse a packet for this livestream and execute appropriate side effects.
   """
-  @spec forward(GenServer.server(), binary()) :: nil
-  def forward(server, data) do
-    GenServer.cast(server, {:forward, data})
+  @spec handle_packet(GenServer.server(), binary()) :: nil
+  def handle_packet(server, data) do
+    GenServer.cast(server, {:handle_packet, data})
   end
 
   ## Callbacks
@@ -47,13 +32,13 @@ defmodule SpectatorMode.Livestream do
   def init(stream_id) do
     Logger.info("Starting livestream #{stream_id}")
 
-    event_payloads =
+    payload_sizes =
       case GameTracker.get_event_payloads(stream_id) do
-        {:ok, p} -> p
+        {:ok, ep} -> if %Slp.Events.EventPayloads{payload_sizes: ps} = ep, do: ps
         :error -> nil
       end
 
-    {:ok, %__MODULE__{stream_id: stream_id, event_payloads: event_payloads}}
+    {:ok, %__MODULE__{stream_id: stream_id, payload_sizes: payload_sizes}}
   end
 
   @impl true
@@ -62,23 +47,15 @@ defmodule SpectatorMode.Livestream do
   end
 
   @impl true
-  def handle_cast({:forward, data}, %{stream_id: stream_id} = state) do
-    Phoenix.PubSub.broadcast(
-      SpectatorMode.PubSub,
-      Streams.stream_subtopic(stream_id),
-      {:game_data, data}
-    )
+  def handle_cast({:handle_packet, data}, state) do
+    maybe_payload_sizes = get_in(state.payload_sizes)
+    events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
+    new_state = handle_events(events, state)
 
-    {:noreply, update_state_from_game_data(state, data)}
+    {:noreply, new_state}
   end
 
   ## Helpers
-
-  defp update_state_from_game_data(state, data) do
-    maybe_payload_sizes = get_in(state.event_payloads.payload_sizes)
-    events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
-    handle_events(events, state)
-  end
 
   # handle_events/2 and handle_event/2 serve to
   # 1. execute any necessary side-effects based on a Slippi event
