@@ -2,6 +2,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
   use ExUnit.Case, async: false
 
   alias SpectatorMode.BridgeMonitor
+  alias SpectatorMode.BridgeMonitorSupervisor
   alias SpectatorMode.Streams
   alias SpectatorMode.ReconnectTokenStore
   alias SpectatorMode.GameTracker
@@ -21,10 +22,11 @@ defmodule SpectatorMode.BridgeMonitorTest do
     bridge_id = "bridge_monitor_test_id"
     stream_ids = Enum.map(1..2, fn _ -> GameTracker.initialize_stream() end)
     reconnect_token = ReconnectTokenStore.register(bridge_id)
-    monitor_pid = start_supervised!({BridgeMonitor, {bridge_id, stream_ids, reconnect_token, source_pid}})
+    {:ok, monitor_pid} = DynamicSupervisor.start_child(BridgeMonitorSupervisor, {BridgeMonitor, {bridge_id, stream_ids, reconnect_token, source_pid}})
 
     on_exit(fn ->
       send(source_pid, {:exit, :shutdown})
+      DynamicSupervisor.terminate_child(BridgeMonitorSupervisor, monitor_pid)
     end)
 
     %{
@@ -89,6 +91,47 @@ defmodule SpectatorMode.BridgeMonitorTest do
 
     test "does not allow reconnect if source hasn't exited", %{monitor_pid: monitor_pid} do
       {:error, :not_disconnected} = BridgeMonitor.reconnect(monitor_pid, spawn(fn -> nil end))
+    end
+  end
+
+  describe "supervision" do
+    test "successfully restarts after crash", %{monitor_pid: monitor_pid, source_pid: source_pid, stream_ids: stream_ids} do
+      # Monitor the process to detect its crash and restart
+      ref = Process.monitor(monitor_pid)
+
+      # Crash the BridgeMonitor process
+      Process.exit(monitor_pid, :kill)
+      assert_receive {:DOWN, ^ref, :process, ^monitor_pid, :killed}
+
+      # Now simulate a bridge crash (source crash) and ensure the restarted monitor still works
+      Streams.subscribe()
+      send(source_pid, :crash)
+      assert_receive {:livestreams_disconnected, ^stream_ids}
+    end
+
+    test "successfully restarts after crash after reconnection", %{monitor_pid: monitor_pid, source_pid: source_pid, stream_ids: stream_ids} do
+      Streams.subscribe()
+
+      # Crash and reconnect source process
+      send(source_pid, :crash)
+      assert_receive {:livestreams_disconnected, ^stream_ids}
+      new_source_pid = dummy_source()
+      {:ok, _new_reconnect_token, ^stream_ids} = BridgeMonitor.reconnect(monitor_pid, new_source_pid)
+      assert_receive {:livestreams_reconnected, ^stream_ids}
+
+      # Crash the BridgeMonitor process
+      assert Process.alive?(monitor_pid)
+      ref = Process.monitor(monitor_pid)
+      Process.exit(monitor_pid, :kill)
+      assert_receive {:DOWN, ^ref, :process, ^monitor_pid, :killed}
+
+      # Wait for supervisor restart; ensure no premature notification
+      Process.sleep(100)
+      refute_received {:livestreams_disconnected, ^stream_ids}
+
+      # Crash the source process again and receive disconnect notification
+      send(new_source_pid, :crash)
+      assert_receive {:livestreams_disconnected, ^stream_ids}
     end
   end
 
