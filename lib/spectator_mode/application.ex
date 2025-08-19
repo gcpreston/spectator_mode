@@ -14,13 +14,12 @@ defmodule SpectatorMode.Application do
       {Phoenix.PubSub, name: SpectatorMode.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: SpectatorMode.Finch},
-      # Start a worker by calling: SpectatorMode.Worker.start_link(arg)
-      # {SpectatorMode.Worker, arg},
+      # SpectatorMode workers
       {Registry, name: SpectatorMode.BridgeMonitorRegistry, keys: :unique},
       {Registry, name: SpectatorMode.PacketHandlerRegistry, keys: :unique},
       {DynamicSupervisor, name: SpectatorMode.BridgeMonitorSupervisor, strategy: :one_for_one},
       {DynamicSupervisor, name: SpectatorMode.PacketHandlerSupervisor, strategy: :one_for_one},
-      {SpectatorMode.ReconnectTokenStore, name: {:global, SpectatorMode.ReconnectTokenStore}},
+      SpectatorMode.ReconnectTokenStore,
       SpectatorMode.GameTracker,
       SpectatorModeWeb.Presence,
       # Start to serve requests, typically the last entry

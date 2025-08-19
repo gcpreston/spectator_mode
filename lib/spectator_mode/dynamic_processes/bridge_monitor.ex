@@ -96,7 +96,7 @@ defmodule SpectatorMode.BridgeMonitor do
       Process.monitor(source_pid)
 
       new_reconnect_token =
-        ReconnectTokenStore.register({:global, ReconnectTokenStore}, state.bridge_id)
+        ReconnectTokenStore.register(state.bridge_id)
 
       Streams.notify_subscribers(:livestreams_reconnected, state.stream_ids)
       update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, false) end)
@@ -127,7 +127,7 @@ defmodule SpectatorMode.BridgeMonitor do
       end
     end
 
-    ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token)
+    ReconnectTokenStore.delete(reconnect_token)
     Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
   end
 end

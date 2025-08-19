@@ -43,7 +43,7 @@ defmodule SpectatorMode.Streams do
   @spec register_bridge(integer(), pid()) :: bridge_connect_result()
   def register_bridge(stream_count, pid \\ self()) do
     bridge_id = Ecto.UUID.generate()
-    reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
+    reconnect_token = ReconnectTokenStore.register(bridge_id)
     stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
 
     with {:ok, _start_result} <- start_supervised_packet_handlers(stream_ids),
@@ -63,8 +63,8 @@ defmodule SpectatorMode.Streams do
   """
   @spec reconnect_bridge(reconnect_token(), pid()) :: bridge_connect_result()
   def reconnect_bridge(reconnect_token, pid \\ self()) do
-    with {:ok, bridge_id} <- ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token),
-         :ok <- ReconnectTokenStore.delete({:global, ReconnectTokenStore}, reconnect_token),
+    with {:ok, bridge_id} <- ReconnectTokenStore.fetch(reconnect_token),
+         :ok <- ReconnectTokenStore.delete(reconnect_token),
          {:ok, new_reconnect_token, stream_ids} <- BridgeMonitor.reconnect({:via, Registry, {BridgeMonitorRegistry, bridge_id}}, pid) do
       {:ok, bridge_id, stream_ids, new_reconnect_token}
     else

@@ -20,7 +20,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
     source_pid = dummy_source()
     bridge_id = "bridge_monitor_test_id"
     stream_ids = Enum.map(1..2, fn _ -> GameTracker.initialize_stream() end)
-    reconnect_token = ReconnectTokenStore.register({:global, ReconnectTokenStore}, bridge_id)
+    reconnect_token = ReconnectTokenStore.register(bridge_id)
     monitor_pid = start_supervised!({BridgeMonitor, {bridge_id, stream_ids, reconnect_token, source_pid}})
 
     on_exit(fn ->
@@ -98,7 +98,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
 
       # State assertions before exit
       assert GameTracker.list_streams() |> length() >= length(stream_ids)
-      assert {:ok, ^bridge_id} = ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token)
+      assert {:ok, ^bridge_id} = ReconnectTokenStore.fetch(reconnect_token)
 
       # Simulate source crash to trigger disconnect and start reconnect timeout
       send(source_pid, :crash)
@@ -112,7 +112,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
 
       # State assertions before exit
       assert GameTracker.list_streams() |> length() >= length(stream_ids)
-      assert {:ok, ^bridge_id} = ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token)
+      assert {:ok, ^bridge_id} = ReconnectTokenStore.fetch(reconnect_token)
 
       # Let process exit normally to simulate bridge quit
       send(source_pid, {:exit, {:shutdown, :bridge_quit}})
@@ -129,7 +129,7 @@ defmodule SpectatorMode.BridgeMonitorTest do
 
     # Assert cleanup of other resources
     assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: stream_id} -> stream_id in stream_ids end) |> Enum.empty?()
-    assert ReconnectTokenStore.fetch({:global, ReconnectTokenStore}, reconnect_token) == :error
+    assert ReconnectTokenStore.fetch(reconnect_token) == :error
 
     for stream_id <- stream_ids do
       assert is_nil(GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}))

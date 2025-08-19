@@ -13,37 +13,38 @@ defmodule SpectatorMode.ReconnectTokenStore do
         }
 
   @token_size 32
+  @global_name {:global, __MODULE__}
 
   defstruct reconnect_tokens: Map.new()
 
   ## API
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, [], opts)
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, [], name: @global_name)
   end
 
   @doc """
   Insert a bridge ID into the store. Generates a reconnect token to return.
   """
-  @spec register(GenServer.server(), Streams.bridge_id()) :: reconnect_token()
-  def register(server, bridge_id) do
-    GenServer.call(server, {:register, bridge_id})
+  @spec register(Streams.bridge_id()) :: reconnect_token()
+  def register(bridge_id) do
+    GenServer.call(@global_name, {:register, bridge_id})
   end
 
   @doc """
   Retrieve the bridge ID associated with a reconnect token, if one exists.
   """
-  @spec fetch(GenServer.server(), reconnect_token()) :: {:ok, reconnect_token()} | :error
-  def fetch(server, reconnect_token) do
-    GenServer.call(server, {:fetch, reconnect_token})
+  @spec fetch(reconnect_token()) :: {:ok, reconnect_token()} | :error
+  def fetch(reconnect_token) do
+    GenServer.call(@global_name, {:fetch, reconnect_token})
   end
 
   @doc """
   Remove the specified reconnect token from the store.
   """
-  @spec delete(GenServer.server(), reconnect_token()) :: :ok
-  def delete(server, reconnect_token) do
-    GenServer.call(server, {:delete, reconnect_token})
+  @spec delete(reconnect_token()) :: :ok
+  def delete(reconnect_token) do
+    GenServer.call(@global_name, {:delete, reconnect_token})
   end
 
   ## Callbacks
