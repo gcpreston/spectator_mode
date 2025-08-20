@@ -1,8 +1,10 @@
-defmodule SpectatorMode.ReconnectTokenStore do
+defmodule SpectatorMode.BridgeTracker do
   @moduledoc """
-  Track issued reconnect tokens and look up their associated bridge IDs.
+  Track the connection status of bridges. This process handles both normal
+  exits (via cleanup) and non-normal exits (via a reconnect time window, and
+  cleanup if the time window expires) of bridge processes, as well as sending
+  pubsub messages to notify subscribers of bridge status changes.
   """
-  # TODO: New name?
   use GenServer
 
   require Logger
@@ -13,11 +15,9 @@ defmodule SpectatorMode.ReconnectTokenStore do
   alias SpectatorMode.PacketHandlerSupervisor
   alias SpectatorMode.PacketHandlerRegistry
 
-  @type reconnect_token :: String.t()
-
   @type t :: %__MODULE__{
           token_to_bridge_info: %{
-            reconnect_token() => %{
+            Streams.reconnect_token() => %{
               bridge_id: Streams.bridge_id(),
               stream_ids: [Streams.stream_id()],
               monitor_ref: reference()
@@ -25,7 +25,7 @@ defmodule SpectatorMode.ReconnectTokenStore do
           },
           monitor_ref_to_reconnect_info: %{
             reference() => %{
-              reconnect_token: reconnect_token(),
+              reconnect_token: Streams.reconnect_token(),
               reconnect_timeout_ref: reference() | nil
             }
           },
@@ -48,7 +48,7 @@ defmodule SpectatorMode.ReconnectTokenStore do
   number of stream IDs, and a reconnect token, and tracks the calling process
   as the source.
   """
-  @spec register(pos_integer()) :: {Streams.bridge_id(), [Streams.stream_id()], reconnect_token()}
+  @spec register(pos_integer()) :: {Streams.bridge_id(), [Streams.stream_id()], Streams.reconnect_token()}
   def register(stream_count) do
     GenServer.call(@global_name, {:register, stream_count})
   end
@@ -56,8 +56,8 @@ defmodule SpectatorMode.ReconnectTokenStore do
   @doc """
   Connect the calling process to a disconnected bridge ID via a reconnect token.
   """
-  @spec reconnect(reconnect_token()) ::
-          {:ok, reconnect_token(), Streams.bridge_id(), [Streams.stream_id()]} | {:error, term()}
+  @spec reconnect(Streams.reconnect_token()) ::
+          {:ok, Streams.reconnect_token(), Streams.bridge_id(), [Streams.stream_id()]} | {:error, term()}
   def reconnect(reconnect_token) do
     GenServer.call(@global_name, {:reconnect, reconnect_token})
   end

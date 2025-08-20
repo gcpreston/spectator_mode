@@ -1,8 +1,8 @@
-defmodule SpectatorMode.ReconnectTokenStoreTest do
+defmodule SpectatorMode.BridgeTrackerTest do
   use ExUnit.Case, async: false
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.ReconnectTokenStore
+  alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
   alias SpectatorMode.PacketHandlerRegistry
 
@@ -12,7 +12,7 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
       test_pid = self()
 
       spawn_source_pid(fn ->
-        {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(2)
+        {bridge_id, stream_ids, reconnect_token} = BridgeTracker.register(2)
         send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
       end)
 
@@ -30,7 +30,7 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
       test_pid = self()
 
       source_pid = spawn_source_pid(fn ->
-        {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(3)
+        {bridge_id, stream_ids, reconnect_token} = BridgeTracker.register(3)
         send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
       end)
 
@@ -70,7 +70,7 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
         assert_receive {:livestreams_disconnected, ^stream_ids}
 
         new_source_pid = spawn_source_pid(fn ->
-          {:ok, new_reconnect_token, ^bridge_id, ^stream_ids} = ReconnectTokenStore.reconnect(reconnect_token)
+          {:ok, new_reconnect_token, ^bridge_id, ^stream_ids} = BridgeTracker.reconnect(reconnect_token)
           send(test_pid, {:reconnect_token, new_reconnect_token})
         end)
 
@@ -89,18 +89,18 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
     end
 
     test "does not allow reconnect if source hasn't exited", %{reconnect_token: reconnect_token} do
-      assert {:error, :not_disconnected} = ReconnectTokenStore.reconnect(reconnect_token)
+      assert {:error, :not_disconnected} = BridgeTracker.reconnect(reconnect_token)
     end
 
     test "does not allow reconnect with bad token" do
-      assert {:error, :unknown_reconnect_token} = ReconnectTokenStore.reconnect("some fake token")
+      assert {:error, :unknown_reconnect_token} = BridgeTracker.reconnect("some fake token")
     end
 
     test "shows disconnected streams in disconnected_streams/0", %{stream_ids: stream_ids} do
       test_pid = self()
 
       other_source_pid = spawn_source_pid(fn ->
-        {_, other_stream_ids, _} = ReconnectTokenStore.register(2)
+        {_, other_stream_ids, _} = BridgeTracker.register(2)
         send(test_pid, {:other_stream_ids, other_stream_ids})
       end)
 
@@ -109,7 +109,7 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
       send(other_source_pid, :crash)
       assert_receive {:livestreams_disconnected, ^other_stream_ids}
 
-      disconnected_streams = ReconnectTokenStore.disconnected_streams()
+      disconnected_streams = BridgeTracker.disconnected_streams()
 
       for connected_stream_id <- stream_ids do
         refute MapSet.member?(disconnected_streams, connected_stream_id)
@@ -126,7 +126,7 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
       test_pid = self()
 
       source_pid = spawn_source_pid(fn ->
-        {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(2)
+        {bridge_id, stream_ids, reconnect_token} = BridgeTracker.register(2)
         send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
       end)
 
@@ -135,7 +135,7 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
       # State assertions before exit
       Streams.subscribe()
       assert GameTracker.list_streams() |> length() >= length(stream_ids)
-      assert {:error, :not_disconnected} = ReconnectTokenStore.reconnect(reconnect_token)
+      assert {:error, :not_disconnected} = BridgeTracker.reconnect(reconnect_token)
 
       %{
         source_pid: source_pid,
@@ -182,7 +182,7 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
 
     # Assert cleanup of other resources
     assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: stream_id} -> stream_id in stream_ids end) |> Enum.empty?()
-    assert ReconnectTokenStore.reconnect(reconnect_token) == {:error, :unknown_reconnect_token}
+    assert BridgeTracker.reconnect(reconnect_token) == {:error, :unknown_reconnect_token}
 
     for stream_id <- stream_ids do
       assert is_nil(GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}))

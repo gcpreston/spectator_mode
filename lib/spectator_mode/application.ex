@@ -17,7 +17,7 @@ defmodule SpectatorMode.Application do
       # SpectatorMode workers
       {Registry, name: SpectatorMode.PacketHandlerRegistry, keys: :unique},
       {DynamicSupervisor, name: SpectatorMode.PacketHandlerSupervisor, strategy: :one_for_one},
-      SpectatorMode.ReconnectTokenStore,
+      SpectatorMode.BridgeTracker,
       SpectatorMode.GameTracker,
       SpectatorModeWeb.Presence,
       # Start to serve requests, typically the last entry

@@ -5,7 +5,7 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.PacketHandlerRegistry
   alias SpectatorMode.PacketHandler
   alias SpectatorMode.Slp.Events.GameStart
-  alias SpectatorMode.ReconnectTokenStore
+  alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
 
   @pubsub_topic "streams"
@@ -36,7 +36,7 @@ defmodule SpectatorMode.Streams do
   """
   @spec register_bridge(pos_integer()) :: bridge_connect_result()
   def register_bridge(stream_count) do
-    {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(stream_count)
+    {bridge_id, stream_ids, reconnect_token} = BridgeTracker.register(stream_count)
     {:ok, bridge_id, stream_ids, reconnect_token}
   end
 
@@ -45,7 +45,7 @@ defmodule SpectatorMode.Streams do
   """
   @spec reconnect_bridge(reconnect_token()) :: bridge_connect_result()
   def reconnect_bridge(reconnect_token) do
-    case ReconnectTokenStore.reconnect(reconnect_token) do
+    case BridgeTracker.reconnect(reconnect_token) do
       {:ok, reconnect_token, bridge_id, stream_ids} -> {:ok, bridge_id, stream_ids, reconnect_token}
       {:error, reason} -> {:error, reason}
     end
@@ -84,7 +84,7 @@ defmodule SpectatorMode.Streams do
   @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}]
   def list_streams do
     game_tracker_streams = GameTracker.list_streams()
-    disconnected_streams = ReconnectTokenStore.disconnected_streams()
+    disconnected_streams = BridgeTracker.disconnected_streams()
 
     Enum.map(game_tracker_streams, fn %{stream_id: stream_id, active_game: game} ->
       disconnected = MapSet.member?(disconnected_streams, stream_id)
