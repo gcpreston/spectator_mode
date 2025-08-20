@@ -15,9 +15,7 @@ defmodule SpectatorMode.Application do
       # Start the Finch HTTP client for sending emails
       {Finch, name: SpectatorMode.Finch},
       # SpectatorMode workers
-      {Registry, name: SpectatorMode.BridgeMonitorRegistry, keys: :unique},
       {Registry, name: SpectatorMode.PacketHandlerRegistry, keys: :unique},
-      {DynamicSupervisor, name: SpectatorMode.BridgeMonitorSupervisor, strategy: :one_for_one},
       {DynamicSupervisor, name: SpectatorMode.PacketHandlerSupervisor, strategy: :one_for_one},
       SpectatorMode.ReconnectTokenStore,
       SpectatorMode.GameTracker,

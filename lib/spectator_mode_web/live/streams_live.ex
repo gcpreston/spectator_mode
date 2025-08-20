@@ -183,10 +183,12 @@ defmodule SpectatorModeWeb.StreamsLive do
   end
 
   @impl true
-  def handle_info({:livestream_created, stream_id}, socket) do
+  def handle_info({:livestreams_created, stream_ids}, socket) do
     {:noreply,
      update(socket, :livestreams, fn livestreams ->
-       Map.put(livestreams, stream_id, %{active_game: nil, disconnected: false, viewer_count: 0})
+      Enum.reduce(stream_ids, livestreams, fn stream_id, acc ->
+        Map.put(acc, stream_id, %{active_game: nil, disconnected: false, viewer_count: 0})
+      end)
      end)}
   end
 
