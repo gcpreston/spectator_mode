@@ -84,9 +84,15 @@ defmodule SpectatorMode.Streams do
   @doc """
   Fetch the stream IDs of all currently active streams, and their metadata.
   """
-  @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t()}]
+  @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}]
   def list_streams do
-    GameTracker.list_streams()
+    game_tracker_streams = GameTracker.list_streams()
+    disconnected_streams = ReconnectTokenStore.disconnected_streams()
+
+    Enum.map(game_tracker_streams, fn %{stream_id: stream_id, active_game: game} ->
+      disconnected = MapSet.member?(disconnected_streams, stream_id)
+       %{stream_id: stream_id, active_game: game, disconnected: disconnected}
+    end)
   end
 
   @spec notify_subscribers(atom(), term()) :: nil

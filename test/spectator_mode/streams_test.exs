@@ -4,9 +4,6 @@ defmodule SpectatorMode.StreamsTest do
   alias SpectatorMode.Streams
   alias SpectatorMode.PacketHandlerRegistry
 
-  # TODO: Clean up dummy sources
-  # can create a test support genserver which is started with start_supervised
-
   defp dummy_source do
     spawn(fn ->
       receive do

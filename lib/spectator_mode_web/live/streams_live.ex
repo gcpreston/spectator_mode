@@ -132,15 +132,9 @@ defmodule SpectatorModeWeb.StreamsLive do
 
     viewer_counts = Presence.get_viewer_counts()
 
-    # TODO: Get stream disconnected status on load
-    #   Right now this is stored separately in BridgeRegistry. Not sure if this
-    #   wants to be the case.
-    #   Think about the individual console connections within the bridge. We
-    #   will want to communicate from the bridge about the status of each of
-    #   those, and do reconnections on them, etc (eventually).
     stream_id_to_metadata =
-      for %{stream_id: stream_id, active_game: game_start} <- Streams.list_streams(), into: %{} do
-        {stream_id, %{active_game: game_start, disconnected: false, viewer_count: Map.get(viewer_counts, stream_id, 0)}}
+      for %{stream_id: stream_id, active_game: game_start, disconnected: disconnected} <- Streams.list_streams(), into: %{} do
+        {stream_id, %{active_game: game_start, disconnected: disconnected, viewer_count: Map.get(viewer_counts, stream_id, 0)}}
       end
 
     {

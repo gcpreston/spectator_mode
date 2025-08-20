@@ -24,13 +24,14 @@ defmodule SpectatorMode.ReconnectTokenStore do
               reconnect_token: reconnect_token(),
               reconnect_timeout_ref: reference() | nil
             }
-          }
+          },
+          disconnected_streams: MapSet.t(Streams.stream_id())
         }
 
   @token_size 32
   @global_name {:global, __MODULE__}
 
-  defstruct token_to_bridge_info: Map.new(), monitor_ref_to_reconnect_info: Map.new()
+  defstruct token_to_bridge_info: Map.new(), monitor_ref_to_reconnect_info: Map.new(), disconnected_streams: MapSet.new()
 
   ## API
 
@@ -59,6 +60,14 @@ defmodule SpectatorMode.ReconnectTokenStore do
           {:ok, reconnect_token(), Streams.bridge_id(), [Streams.stream_id()]} | {:error, term()}
   def reconnect(reconnect_token) do
     GenServer.call(@global_name, {:reconnect, reconnect_token})
+  end
+
+  @doc """
+  Get the set of stream IDs which are currently disconnected.
+  """
+  @spec disconnected_streams() :: MapSet.t(Streams.stream_id())
+  def disconnected_streams() do
+    GenServer.call(@global_name, :disconnected_streams)
   end
 
   ## Callbacks
@@ -90,36 +99,34 @@ defmodule SpectatorMode.ReconnectTokenStore do
         %{bridge_id: bridge_id, stream_ids: stream_ids} = state.token_to_bridge_info[reconnect_token]
 
         new_state = delete_token(state, reconnect_token)
+        new_disconnected_streams = MapSet.difference(state.disconnected_streams, MapSet.new(stream_ids))
+        new_state = put_in(new_state.disconnected_streams, new_disconnected_streams)
         {new_reconnect_token, new_state} = register_to_state(new_state, from, bridge_id, stream_ids)
 
         Streams.notify_subscribers(:livestreams_reconnected, stream_ids)
-        # update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, false) end)
 
         {:reply, {:ok, new_reconnect_token, bridge_id, stream_ids}, new_state}
     end
   end
 
+  def handle_call(:disconnected_streams, _from, state) do
+    {:reply, state.disconnected_streams, state}
+  end
+
   @impl true
     def handle_info({:DOWN, ref, :process, pid, reason}, state) do
     Logger.debug("Monitor got DOWN for pid #{inspect(pid)}: #{inspect(reason)}")
+
     if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}] do
       %{reconnect_token: reconnect_token} = state.monitor_ref_to_reconnect_info[ref]
       %{bridge_id: bridge_id} = state.token_to_bridge_info[reconnect_token]
       Logger.info("Bridge #{bridge_id} terminated, reason: #{inspect(reason)}")
       {:noreply, bridge_cleanup(state, ref)}
     else
-      # update_registry_value(state.bridge_id, fn value -> put_in(value.disconnected, true) end)
       Streams.notify_subscribers(:livestreams_disconnected, state.stream_ids)
       reconnect_timeout_ref = Process.send_after(self(), :reconnect_timeout, reconnect_timeout_ms())
-      {:noreply, %{state | reconnect_timeout_ref: reconnect_timeout_ref}}
+      {:noreply, disconnect_in_state(state, ref, reconnect_timeout_ref)}
     end
-  end
-
-  def handle_info({:bridge_disconnected, bridge_id}, state) do
-    reconnect_timeout_ref =
-      Process.send_after(self(), {:reconnect_timeout, bridge_id}, reconnect_timeout_ms())
-
-    {:noreply, put_in(state.reconnect_timeout_refs, bridge_id, reconnect_timeout_ref)}
   end
 
   def handle_info({:reconnect_timeout, bridge_id}, state) do
@@ -142,7 +149,7 @@ defmodule SpectatorMode.ReconnectTokenStore do
     new_monitor_ref_to_reconnect_info = Map.put(
       state.monitor_ref_to_reconnect_info,
       monitor_ref,
-      %{reconnect_toke: reconnect_token, reconnect_timeout_ref: nil}
+      %{reconnect_token: reconnect_token, reconnect_timeout_ref: nil}
     )
 
     {reconnect_token, %{state | token_to_bridge_info: new_token_to_bridge_info, monitor_ref_to_reconnect_info: new_monitor_ref_to_reconnect_info}}
@@ -177,6 +184,14 @@ defmodule SpectatorMode.ReconnectTokenStore do
   defp delete_token(state, reconnect_token) do
     new_token_to_bridge_info = Map.delete(state.token_to_bridge_info, reconnect_token)
     %{state | token_to_bridge_info: new_token_to_bridge_info}
+  end
+
+  defp disconnect_in_state(state, monitor_ref, reconnect_timeout_ref) do
+    new_state = put_in(state.monitor_ref_to_reconnect_info[monitor_ref].reconnect_timeout_ref, reconnect_timeout_ref)
+    reconnect_token = new_state.monitor_ref_to_reconnect_info[monitor_ref].reconnect_token
+    stream_ids = new_state.token_to_bridge_info[reconnect_token]
+    new_disconnected_streams = MapSet.union(new_state.disconnected_streams, MapSet.new(stream_ids))
+    put_in(new_state.disconnected_streams, new_disconnected_streams)
   end
 
   defp start_supervised_packet_handlers(stream_count) do

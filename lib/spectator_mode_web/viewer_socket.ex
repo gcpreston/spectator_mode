@@ -37,7 +37,6 @@ defmodule SpectatorModeWeb.ViewerSocket do
 
   @impl true
   def handle_in({_message, _opts}, state) do
-    # TODO: I think this was doing nothing. When was data being sent from the user?
     {:ok, state}
   end
 
