@@ -8,11 +8,15 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
 
   describe "registration" do
     test "spawns a PacketHandler process for each livestream; sends created notification" do
-      bridge_id = "reconnect_token_store_test_id"
-      stream_ids = Enum.map(1..2, fn _ -> GameTracker.initialize_stream() end)
-      spawn_source_pid(fn -> ReconnectTokenStore.register(bridge_id, stream_ids) end)
-
       Streams.subscribe()
+      test_pid = self()
+
+      spawn_source_pid(fn ->
+        {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(2)
+        send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
+      end)
+
+      assert_receive {:registered, _bridge_id, stream_ids, _reconnect_token}
       assert_receive {:livestreams_created, ^stream_ids}
 
       for stream_id <- stream_ids do
@@ -23,16 +27,14 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
 
   describe "disconnection" do
     setup do
-      bridge_id = "reconnect_token_store_test_id"
-      stream_ids = Enum.map(1..2, fn _ -> GameTracker.initialize_stream() end)
       test_pid = self()
 
       source_pid = spawn_source_pid(fn ->
-        reconnect_token = ReconnectTokenStore.register(bridge_id, stream_ids)
-        send(test_pid, {:reconnect_token, reconnect_token})
+        {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(3)
+        send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
       end)
 
-      assert_receive {:reconnect_token, reconnect_token}
+      assert_receive {:registered, bridge_id, stream_ids, reconnect_token}
 
       %{
         source_pid: source_pid,
@@ -95,13 +97,14 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
     end
 
     test "shows disconnected streams in disconnected_streams/0", %{stream_ids: stream_ids} do
-      other_bridge_id = "reconnect_token_store_test_id"
-      other_stream_ids = Enum.map(1..2, fn _ -> GameTracker.initialize_stream() end)
+      test_pid = self()
 
       other_source_pid = spawn_source_pid(fn ->
-        ReconnectTokenStore.register(other_bridge_id, other_stream_ids)
+        {_, other_stream_ids, _} = ReconnectTokenStore.register(2)
+        send(test_pid, {:other_stream_ids, other_stream_ids})
       end)
 
+      assert_receive {:other_stream_ids, other_stream_ids}
       Streams.subscribe()
       send(other_source_pid, :crash)
       assert_receive {:livestreams_disconnected, ^other_stream_ids}
@@ -120,16 +123,14 @@ defmodule SpectatorMode.ReconnectTokenStoreTest do
 
   describe "cleanup" do
     setup do
-      bridge_id = "reconnect_token_store_test_id"
-      stream_ids = Enum.map(1..2, fn _ -> GameTracker.initialize_stream() end)
       test_pid = self()
 
       source_pid = spawn_source_pid(fn ->
-        reconnect_token = ReconnectTokenStore.register(bridge_id, stream_ids)
-        send(test_pid, {:reconnect_token, reconnect_token})
+        {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(2)
+        send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
       end)
 
-      assert_receive {:reconnect_token, reconnect_token}
+      assert_receive {:registered, bridge_id, stream_ids, reconnect_token}
 
       # State assertions before exit
       Streams.subscribe()

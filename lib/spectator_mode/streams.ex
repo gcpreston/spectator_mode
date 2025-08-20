@@ -34,12 +34,9 @@ defmodule SpectatorMode.Streams do
 
   This will generate both the bridge ID and a stream ID for each stream.
   """
-  @spec register_bridge(integer()) :: bridge_connect_result()
+  @spec register_bridge(pos_integer()) :: bridge_connect_result()
   def register_bridge(stream_count) do
-    bridge_id = Ecto.UUID.generate()
-    stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
-    reconnect_token = ReconnectTokenStore.register(bridge_id, stream_ids)
-
+    {bridge_id, stream_ids, reconnect_token} = ReconnectTokenStore.register(stream_count)
     {:ok, bridge_id, stream_ids, reconnect_token}
   end
 

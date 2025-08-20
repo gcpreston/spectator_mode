@@ -43,18 +43,14 @@ defmodule SpectatorMode.ReconnectTokenStore do
     GenServer.start_link(__MODULE__, [], name: @global_name)
   end
 
-  # TODO: Some things I don't like:
-  # - passing same bridge ID; feels like it wants to be defined out of existence
-  # - same with stream ID; there, GameTracker handles it. It may be worth an extra layer of calls
-  #   to not have this module know what a stream ID is
-
   @doc """
-  Insert a bridge ID into the store. Tracks the calling process against the
-  given bridge ID. Generates a reconnect token to return.
+  Register a new bridge to the store. Generates a bridge ID, the specified
+  number of stream IDs, and a reconnect token, and tracks the calling process
+  as the source.
   """
-  @spec register(Streams.bridge_id(), [Streams.stream_id()]) :: reconnect_token()
-  def register(bridge_id, stream_ids) do
-    GenServer.call(@global_name, {:register, bridge_id, stream_ids})
+  @spec register(pos_integer()) :: {Streams.bridge_id(), [Streams.stream_id()], reconnect_token()}
+  def register(stream_count) do
+    GenServer.call(@global_name, {:register, stream_count})
   end
 
   @doc """
@@ -82,11 +78,14 @@ defmodule SpectatorMode.ReconnectTokenStore do
   end
 
   @impl true
-  def handle_call({:register, bridge_id, stream_ids}, {pid, _tag}, state) do
+  def handle_call({:register, stream_count}, {pid, _tag}, state) do
+    bridge_id = Ecto.UUID.generate()
+    stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
+
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
     {:ok, _result} = start_supervised_packet_handlers(stream_ids)
     Streams.notify_subscribers(:livestreams_created, stream_ids)
-    {:reply, reconnect_token, new_state}
+    {:reply, {bridge_id, stream_ids, reconnect_token}, new_state}
   end
 
   def handle_call({:reconnect, reconnect_token}, {pid, _tag}, state) do
