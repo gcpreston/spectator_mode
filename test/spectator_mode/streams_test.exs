@@ -2,15 +2,20 @@ defmodule SpectatorMode.StreamsTest do
   use ExUnit.Case, async: false
 
   alias SpectatorMode.Streams
-  alias SpectatorMode.PacketHandlerRegistry
 
-  defp dummy_source do
-    spawn(fn ->
+  defp spawn_source_pid(body) do
+    source_pid = spawn(fn ->
+      body.()
+
       receive do
         :crash -> raise "Some error occurred!"
-        :stop -> nil
+        {:exit, reason} -> exit(reason)
       end
     end)
+
+    on_exit(fn -> send(source_pid, {:exit, :shutdown}) end)
+
+    source_pid
   end
 
   describe "register_bridge/2" do
@@ -22,51 +27,58 @@ defmodule SpectatorMode.StreamsTest do
       assert length(stream_ids) == 5
       assert MapSet.new(stream_ids) |> MapSet.size() == 5
 
-      # Check that there are 5 correct processes in the registry
-      for stream_id <- stream_ids do
-        assert [{_pid, _value}] = Registry.lookup(PacketHandlerRegistry, stream_id)
-      end
-
       # Check that PubSub notifications are received
-      for stream_id <- stream_ids do
-        assert_receive {:livestream_created, ^stream_id}
-      end
+      assert_receive {:livestreams_created, ^stream_ids}
     end
 
     test "sends notification if the monitored process dies" do
       Streams.subscribe()
-      source_pid = dummy_source()
+      test_pid = self()
 
-      assert {:ok, _bridge_id, [stream_id], _reconnect_token} = Streams.register_bridge(1, source_pid)
-      assert_receive {:livestream_created, ^stream_id}
+      source_pid = spawn_source_pid(fn ->
+        assert {:ok, bridge_id, stream_ids, reconnect_token} = Streams.register_bridge(3)
+        send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
+      end)
+
+      assert_receive {:registered, _bridge_id, stream_ids, _reconnect_token}
+      assert_receive {:livestreams_created, ^stream_ids}
 
       send(source_pid, :crash)
 
       # First disconnected event is received
-      assert_receive {:livestreams_disconnected, [^stream_id]}
+      assert_receive {:livestreams_disconnected, ^stream_ids}
       # After timeout, destroyed event is received
-      assert_receive {:livestreams_destroyed, [^stream_id]}, 500
+      reconnect_timeout_ms = Application.get_env(:spectator_mode, :reconnect_timeout_ms)
+      assert_receive {:livestreams_destroyed, ^stream_ids}, reconnect_timeout_ms + 20
     end
   end
 
   describe "reconnect_bridge/2" do
     test "stops the livestreams from terminating" do
       Streams.subscribe()
-      source_pid = dummy_source()
-      {:ok, bridge_id, stream_ids, reconnect_token} = Streams.register_bridge(2, source_pid)
+      test_pid = self()
 
+      # Register bridge initially
+      source_pid = spawn_source_pid(fn ->
+        assert {:ok, bridge_id, stream_ids, reconnect_token} = Streams.register_bridge(2)
+        send(test_pid, {:registered, bridge_id, stream_ids, reconnect_token})
+      end)
+
+      # Crash bridge
       send(source_pid, :crash)
+      assert_receive {:registered, bridge_id, stream_ids, reconnect_token}
       assert_receive {:livestreams_disconnected, ^stream_ids}
 
-      new_source_pid = dummy_source()
+      # Reconnect a new bridge process
+      spawn_source_pid(fn ->
+        assert {:ok, ^bridge_id, ^stream_ids, new_reconnect_token} = Streams.reconnect_bridge(reconnect_token)
+        send(test_pid, {:reconnected, new_reconnect_token})
+      end)
 
-      assert {:ok, ^bridge_id, ^stream_ids, new_reconnect_token} =
-               Streams.reconnect_bridge(reconnect_token, new_source_pid)
-
+      # Reconnect assertions
+      assert_receive {:reconnected, new_reconnect_token}
       assert reconnect_token != new_reconnect_token
       assert_receive {:livestreams_reconnected, ^stream_ids}
-
-      send(new_source_pid, :stop)
     end
   end
 end
