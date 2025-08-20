@@ -85,20 +85,22 @@ defmodule SpectatorMode.ReconnectTokenStore do
   def handle_call({:register, bridge_id, stream_ids}, {pid, _tag}, state) do
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
     {:ok, _result} = start_supervised_packet_handlers(stream_ids)
+    Streams.notify_subscribers(:livestreams_created, stream_ids)
     {:reply, reconnect_token, new_state}
   end
 
   def handle_call({:reconnect, reconnect_token}, {pid, _tag}, state) do
+    monitor_ref = get_in(state.token_to_bridge_info[reconnect_token].monitor_ref)
+    reconnect_timeout_ref = get_in(state.monitor_ref_to_reconnect_info[monitor_ref].reconnect_timeout_ref)
+
     cond do
-      is_nil(state.token_to_bridge_info[reconnect_token]) ->
+      is_nil(monitor_ref) ->
         {:reply, {:error, :unknown_reconnect_token}, state}
 
-      is_nil(state.token_to_bridge_info[reconnect_token].monitor_ref) ->
+      is_nil(reconnect_timeout_ref) ->
         {:reply, {:error, :not_disconnected}, state}
 
       true ->
-        monitor_ref = state.token_to_bridge_info[reconnect_token].monitor_ref
-        reconnect_timeout_ref = state.monitor_ref_to_reconnect_info[monitor_ref].reconnect_timeout_ref
         Process.cancel_timer(reconnect_timeout_ref)
         %{bridge_id: bridge_id, stream_ids: stream_ids} = state.token_to_bridge_info[reconnect_token]
 
@@ -204,12 +206,11 @@ defmodule SpectatorMode.ReconnectTokenStore do
     put_in(new_state.disconnected_streams, new_disconnected_streams)
   end
 
-  defp start_supervised_packet_handlers(stream_count) do
-    start_supervised_packet_handlers(stream_count, [])
+  defp start_supervised_packet_handlers(stream_ids) do
+    start_supervised_packet_handlers(stream_ids, [])
   end
 
   defp start_supervised_packet_handlers([], acc) do
-    Streams.notify_subscribers(:livestreams_created, Enum.map(acc, fn {stream_id, _stream_pid} -> stream_id end))
     {:ok, acc}
   end
 
