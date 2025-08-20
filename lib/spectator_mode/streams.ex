@@ -14,7 +14,8 @@ defmodule SpectatorMode.Streams do
   @type bridge_id() :: String.t()
   @type stream_id() :: integer()
   @type reconnect_token() :: String.t()
-  @type bridge_connect_result() :: {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
+  @type bridge_connect_result() ::
+          {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
   @type viewer_connect_result() :: binary()
 
   @doc """
@@ -46,8 +47,11 @@ defmodule SpectatorMode.Streams do
   @spec reconnect_bridge(reconnect_token()) :: bridge_connect_result()
   def reconnect_bridge(reconnect_token) do
     case BridgeTracker.reconnect(reconnect_token) do
-      {:ok, reconnect_token, bridge_id, stream_ids} -> {:ok, bridge_id, stream_ids, reconnect_token}
-      {:error, reason} -> {:error, reason}
+      {:ok, reconnect_token, bridge_id, stream_ids} ->
+        {:ok, bridge_id, stream_ids, reconnect_token}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -81,14 +85,16 @@ defmodule SpectatorMode.Streams do
   @doc """
   Fetch the stream IDs of all currently active streams, and their metadata.
   """
-  @spec list_streams() :: [%{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}]
+  @spec list_streams() :: [
+          %{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}
+        ]
   def list_streams do
     game_tracker_streams = GameTracker.list_streams()
     disconnected_streams = BridgeTracker.disconnected_streams()
 
     Enum.map(game_tracker_streams, fn %{stream_id: stream_id, active_game: game} ->
       disconnected = MapSet.member?(disconnected_streams, stream_id)
-       %{stream_id: stream_id, active_game: game, disconnected: disconnected}
+      %{stream_id: stream_id, active_game: game, disconnected: disconnected}
     end)
   end
 

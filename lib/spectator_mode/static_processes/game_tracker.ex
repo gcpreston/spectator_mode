@@ -26,10 +26,11 @@ defmodule SpectatorMode.GameTracker do
 
   @spec initialize_stream() :: Streams.stream_id()
   def initialize_stream do
-     GenServer.call(@global_name, :initialize_stream)
+    GenServer.call(@global_name, :initialize_stream)
   end
 
-  @spec get_event_payloads(Streams.stream_id()) :: {:ok, Slp.Events.EventPayloads.t() | nil} | :error
+  @spec get_event_payloads(Streams.stream_id()) ::
+          {:ok, Slp.Events.EventPayloads.t() | nil} | :error
   def get_event_payloads(stream_id) do
     lookup_helper(stream_id, :event_payloads)
   end
@@ -51,7 +52,8 @@ defmodule SpectatorMode.GameTracker do
 
   @spec join_payload(Streams.stream_id()) :: binary()
   def join_payload(stream_id) do
-    stream_objects = :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}])
+    stream_objects =
+      :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}])
 
     event_payloads = Enum.find(stream_objects, fn o -> match?(%Slp.Events.EventPayloads{}, o) end)
     game_start = Enum.find(stream_objects, fn o -> match?(%Slp.Events.GameStart{}, o) end)
@@ -59,10 +61,10 @@ defmodule SpectatorMode.GameTracker do
     state_stages = if is_nil(game_state), do: [], else: Map.values(game_state[:fod_platforms])
 
     binary_to_send =
-      [
-        event_payloads,
-        game_start
-      ] ++ state_stages
+      ([
+         event_payloads,
+         game_start
+       ] ++ state_stages)
       |> Enum.filter(&(!is_nil(&1)))
       |> Enum.map(fn e -> e.binary end)
       |> Enum.join()
@@ -75,14 +77,14 @@ defmodule SpectatorMode.GameTracker do
     GenServer.call(@global_name, {:delete, stream_id})
   end
 
-  @spec list_streams() :: [%{stream_id: Streams.stream_id(), active_game: Slp.Events.GameStart.t()}]
+  @spec list_streams() :: [
+          %{stream_id: Streams.stream_id(), active_game: Slp.Events.GameStart.t()}
+        ]
   def list_streams do
     :ets.select(
       @current_games_table_name,
       [
-        {{{:"$1", :game_start}, :"$2"},
-        [],
-        [%{stream_id: :"$1", active_game: :"$2"}]}
+        {{{:"$1", :game_start}, :"$2"}, [], [%{stream_id: :"$1", active_game: :"$2"}]}
       ]
     )
   end
@@ -126,7 +128,12 @@ defmodule SpectatorMode.GameTracker do
   def handle_call({:set_fod_platform, stream_id, side, event}, _from, state) do
     # TODO: Protect against inserting for invalid stream?
     {:ok, current_game_state} = lookup_helper(stream_id, :game_state)
-    :ets.insert(@current_games_table_name, {{stream_id, :game_state}, put_in(current_game_state, [:fod_platforms, side], event)})
+
+    :ets.insert(
+      @current_games_table_name,
+      {{stream_id, :game_state}, put_in(current_game_state, [:fod_platforms, side], event)}
+    )
+
     {:reply, :ok, state}
   end
 
@@ -134,6 +141,7 @@ defmodule SpectatorMode.GameTracker do
     for event_type <- [:event_payloads, :game_start, :game_state] do
       :ets.delete(@current_games_table_name, {stream_id, event_type})
     end
+
     {:reply, :ok, state}
   end
 
