@@ -74,7 +74,7 @@ defmodule SpectatorMode.PacketHandler do
 
   defp handle_event(%Slp.Events.EventPayloads{} = event, %{stream_id: stream_id} = state) do
     GameTracker.set_event_payloads(stream_id, event)
-    put_in(state.event_payloads, event)
+    put_in(state.payload_sizes, event.payload_sizes)
   end
 
   defp handle_event(%Slp.Events.GameStart{} = event, %{stream_id: stream_id} = state) do
