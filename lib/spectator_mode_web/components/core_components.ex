@@ -671,7 +671,7 @@ defmodule SpectatorModeWeb.CoreComponents do
   @doc """
   Renders a card to show information about a stream.
   """
-  attr :bridge_id, :string, required: true
+  attr :stream_id, :string, required: true
   attr :active_game, :any, required: true
   attr :selected, :boolean, required: true
   attr :disconnected, :boolean, required: true
@@ -682,7 +682,7 @@ defmodule SpectatorModeWeb.CoreComponents do
 
     ~H"""
     <div
-      id={"stream-card-#{@bridge_id}"}
+      id={"stream-card-#{@stream_id}"}
       data-selected={@selected}
       class="relative p-4 rounded-lg shadow-sm border bg-white transition-all hover:bg-gray-50 hover:shadow-md data-[selected]:border-2 data-[selected]:border-gray-700"
     >
@@ -691,7 +691,7 @@ defmodule SpectatorModeWeb.CoreComponents do
       </div>
       <div class="text-center">
         <.active_game_text event={@active_game} />
-        <div><span class="text-xs font-extralight">{@bridge_id}</span></div>
+        <div><span class="text-xs font-extralight">{@stream_id}</span></div>
       </div>
       <div :if={@has_viewers} class="absolute top-2 right-2">
         <.icon name="hero-user" class="h-4 w-4" />
