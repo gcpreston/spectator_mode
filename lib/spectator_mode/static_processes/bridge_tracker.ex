@@ -139,7 +139,7 @@ defmodule SpectatorMode.BridgeTracker do
 
     if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}] do
       Logger.info("Bridge #{bridge_id} terminated, reason: #{inspect(reason)}")
-      {:noreply, bridge_cleanup(state, monitor_ref)}
+      {:noreply, bridge_cleanup(state, monitor_ref, reason)}
     else
       Streams.notify_subscribers(:livestreams_disconnected, stream_ids)
 
@@ -151,7 +151,7 @@ defmodule SpectatorMode.BridgeTracker do
   end
 
   def handle_info({:reconnect_timeout, monitor_ref}, state) do
-    {:noreply, bridge_cleanup(state, monitor_ref)}
+    {:noreply, bridge_cleanup(state, monitor_ref, {:shutdown, :reconnect_timeout})}
   end
 
   ## Helpers
@@ -190,7 +190,7 @@ defmodule SpectatorMode.BridgeTracker do
   end
 
   # Run side-effects for bridge termination and remove it from state.
-  defp bridge_cleanup(state, down_ref) do
+  defp bridge_cleanup(state, down_ref, stop_reason) do
     %{reconnect_token: reconnect_token} = state.monitor_ref_to_reconnect_info[down_ref]
     stream_ids = state.token_to_bridge_info[reconnect_token].stream_ids
 
@@ -199,7 +199,7 @@ defmodule SpectatorMode.BridgeTracker do
       livestream_name = {:via, Registry, {PacketHandlerRegistry, stream_id}}
 
       if GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}) != nil do
-        GenServer.stop(livestream_name, {:shutdown, :reconnect_timeout})
+        GenServer.stop(livestream_name, stop_reason)
       end
     end
 
