@@ -11,7 +11,7 @@ defmodule SpectatorMode.PacketHandler do
   alias SpectatorMode.Slp
   alias SpectatorMode.GameTracker
 
-  defstruct stream_id: nil, payload_sizes: nil
+  defstruct stream_id: nil, payload_sizes: nil, replay_so_far: nil
 
   ## API
 
@@ -57,6 +57,7 @@ defmodule SpectatorMode.PacketHandler do
     maybe_payload_sizes = get_in(state.payload_sizes)
     events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
     new_state = handle_events(events, state)
+    new_state = %{new_state | replay_so_far: state.replay_so_far <> data}
 
     {:noreply, new_state}
   end
@@ -73,8 +74,10 @@ defmodule SpectatorMode.PacketHandler do
   end
 
   defp handle_event(%Slp.Events.EventPayloads{} = event, %{stream_id: stream_id} = state) do
+    # Initialize stored replay
+    new_state = %{state | replay_so_far: <<0x55, 0x7b, 0x72, 0x03, 0x77, 0x61, 0x24, 0x5b, 0x23, 0x55, 0x00, 0x6c, 0x10, 0x35>>}
     GameTracker.set_event_payloads(stream_id, event)
-    put_in(state.payload_sizes, event.payload_sizes)
+    put_in(new_state.payload_sizes, event.payload_sizes)
   end
 
   defp handle_event(%Slp.Events.GameStart{} = event, %{stream_id: stream_id} = state) do
