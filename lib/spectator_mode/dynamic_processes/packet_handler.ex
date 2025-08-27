@@ -81,6 +81,7 @@ defmodule SpectatorMode.PacketHandler do
   end
 
   defp handle_event(%Slp.Events.GameStart{} = event, %{stream_id: stream_id} = state) do
+      IO.puts("Set game start for stream #{inspect(stream_id)}")
     # Store and broadcast parsed event the data; the binary is not needed
     game_settings = Map.put(event, :binary, nil)
 
@@ -91,6 +92,7 @@ defmodule SpectatorMode.PacketHandler do
   end
 
   defp handle_event(%Slp.Events.GameEnd{}, state) do
+    IO.puts("Set game end for stream #{inspect(state.stream_id)}")
     GameTracker.set_game_start(state.stream_id, nil)
     Streams.notify_subscribers(:game_update, {state.stream_id, nil})
 

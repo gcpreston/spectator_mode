@@ -18,6 +18,13 @@ defmodule SpectatorModeWeb.Router do
     pipe_through :browser
 
     live "/", StreamsLive, :index
+
+  end
+
+  scope "/api", SpectatorModeWeb do
+    pipe_through :api
+
+    get "/replays", ReplaysController, :index
   end
 
   # Other scopes may use custom stacks.
