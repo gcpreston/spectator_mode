@@ -26,9 +26,9 @@ defmodule SpectatorMode.PacketHandler do
     GenServer.cast(server, {:handle_packet, data})
   end
 
-  @spec get_replay(GenServer.server()) :: binary()
-  def get_replay(server) do
-    GenServer.call(server, :get_replay)
+  @spec get_replay(GenServer.server(), pos_integer()) :: binary()
+  def get_replay(server, bytes_start) do
+    GenServer.call(server, {:get_replay, bytes_start})
   end
 
   ## Callbacks
@@ -62,8 +62,6 @@ defmodule SpectatorMode.PacketHandler do
     maybe_payload_sizes = get_in(state.payload_sizes)
     events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
     new_state = handle_events(events, state)
-    IO.puts("new state after handle events:")
-    dbg(new_state)
     new_state = %{new_state | replay_so_far: new_state.replay_so_far <> data}
 
     {:noreply, new_state}
@@ -76,8 +74,9 @@ defmodule SpectatorMode.PacketHandler do
   # Don't worry about this for now though because ideally this will be implemented using
   # slippi-launcher main rather than sharlot's fork. Just for this proof of concept hack.
   @impl true
-  def handle_call(:get_replay, _from, state) do
-    {:reply, state.replay_so_far, state}
+  def handle_call({:get_replay, bytes_start}, _from, state) do
+    <<_::binary-size(bytes_start), rest>> = state.replay_so_far
+    {:reply, rest, state}
   end
 
   ## Helpers

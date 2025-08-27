@@ -40,6 +40,8 @@ defmodule SpectatorModeWeb.StreamsLive do
             <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
             <span>Close stream</span>
           </button>
+          <%!-- TODO: dynamically replace host/port --%>
+          <a class="border rounded-sm" href={"slippi-mirror://play?path=localhost:4000/api/replay/#{@selected_stream_id}.slp&mirror=1"}>Watch in Dolphin</a>
         </div>
         <div id="stream-id-target" streamid={@selected_stream_id} phx-hook="StreamIdHook"></div>
         <slippi-viewer id="viewer" zips-base-url="/assets" phx-update="ignore"></slippi-viewer>

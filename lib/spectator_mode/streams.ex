@@ -98,8 +98,9 @@ defmodule SpectatorMode.Streams do
     end)
   end
 
-  def get_replay(stream_id) do
-    PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
+  @spec get_replay(stream_id(), pos_integer()) :: binary()
+  def get_replay(stream_id, bytes_start) do
+    PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}}, bytes_start)
   end
 
   @spec notify_subscribers(atom(), term()) :: nil
