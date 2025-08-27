@@ -11,7 +11,7 @@ defmodule SpectatorModeWeb.Router do
   end
 
   pipeline :api do
-    plug :accepts, ["json"]
+    plug :accepts, ["json", "slp"]
   end
 
   scope "/", SpectatorModeWeb do
@@ -25,6 +25,7 @@ defmodule SpectatorModeWeb.Router do
     pipe_through :api
 
     get "/replays", ReplaysController, :index
+    get "/replay/:filename", ReplaysController, :show
   end
 
   # Other scopes may use custom stacks.

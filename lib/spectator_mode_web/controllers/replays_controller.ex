@@ -7,4 +7,10 @@ defmodule SpectatorModeWeb.ReplaysController do
     streams = Streams.list_streams()
     render(conn, :index, replays: streams)
   end
+
+  def show(conn, %{"filename" => filename}) do
+    [stream_id_str] = Regex.run(~r/^(.+)\.slp/, filename, capture: :all_but_first)
+    stream_id = String.to_integer(stream_id_str)
+    send_download(conn, {:binary, Streams.get_replay(stream_id)}, filename: filename)
+  end
 end

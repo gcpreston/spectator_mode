@@ -26,6 +26,11 @@ defmodule SpectatorMode.PacketHandler do
     GenServer.cast(server, {:handle_packet, data})
   end
 
+  @spec get_replay(GenServer.server()) :: binary()
+  def get_replay(server) do
+    GenServer.call(server, :get_replay)
+  end
+
   ## Callbacks
 
   @impl true
@@ -57,9 +62,22 @@ defmodule SpectatorMode.PacketHandler do
     maybe_payload_sizes = get_in(state.payload_sizes)
     events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
     new_state = handle_events(events, state)
-    new_state = %{new_state | replay_so_far: state.replay_so_far <> data}
+    IO.puts("new state after handle events:")
+    dbg(new_state)
+    new_state = %{new_state | replay_so_far: new_state.replay_so_far <> data}
 
     {:noreply, new_state}
+  end
+
+  # TODO: Alright yeah this is inevitably gonna cause issues if there are many people
+  #   spectating via dolphin at once. This would be better in ETS for read concurrency,
+  #   but then writing would still be a bottleneck...
+  #
+  # Don't worry about this for now though because ideally this will be implemented using
+  # slippi-launcher main rather than sharlot's fork. Just for this proof of concept hack.
+  @impl true
+  def handle_call(:get_replay, _from, state) do
+    {:reply, state.replay_so_far, state}
   end
 
   ## Helpers
@@ -75,7 +93,8 @@ defmodule SpectatorMode.PacketHandler do
 
   defp handle_event(%Slp.Events.EventPayloads{} = event, %{stream_id: stream_id} = state) do
     # Initialize stored replay
-    new_state = %{state | replay_so_far: <<0x55, 0x7b, 0x72, 0x03, 0x77, 0x61, 0x24, 0x5b, 0x23, 0x55, 0x00, 0x6c, 0x10, 0x35>>}
+    # new_state = %{state | replay_so_far: <<0x7b, 0x55, 0x03, 0x72, 0x61, 0x77, 0x5b, 0x24, 0x55, 0x23, 0x6c, 0x00>>}
+    new_state = %{state | replay_so_far: <<>>}
     GameTracker.set_event_payloads(stream_id, event)
     put_in(new_state.payload_sizes, event.payload_sizes)
   end

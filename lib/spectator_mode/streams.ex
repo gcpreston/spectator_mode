@@ -98,6 +98,10 @@ defmodule SpectatorMode.Streams do
     end)
   end
 
+  def get_replay(stream_id) do
+    PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
+  end
+
   @spec notify_subscribers(atom(), term()) :: nil
   def notify_subscribers(event, result) do
     Phoenix.PubSub.broadcast(
