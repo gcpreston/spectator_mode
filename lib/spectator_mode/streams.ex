@@ -61,7 +61,8 @@ defmodule SpectatorMode.Streams do
   @spec register_viewer(stream_id()) :: viewer_connect_result()
   def register_viewer(stream_id) do
     Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
-    GameTracker.join_payload(stream_id)
+    # GameTracker.join_payload(stream_id)
+    PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
   end
 
   @doc """
