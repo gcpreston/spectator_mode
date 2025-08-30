@@ -70,7 +70,7 @@ defmodule SpectatorMode.PacketHandler do
 
   @impl true
   def handle_call(:get_replay, _from, state) do
-    {:reply, state.replay_so_far, state}
+    {:reply, state.replay_so_far || <<>>, state}
   end
 
   ## Helpers

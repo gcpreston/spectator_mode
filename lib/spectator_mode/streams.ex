@@ -57,12 +57,21 @@ defmodule SpectatorMode.Streams do
 
   @doc """
   Register the calling process to receive data from a specified livestream.
+
+  Returns the Slippi events from an ongoing game needed to interpret the game
+  state. By default, this is a minimal collection, suitable for in-browser
+  viewing, but if the full replay so far is needed, the `return_full_replay`
+  parameter can be passed as `true`.
   """
-  @spec register_viewer(stream_id()) :: viewer_connect_result()
-  def register_viewer(stream_id) do
+  @spec register_viewer(stream_id(), boolean()) :: viewer_connect_result()
+  def register_viewer(stream_id, return_full_replay \\ false) do
     Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
-    # GameTracker.join_payload(stream_id)
-    PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
+
+    if return_full_replay do
+      PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
+    else
+      GameTracker.join_payload(stream_id)
+    end
   end
 
   @doc """
