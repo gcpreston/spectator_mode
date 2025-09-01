@@ -12,7 +12,7 @@
 #   - Ex: hexpm/elixir:1.15.3-erlang-26.0.2-debian-bullseye-20230612-slim
 #
 ARG ELIXIR_VERSION=1.18.3
-ARG OTP_VERSION=27.3
+ARG OTP_VERSION=27.3.4
 ARG DEBIAN_VERSION=bookworm-20250428-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
