@@ -16,7 +16,7 @@ defmodule SpectatorMode.Streams do
   @type reconnect_token() :: String.t()
   @type bridge_connect_result() ::
           {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
-  @type viewer_connect_result() :: binary()
+  @type viewer_connect_result() :: {:ok, binary()} | {:error, :stream_not_found}
 
   @doc """
   Subscribe to PubSub notifications about the state
@@ -65,12 +65,19 @@ defmodule SpectatorMode.Streams do
   """
   @spec register_viewer(stream_id(), boolean()) :: viewer_connect_result()
   def register_viewer(stream_id, return_full_replay \\ false) do
-    Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
-
-    if return_full_replay do
-      PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
+    if Registry.lookup(PacketHandlerRegistry, stream_id) == [] do
+      {:error, :stream_not_found}
     else
-      GameTracker.join_payload(stream_id)
+      Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
+
+      join_binary =
+        if return_full_replay do
+          PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
+        else
+          GameTracker.join_payload(stream_id)
+        end
+
+      {:ok, join_binary}
     end
   end
 

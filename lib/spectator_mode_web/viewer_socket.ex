@@ -17,18 +17,23 @@ defmodule SpectatorModeWeb.ViewerSocket do
   def connect(%{params: %{"stream_id" => stream_id} = params} = state) do
     stream_id = String.to_integer(stream_id)
     get_full_replay = !!Map.get(params, "full_replay", false)
-    join_payload = Streams.register_viewer(stream_id, get_full_replay)
 
-    # Send initial data to viewer after connect
-    if join_payload do
-      send(self(), {:after_join, join_payload})
+    case Streams.register_viewer(stream_id, get_full_replay) do
+      {:ok, join_payload} ->
+        # Send initial data to viewer after connect
+        if join_payload do
+          send(self(), {:after_join, join_payload})
+        end
+
+        # Track presence
+        viewer_id = Ecto.UUID.generate()
+        Presence.track_viewer(viewer_id, stream_id)
+
+        {:ok, state}
+
+      {:error, :stream_not_found} ->
+        {:error, :stream_not_found}
     end
-
-    # Track presence
-    viewer_id = Ecto.UUID.generate()
-    Presence.track_viewer(viewer_id, stream_id)
-
-    {:ok, state}
   end
 
   @impl true
