@@ -14,9 +14,10 @@ defmodule SpectatorModeWeb.ViewerSocket do
   # Desired behavior: On viewer reconnect case, send missing frames
 
   @impl true
-  def connect(%{params: %{"stream_id" => stream_id}} = state) do
+  def connect(%{params: %{"stream_id" => stream_id} = params} = state) do
     stream_id = String.to_integer(stream_id)
-    join_payload = Streams.register_viewer(stream_id)
+    get_full_replay = !!Map.get(params, "full_replay", false)
+    join_payload = Streams.register_viewer(stream_id, get_full_replay)
 
     # Send initial data to viewer after connect
     if join_payload do
