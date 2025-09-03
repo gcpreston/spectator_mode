@@ -4,6 +4,19 @@ defmodule SpectatorMode.GameTrackerTest do
   alias SpectatorMode.GameTracker
   alias SpectatorMode.Slp.EventsFixtures
 
+  describe "start_link/1" do
+    test "does not allow multiple instances; creates a link anyways" do
+      pid = GenServer.whereis({:global, GameTracker})
+      assert is_pid(pid)
+      assert {:ok, ^pid} = GameTracker.start_link([])
+
+      Process.flag(:trap_exit, true)
+      Process.exit(pid, :kill)
+
+      assert_receive {:EXIT, ^pid, _reason}
+    end
+  end
+
   test "initialize_stream/1 sets appropriate keys, delete/1 removes stream data" do
     event_payloads = EventsFixtures.event_payloads_fixture()
     game_start = EventsFixtures.game_start_fixture()
