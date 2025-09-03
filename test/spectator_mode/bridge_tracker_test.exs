@@ -6,6 +6,19 @@ defmodule SpectatorMode.BridgeTrackerTest do
   alias SpectatorMode.GameTracker
   alias SpectatorMode.PacketHandlerRegistry
 
+  describe "start_link/1" do
+    test "does not allow multiple instances; creates a link anyways" do
+      pid = GenServer.whereis({:global, BridgeTracker})
+      assert is_pid(pid)
+      assert {:ok, ^pid} = BridgeTracker.start_link([])
+
+      Process.flag(:trap_exit, true)
+      Process.exit(pid, :kill)
+
+      assert_receive {:EXIT, ^pid, _reason}
+    end
+  end
+
   describe "registration" do
     test "spawns a PacketHandler process for each livestream; sends created notification" do
       Streams.subscribe()

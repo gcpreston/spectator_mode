@@ -42,7 +42,19 @@ defmodule SpectatorMode.BridgeTracker do
   ## API
 
   def start_link(_) do
-    GenServer.start_link(__MODULE__, [], name: @global_name)
+    :global.trans({__MODULE__ , :start_link}, fn ->
+      case GenServer.start_link(__MODULE__, [], name: @global_name) do
+        {:ok, pid} ->
+          {:ok, pid}
+
+        {:error, {:already_started, pid}} ->
+          Process.link(pid)
+          {:ok, pid}
+
+        error ->
+          error
+      end
+    end)
   end
 
   @doc """
