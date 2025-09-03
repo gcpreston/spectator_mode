@@ -56,11 +56,22 @@ defmodule SpectatorModeWeb.StreamsLive do
       </div>
 
       <.modal id="dolphin-spectate-modal">
-        <div class="text-center">
-          <code phx-no-curly-interpolation id="spectate-command">swb spectate {@selected_stream_id}</code>
-          <button phx-click={JS.dispatch("phx:copy", to: "#spectate-command")}>
-            <.icon name="hero-clipboard" class="h-5 w-5" />
-          </button>
+        <div class="text-center flex flex-col gap-4">
+          <p>Run the following command to open the stream in Playback Dolphin:</p>
+          <div class="flex gap-2 justify-center">
+            <code id="spectate-command">swb spectate {@selected_stream_id}</code>
+            <button phx-click={JS.dispatch("phx:copy", to: "#spectate-command")}>
+              <.icon name="hero-clipboard" class="h-5 w-5" />
+            </button>
+          </div>
+          <p>
+            Requires the SpectatorMode client <code>swb</code>. Follow intructions
+            from the
+            <span phx-click={hide_modal("dolphin-spectate-modal") |> show_modal("help-modal")} class="underline">
+              help menu
+            </span>
+            if you do not have <code>swb</code> installed.
+          </p>
         </div>
       </.modal>
     </div>
