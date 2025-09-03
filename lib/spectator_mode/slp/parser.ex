@@ -120,13 +120,13 @@ defmodule SpectatorMode.Slp.Parser do
 
   defp parse_game_end(data, payload_size) do
     event_size = 1 + payload_size
-    <<ge_data::binary-size(game_end_size), rest::binary>> = data
+    <<ge_data::binary-size(event_size), rest::binary>> = data
     {%Events.GameEnd{binary: ge_data}, rest}
   end
 
-  defp parse_fod_platforms(data, payload_sizes) do
-    fod_platforms_size = 1 + payload_sizes[0x3f]
-    <<ge_data::binary-size(fod_platforms_size), rest::binary>> = data
+  defp parse_fod_platforms(data, payload_size) do
+    event_size = 1 + payload_size
+    <<ge_data::binary-size(event_size), rest::binary>> = data
 
     {
       %Events.FodPlatforms{
