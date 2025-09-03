@@ -36,10 +36,17 @@ defmodule SpectatorModeWeb.StreamsLive do
 
       <div class="grow overflow-y-auto">
         <div class="text-center pt-4 pb-2">
-          <button :if={@selected_stream_id} phx-click="clear">
-            <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
-            <span>Close stream</span>
-          </button>
+          <div :if={@selected_stream_id} class="px-4 flex justify-between">
+            <button phx-click="clear">
+              <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
+              <span>Close stream</span>
+            </button>
+
+            <button phx-click={show_modal("dolphin-spectate-modal")}>
+              <.icon name="hero-tv" class="h-5 w-5" />
+              <span>Watch in Dolphin</span>
+            </button>
+          </div>
         </div>
         <div id="stream-id-target" streamid={@selected_stream_id} phx-hook="StreamIdHook"></div>
         <slippi-viewer id="viewer" zips-base-url="/assets" phx-update="ignore"></slippi-viewer>
@@ -47,6 +54,15 @@ defmodule SpectatorModeWeb.StreamsLive do
           Click on a stream to get started
         </div>
       </div>
+
+      <.modal id="dolphin-spectate-modal">
+        <div class="text-center">
+          <code phx-no-curly-interpolation id="spectate-command">swb spectate {@selected_stream_id}</code>
+          <button phx-click={JS.dispatch("phx:copy", to: "#spectate-command")}>
+            <.icon name="hero-clipboard" class="h-5 w-5" />
+          </button>
+        </div>
+      </.modal>
     </div>
     """
   end
