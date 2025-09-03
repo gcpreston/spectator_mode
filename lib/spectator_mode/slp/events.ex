@@ -1,5 +1,5 @@
 defmodule SpectatorMode.Slp.Events do
-  @type t :: EventPayloads.t() | GameStart.t() | GameEnd.t()
+  @type t :: EventPayloads.t() | GameStart.t() | GameEnd.t() | FodPlatforms.t()
   @type payload_sizes :: %{integer() => integer()}
 
   defmodule EventPayloads do
