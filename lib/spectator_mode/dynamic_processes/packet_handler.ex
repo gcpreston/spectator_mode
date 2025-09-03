@@ -10,8 +10,28 @@ defmodule SpectatorMode.PacketHandler do
   alias SpectatorMode.Streams
   alias SpectatorMode.Slp
   alias SpectatorMode.GameTracker
+  alias SpectatorMode.Events
 
-  defstruct stream_id: nil, payload_sizes: nil, replay_so_far: nil
+  @type t() :: %__MODULE__{
+    stream_id: Streams.stream_id(),
+    payload_sizes: Events.payload_sizes() | nil,
+    replay_so_far: binary() | nil,
+    leftover_buffer: binary()
+  }
+
+  defstruct stream_id: nil, payload_sizes: nil, replay_so_far: nil, leftover_buffer: <<>>
+  # stream_id: Which stream this PacketHandler is managing.
+  # payload_sizes: The map of %{command byte => payload size} given at the start
+  #   of the current game. A nil value means there is no current game, and that
+  #   the next packet processed should be Event Payloads.
+  # replay_so_far: The full binary of the current game. A nil value means there
+  #   is no current game, just like a nil value of payload_sizes.
+  #   TODO: There is a state simplification opportunity here
+  # leftover_buffer: If an event binary was split across handle_packet calls,
+  #   its start is stored in leftover_buffer. This is then prepended to the next
+  #   packet to be processed and reset. Please note that this means packets must
+  #   come in order, which is guaranteed by OTP as long as packets are coming
+  #   from the same source.
 
   ## API
 
@@ -59,11 +79,14 @@ defmodule SpectatorMode.PacketHandler do
   @impl true
   def handle_cast({:handle_packet, data}, state) do
     maybe_payload_sizes = get_in(state.payload_sizes)
-    events = Slp.Parser.parse_packet(data, maybe_payload_sizes)
+
+    {events, leftover} = Slp.Parser.parse_packet(state.leftover_buffer <> data, maybe_payload_sizes)
 
     new_state =
-      handle_events(events, state)
+      state
+      |> handle_events(events)
       |> maybe_add_to_replay(data)
+      |> Map.put(:leftover_buffer, leftover)
 
     {:noreply, new_state}
   end
@@ -80,7 +103,7 @@ defmodule SpectatorMode.PacketHandler do
   #    (i.e. sending PubSub messages, updating GameTracker)
   # 2. return the modified state based on the event
 
-  defp handle_events(events, state) do
+  defp handle_events(state, events) do
     Enum.reduce(events, state, &handle_event(&1, &2))
   end
 
