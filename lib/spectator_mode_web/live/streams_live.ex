@@ -36,10 +36,17 @@ defmodule SpectatorModeWeb.StreamsLive do
 
       <div class="grow overflow-y-auto">
         <div class="text-center pt-4 pb-2">
-          <button :if={@selected_stream_id} phx-click="clear">
-            <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
-            <span>Close stream</span>
-          </button>
+          <div :if={@selected_stream_id} class="px-4 flex justify-between">
+            <button phx-click="clear">
+              <.icon name="hero-arrow-left-start-on-rectangle" class="h-5 w-5" />
+              <span>Close stream</span>
+            </button>
+
+            <button phx-click={show_modal("dolphin-spectate-modal")}>
+              <.icon name="hero-tv" class="h-5 w-5" />
+              <span>Watch in Dolphin</span>
+            </button>
+          </div>
         </div>
         <div id="stream-id-target" streamid={@selected_stream_id} phx-hook="StreamIdHook"></div>
         <slippi-viewer id="viewer" zips-base-url="/assets" phx-update="ignore"></slippi-viewer>
@@ -47,6 +54,30 @@ defmodule SpectatorModeWeb.StreamsLive do
           Click on a stream to get started
         </div>
       </div>
+
+      <.modal id="dolphin-spectate-modal">
+        <div class="text-center flex flex-col gap-4">
+          <p>Run the following command to open the stream in Playback Dolphin:</p>
+          <div class="flex gap-2 justify-center">
+            <code id="spectate-command">swb spectate {@selected_stream_id}</code>
+            <button
+              title="Copy to clipboard"
+              phx-click={JS.dispatch("phx:copy", to: "#spectate-command")}
+              class="hover:bg-gray-200 rounded-md transition-all transform ease-in duration-100"
+            >
+              <.icon name="hero-clipboard" class="h-5 w-5 p-1" />
+            </button>
+          </div>
+          <p>
+            Requires the SpectatorMode client swb. Follow intructions
+            from the
+            <.link href="#" phx-click={hide_modal("dolphin-spectate-modal") |> show_modal("help-modal")} class="underline">
+              help menu
+            </.link>
+            if you do not have swb installed.
+          </p>
+        </div>
+      </.modal>
     </div>
     """
   end
@@ -74,9 +105,28 @@ defmodule SpectatorModeWeb.StreamsLive do
         <.header>Instructions</.header>
         <.list>
           <:item title="How to spectate">
+            <p class="italic">In the browser:</p>
             <ul class="text-left list-disc">
               <li>Click or tap on a stream in the list</li>
               <li>To stop watching, click or tap on "Close stream"</li>
+            </ul>
+
+            <hr class="my-2" />
+
+            <p class="italic">In Dolphin emulator:</p>
+            <ul class="list-disc">
+              <li>
+                <.link href="https://github.com/gcpreston/swb-rs/releases/latest" target="_blank" class="underline">
+                  Download the latest version of the swb client
+                </.link>
+              </li>
+              <li>
+                <p>
+                  Extract the downloaded folder and inside, from the terminal, run
+                  the spectate command with the desired stream ID:
+                </p>
+                <code phx-no-curly-interpolation class="bg-gray-200 p-0.5">swb spectate {stream ID to watch}</code>
+              </li>
             </ul>
           </:item>
           <:item title="How to stream">
@@ -88,7 +138,13 @@ defmodule SpectatorModeWeb.StreamsLive do
                   </.link>
                 </li>
                 <li>Start Slippi Dolphin</li>
-                <li>Extract the downloaded folder and run the swb program inside (double click, or launch from terminal)</li>
+                <li>
+                  <p>
+                    Extract the downloaded folder and inside, from the terminal, run
+                    the broadcast command:
+                  </p>
+                  <code phx-no-curly-interpolation class="bg-gray-200 p-0.5">swb broadcast</code>
+                </li>
                 <li>The stream ID will be given upon successful connection</li>
               </ul>
             </div>

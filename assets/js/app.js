@@ -60,6 +60,12 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
+// https://fly.io/phoenix-files/copy-to-clipboard-with-phoenix-liveview/
+window.addEventListener("phx:copy", (event) => {
+let text = event.target.innerHTML; // Alternatively use an element or data tag!
+  navigator.clipboard.writeText(text)
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

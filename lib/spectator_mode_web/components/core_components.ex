@@ -691,7 +691,7 @@ defmodule SpectatorModeWeb.CoreComponents do
       </div>
       <div class="text-center">
         <.active_game_text event={@active_game} />
-        <div><span class="text-xs font-extralight">{@stream_id}</span></div>
+        <div><span class="text-xs font-extralight">Stream ID: {@stream_id}</span></div>
       </div>
       <div :if={@has_viewers} class="absolute top-2 right-2">
         <.icon name="hero-user" class="h-4 w-4" />
