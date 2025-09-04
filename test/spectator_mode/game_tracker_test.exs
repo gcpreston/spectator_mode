@@ -6,7 +6,7 @@ defmodule SpectatorMode.GameTrackerTest do
 
   describe "start_link/1" do
     test "does not allow multiple instances; creates a link anyways" do
-      pid = GenServer.whereis({:global, GameTracker})
+      pid = GenServer.whereis(GameTracker)
       assert is_pid(pid)
       assert {:ok, ^pid} = GameTracker.start_link([])
 

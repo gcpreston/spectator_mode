@@ -8,7 +8,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
 
   describe "start_link/1" do
     test "does not allow multiple instances; creates a link anyways" do
-      pid = GenServer.whereis({:global, BridgeTracker})
+      pid = GenServer.whereis(BridgeTracker)
       assert is_pid(pid)
       assert {:ok, ^pid} = BridgeTracker.start_link([])
 

@@ -33,7 +33,6 @@ defmodule SpectatorMode.BridgeTracker do
         }
 
   @token_size 32
-  @global_name {:global, __MODULE__}
 
   defstruct token_to_bridge_info: Map.new(),
             monitor_ref_to_reconnect_info: Map.new(),
@@ -42,19 +41,17 @@ defmodule SpectatorMode.BridgeTracker do
   ## API
 
   def start_link(_) do
-    :global.trans({__MODULE__ , :start_link}, fn ->
-      case GenServer.start_link(__MODULE__, [], name: @global_name) do
-        {:ok, pid} ->
-          {:ok, pid}
+    case GenServer.start_link(__MODULE__, [], name: __MODULE__) do
+      {:ok, pid} ->
+        {:ok, pid}
 
-        {:error, {:already_started, pid}} ->
-          Process.link(pid)
-          {:ok, pid}
+      {:error, {:already_started, pid}} ->
+        Process.link(pid)
+        {:ok, pid}
 
-        error ->
-          error
-      end
-    end)
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -65,7 +62,7 @@ defmodule SpectatorMode.BridgeTracker do
   @spec register(pos_integer()) ::
           {Streams.bridge_id(), [Streams.stream_id()], Streams.reconnect_token()}
   def register(stream_count) do
-    GenServer.call(@global_name, {:register, stream_count})
+    GenServer.call(__MODULE__, {:register, stream_count})
   end
 
   @doc """
@@ -75,7 +72,7 @@ defmodule SpectatorMode.BridgeTracker do
           {:ok, Streams.reconnect_token(), Streams.bridge_id(), [Streams.stream_id()]}
           | {:error, term()}
   def reconnect(reconnect_token) do
-    GenServer.call(@global_name, {:reconnect, reconnect_token})
+    GenServer.call(__MODULE__, {:reconnect, reconnect_token})
   end
 
   @doc """
@@ -83,7 +80,7 @@ defmodule SpectatorMode.BridgeTracker do
   """
   @spec disconnected_streams() :: MapSet.t(Streams.stream_id())
   def disconnected_streams() do
-    GenServer.call(@global_name, :disconnected_streams)
+    GenServer.call(__MODULE__, :disconnected_streams)
   end
 
   ## Callbacks

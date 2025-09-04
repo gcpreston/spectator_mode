@@ -10,7 +10,6 @@ defmodule SpectatorMode.GameTracker do
   alias SpectatorMode.Slp
 
   @current_games_table_name :livestreams
-  @global_name {:global, __MODULE__}
   @initial_game_state %{fod_platforms: %{left: nil, right: nil}}
 
   # ETS schema
@@ -21,24 +20,22 @@ defmodule SpectatorMode.GameTracker do
   ## API
 
   def start_link(_) do
-    :global.trans({__MODULE__ , :start_link}, fn ->
-      case GenServer.start_link(__MODULE__, [], name: @global_name) do
-        {:ok, pid} ->
-          {:ok, pid}
+    case GenServer.start_link(__MODULE__, [], name: __MODULE__) do
+      {:ok, pid} ->
+        {:ok, pid}
 
-        {:error, {:already_started, pid}} ->
-          Process.link(pid)
-          {:ok, pid}
+      {:error, {:already_started, pid}} ->
+        Process.link(pid)
+        {:ok, pid}
 
-        error ->
-          error
-      end
-    end)
+      error ->
+        error
+    end
   end
 
   @spec initialize_stream() :: Streams.stream_id()
   def initialize_stream do
-    GenServer.call(@global_name, :initialize_stream)
+    GenServer.call(__MODULE__, :initialize_stream)
   end
 
   @spec get_event_payloads(Streams.stream_id()) ::
@@ -49,17 +46,17 @@ defmodule SpectatorMode.GameTracker do
 
   @spec set_event_payloads(Streams.stream_id(), Slp.Events.EventPayloads.t()) :: :ok
   def set_event_payloads(stream_id, event_payloads) do
-    GenServer.call(@global_name, {:set_event_payloads, stream_id, event_payloads})
+    GenServer.call(__MODULE__, {:set_event_payloads, stream_id, event_payloads})
   end
 
   @spec set_game_start(Streams.stream_id(), Slp.Events.GameStart.t() | nil) :: :ok
   def set_game_start(stream_id, game_start) do
-    GenServer.call(@global_name, {:set_game_start, stream_id, game_start})
+    GenServer.call(__MODULE__, {:set_game_start, stream_id, game_start})
   end
 
   @spec set_fod_platform(Streams.stream_id(), :left | :right, Slp.Events.FodPlatforms.t()) :: :ok
   def set_fod_platform(stream_id, side, event) do
-    GenServer.call(@global_name, {:set_fod_platform, stream_id, side, event})
+    GenServer.call(__MODULE__, {:set_fod_platform, stream_id, side, event})
   end
 
   @spec join_payload(Streams.stream_id()) :: binary()
@@ -86,7 +83,7 @@ defmodule SpectatorMode.GameTracker do
 
   @spec delete(Streams.stream_id()) :: :ok
   def delete(stream_id) do
-    GenServer.call(@global_name, {:delete, stream_id})
+    GenServer.call(__MODULE__, {:delete, stream_id})
   end
 
   @spec list_streams() :: [
