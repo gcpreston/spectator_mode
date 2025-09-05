@@ -112,10 +112,10 @@ defmodule SpectatorMode.GameTracker do
     :ok
   end
 
-  @spec list_streams() :: [
+  @spec list_local_streams() :: [
           %{stream_id: Streams.stream_id(), active_game: Slp.Events.GameStart.t()}
         ]
-  def list_streams do
+  def list_local_streams do
     :ets.select(
       @current_games_table_name,
       [

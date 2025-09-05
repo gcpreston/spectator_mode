@@ -87,17 +87,8 @@ defmodule SpectatorMode.BridgeTracker do
 
   @impl true
   def init(_) do
-    nodes_list = Node.list() ++ [self()]
-    Logger.info("Creating Mnesia schema with nodes #{inspect(nodes_list)}")
-    :mnesia.create_schema(nodes_list)
-    :ok = :mnesia.start()
-
-    case :mnesia.create_table(SpectatorMode.Mnesia.StreamNodes, [attributes: [:stream_id, :node_name]]) do
-      {:atomic, :ok} -> Logger.info("StreamNodes Mnesia table created")
-      {:aborted, {:already_exists, SpectatorMode.Mnesia.StreamNodes}} -> Logger.info("StreamNodes Mnesia table already exists")
-      {:aborted, reason} -> raise "Error creating StreamNodes Mnesia table: #{inspect(reason)}"
-    end
-
+    Logger.info("WHAT DOES Node.list() RETURN ON STARTUP: #{inspect(Node.list())} FOR NODE #{inspect(Node.self())}")
+    :net_kernel.monitor_nodes(true)
     {:ok, %__MODULE__{}}
   end
 
@@ -112,7 +103,7 @@ defmodule SpectatorMode.BridgeTracker do
     # TODO: Error case
     {:atomic, [:ok]} = :mnesia.transaction(fn ->
       for stream_id <- stream_ids do
-        :mnesia.write({SpectatorMode.Mnesia.StreamNodes, stream_id, node()})
+        :mnesia.write({:sm_stream_nodes, stream_id, node()})
       end
     end)
 
@@ -183,7 +174,58 @@ defmodule SpectatorMode.BridgeTracker do
     {:noreply, bridge_cleanup(state, monitor_ref)}
   end
 
+  def handle_info({:nodeup, node_name}, state) do
+    Logger.info("Got nodeup #{inspect(node_name)} from node #{inspect(node())}, starting Mnesia")
+
+    nodes_list = Node.list() ++ [node()]
+
+    nodes_list
+    |> setup_mnesia()
+    |> create_stream_nodes_table()
+
+    :mnesia.wait_for_tables([:sm_stream_nodes], 5000)
+
+    {:noreply, state}
+  end
+
+  def handle_info({:nodedown, node_name}, state) do
+    Logger.info("Got nodedown #{inspect(node_name)} from node #{inspect(node())}")
+    {:noreply, state}
+  end
+
   ## Helpers
+
+  # https://www.joekoski.com/blog/2024/05/20/mnesia-cluster.html
+  defp setup_mnesia(nodes) do
+    :mnesia.create_schema([Node.self()])
+    :mnesia.start()
+    :mnesia.change_config(:extra_db_nodes, nodes)
+    Logger.info("Mnesia configured with nodes: #{inspect(nodes)}")
+    nodes
+  end
+
+  defp create_stream_nodes_table(nodes) do
+    Logger.info("Creating sm_stream_nodes table on #{Node.self()}.")
+
+    case :mnesia.create_table(:sm_stream_nodes, stream_nodes_table_opts(nodes)) do
+      {:atomic, :ok} ->
+        Logger.info("sm_stream_nodes table created successfully.")
+
+      {:aborted, {:already_exists, table}} ->
+        Logger.info("#{table} table already exists.")
+    end
+
+    nodes
+  end
+
+  defp stream_nodes_table_opts(nodes) do
+    [
+      {:attributes,
+       [:stream_id, :node_name]},
+      {:ram_copies, nodes},
+      {:type, :set}
+    ]
+  end
 
   # TODO: The state operations for this module feel like a state machine (aptly named...)
   #   There are a few atomic operations that happen to state, and the high-level functions
@@ -230,7 +272,7 @@ defmodule SpectatorMode.BridgeTracker do
     # TODO: error case
     {:atomic, [:ok]} = :mnesia.transaction(fn ->
       for stream_id <- stream_ids do
-        :mnesia.delete({SpectatorMode.Mnesia.StreamNodes, stream_id})
+        :mnesia.delete({:sm_stream_nodes, stream_id})
       end
     end)
 

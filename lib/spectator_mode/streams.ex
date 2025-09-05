@@ -80,8 +80,8 @@ defmodule SpectatorMode.Streams do
 
   # Execute a function on the node hosting the given stream, and return the result.
   defp call_stream_node(stream_id, fun) do
-    case :mnesia.transaction(fn -> :mnesia.read({SpectatorMode.Mnesia.StreamNodes, stream_id}) end) do
-      {:atomic, [{SpectatorMode.Mnesia.StreamNodes, ^stream_id, node_name}]} ->
+    case :mnesia.transaction(fn -> :mnesia.read({:sm_stream_nodes, stream_id}) end) do
+      {:atomic, [{:sm_stream_nodes, ^stream_id, node_name}]} ->
         {:ok, :erpc.call(node_name, fun)}
 
       {:atomic, []} ->
@@ -117,7 +117,20 @@ defmodule SpectatorMode.Streams do
           %{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}
         ]
   def list_streams do
-    game_tracker_streams = GameTracker.list_streams()
+    local_streams = list_local_streams()
+
+    Enum.reduce(Node.list(), local_streams, fn node, acc ->
+      remote_streams = :erpc.call(node, fn -> SpectatorMode.Streams.list_local_streams() end)
+      acc ++ remote_streams
+    end)
+  end
+
+  @doc """
+  Like list_streams/0, but only for streams running on this node.
+  """
+  @spec list_local_streams() :: [ %{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}]
+  def list_local_streams do
+    game_tracker_streams = GameTracker.list_local_streams()
     disconnected_streams = BridgeTracker.disconnected_streams()
 
     Enum.map(game_tracker_streams, fn %{stream_id: stream_id, active_game: game} ->
