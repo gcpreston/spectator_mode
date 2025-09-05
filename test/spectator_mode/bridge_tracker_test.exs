@@ -4,7 +4,6 @@ defmodule SpectatorMode.BridgeTrackerTest do
   alias SpectatorMode.Streams
   alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
-  alias SpectatorMode.PacketHandlerRegistry
 
   describe "start_link/1" do
     test "does not allow multiple instances; creates a link anyways" do
@@ -33,7 +32,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
       assert_receive {:livestreams_created, ^stream_ids}
 
       for stream_id <- stream_ids do
-        refute is_nil(GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}))
+        refute is_nil(GenServer.whereis({:global, {SpectatorMode.PacketHandler, stream_id}}))
       end
     end
   end
@@ -198,7 +197,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
     assert BridgeTracker.reconnect(reconnect_token) == {:error, :unknown_reconnect_token}
 
     for stream_id <- stream_ids do
-      assert is_nil(GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}))
+      assert is_nil(GenServer.whereis({:global, {PacketHandler, stream_id}}))
     end
   end
 end

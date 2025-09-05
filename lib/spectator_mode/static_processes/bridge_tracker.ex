@@ -13,7 +13,6 @@ defmodule SpectatorMode.BridgeTracker do
   alias SpectatorMode.GameTracker
   alias SpectatorMode.PacketHandler
   alias SpectatorMode.PacketHandlerSupervisor
-  alias SpectatorMode.PacketHandlerRegistry
 
   @type t :: %__MODULE__{
           token_to_bridge_info: %{
@@ -148,6 +147,7 @@ defmodule SpectatorMode.BridgeTracker do
 
     if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}] do
       Logger.info("Bridge #{bridge_id} terminated, reason: #{inspect(reason)}")
+      # TODO: Would it be cleaner to separate the state cleaning logic from the side-effect cleaning logic?
       {:noreply, bridge_cleanup(state, monitor_ref, reason)}
     else
       Streams.notify_subscribers(:livestreams_disconnected, stream_ids)
@@ -205,9 +205,13 @@ defmodule SpectatorMode.BridgeTracker do
 
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
-      livestream_name = {:via, Registry, {PacketHandlerRegistry, stream_id}}
+      livestream_name = {:global, {PacketHandler, stream_id}}
+      # Note that :global is used for naming, but in reality each BridgeTracker
+      # works with the bridges registered to its specific node, so every stream
+      # to stop is local.
+      # TODO: Change the state to track PIDs directly
 
-      if GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}) != nil do
+      if GenServer.whereis({:global, {PacketHandler, stream_id}}) != nil do
         GenServer.stop(livestream_name, stop_reason)
       end
     end
@@ -257,7 +261,7 @@ defmodule SpectatorMode.BridgeTracker do
 
   defp start_supervised_packet_handlers([stream_id | rest], acc) do
     if {:ok, stream_pid} =
-         DynamicSupervisor.start_child(PacketHandlerSupervisor, {PacketHandler, stream_id}) do
+         DynamicSupervisor.start_child(PacketHandlerSupervisor, {PacketHandler, [stream_id: stream_id, register_global: true]}) do
       start_supervised_packet_handlers(rest, [{stream_id, stream_pid} | acc])
     else
       {:error, acc}

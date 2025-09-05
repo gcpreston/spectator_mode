@@ -2,7 +2,6 @@ defmodule SpectatorMode.Streams do
   @moduledoc """
   The Streams context provides a public API for stream management operations.
   """
-  alias SpectatorMode.PacketHandlerRegistry
   alias SpectatorMode.PacketHandler
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.BridgeTracker
@@ -65,19 +64,27 @@ defmodule SpectatorMode.Streams do
   """
   @spec register_viewer(stream_id(), boolean()) :: viewer_connect_result()
   def register_viewer(stream_id, return_full_replay \\ false) do
-    if Registry.lookup(PacketHandlerRegistry, stream_id) == [] do
+    Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
+
+    if return_full_replay do
+      # TODO: Store in GameTracker
+      PacketHandler.get_replay({:global, {PacketHandler, stream_id}})
+    else
+      # only the correct instance of GameTracker will know about the stream
+      call_stream_node(stream_id, fn -> GameTracker.join_payload(stream_id) end)
+    end
+  end
+
+  # Execute a function on the node hosting the given stream, and return the result.
+  # TODO: Getting into weird layering territory. Figure out what layers want to be in charge of what
+  defp call_stream_node(stream_id, fun) do
+    packet_handler_pid = GenServer.whereis({:global, {PacketHandler, stream_id}})
+
+    if is_nil(packet_handler_pid) do
       {:error, :stream_not_found}
     else
-      Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
-
-      join_binary =
-        if return_full_replay do
-          PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
-        else
-          GameTracker.join_payload(stream_id)
-        end
-
-      {:ok, join_binary}
+      packet_handler_node = node(packet_handler_pid)
+      {:ok, :erpc.call(packet_handler_node, fun)}
     end
   end
 
@@ -96,7 +103,7 @@ defmodule SpectatorMode.Streams do
     )
 
     # Asynchronously parse and update tracked game info as needed
-    PacketHandler.handle_packet({:via, Registry, {PacketHandlerRegistry, stream_id}}, data)
+    PacketHandler.handle_packet({:global, {PacketHandler, stream_id}}, data)
   end
 
   @doc """

@@ -35,10 +35,12 @@ defmodule SpectatorMode.PacketHandler do
 
   ## API
 
-  def start_link(stream_id) do
-    GenServer.start_link(__MODULE__, stream_id,
-      name: {:via, Registry, {SpectatorMode.PacketHandlerRegistry, stream_id}}
-    )
+  def start_link(opts) do
+    stream_id = Keyword.fetch!(opts, :stream_id)
+    register_global = Keyword.get(opts, :register_global, false)
+    name = if register_global, do: {:global, {__MODULE__, stream_id}}, else: nil
+
+    GenServer.start_link(__MODULE__, stream_id, name: name)
   end
 
   @spec handle_packet(GenServer.server(), binary()) :: nil
