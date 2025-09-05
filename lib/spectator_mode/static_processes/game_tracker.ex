@@ -95,6 +95,7 @@ defmodule SpectatorMode.GameTracker do
       {:ok, previous_leftover} = fetch_leftover_buffer(stream_id)
 
       {events, leftover} = Slp.Parser.parse_packet(previous_leftover <> data, maybe_payload_sizes)
+      add_to_replay(stream_id, data)
       set_leftover_buffer(stream_id, leftover)
       execute_side_effects(stream_id, events)
     end)
@@ -173,9 +174,9 @@ defmodule SpectatorMode.GameTracker do
     :ok
   end
 
-  defp add_to_replay(stream_id, event) do
+  defp add_to_replay(stream_id, data) do
     {:ok, current_replay} = fetch_helper(stream_id, :replay)
-    insert_helper(stream_id, :replay, current_replay <> event.binary)
+    insert_helper(stream_id, :replay, current_replay <> data)
     :ok
   end
 
@@ -211,11 +212,7 @@ defmodule SpectatorMode.GameTracker do
   end
 
   defp execute_side_effects(stream_id, events) do
-    Enum.map(events, fn event ->
-        add_to_replay(stream_id, event)
-        execute_event_side_effects(stream_id, event)
-    end)
-
+    Enum.map(events, &(execute_event_side_effects(stream_id, &1)))
     :ok
   end
 

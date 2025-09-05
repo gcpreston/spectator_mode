@@ -71,7 +71,7 @@ defmodule SpectatorMode.Streams do
         call_stream_node(stream_id, fn -> GameTracker.minimal_join_payload(stream_id) end)
       end
 
-    if {:ok, _binary} = join_result do
+    if match?({:ok, _binary}, join_result) do
       Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
     end
 
