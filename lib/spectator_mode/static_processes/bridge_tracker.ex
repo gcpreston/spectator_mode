@@ -11,8 +11,6 @@ defmodule SpectatorMode.BridgeTracker do
 
   alias SpectatorMode.Streams
   alias SpectatorMode.GameTracker
-  alias SpectatorMode.PacketHandler
-  alias SpectatorMode.PacketHandlerSupervisor
 
   @type t :: %__MODULE__{
           token_to_bridge_info: %{
@@ -95,7 +93,6 @@ defmodule SpectatorMode.BridgeTracker do
     stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
 
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
-    {:ok, _result} = start_supervised_packet_handlers(stream_ids)
     Streams.notify_subscribers(:livestreams_created, stream_ids)
     {:reply, {bridge_id, stream_ids, reconnect_token}, new_state}
   end
@@ -148,7 +145,7 @@ defmodule SpectatorMode.BridgeTracker do
     if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}] do
       Logger.info("Bridge #{bridge_id} terminated, reason: #{inspect(reason)}")
       # TODO: Would it be cleaner to separate the state cleaning logic from the side-effect cleaning logic?
-      {:noreply, bridge_cleanup(state, monitor_ref, reason)}
+      {:noreply, bridge_cleanup(state, monitor_ref)}
     else
       Streams.notify_subscribers(:livestreams_disconnected, stream_ids)
 
@@ -160,7 +157,7 @@ defmodule SpectatorMode.BridgeTracker do
   end
 
   def handle_info({:reconnect_timeout, monitor_ref}, state) do
-    {:noreply, bridge_cleanup(state, monitor_ref, {:shutdown, :reconnect_timeout})}
+    {:noreply, bridge_cleanup(state, monitor_ref)}
   end
 
   ## Helpers
@@ -199,21 +196,12 @@ defmodule SpectatorMode.BridgeTracker do
   end
 
   # Run side-effects for bridge termination and remove it from state.
-  defp bridge_cleanup(state, down_ref, stop_reason) do
+  defp bridge_cleanup(state, down_ref) do
     %{reconnect_token: reconnect_token} = state.monitor_ref_to_reconnect_info[down_ref]
     stream_ids = state.token_to_bridge_info[reconnect_token].stream_ids
 
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
-      livestream_name = {:global, {PacketHandler, stream_id}}
-      # Note that :global is used for naming, but in reality each BridgeTracker
-      # works with the bridges registered to its specific node, so every stream
-      # to stop is local.
-      # TODO: Change the state to track PIDs directly
-
-      if GenServer.whereis({:global, {PacketHandler, stream_id}}) != nil do
-        GenServer.stop(livestream_name, stop_reason)
-      end
     end
 
     Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
@@ -249,23 +237,6 @@ defmodule SpectatorMode.BridgeTracker do
       MapSet.union(new_state.disconnected_streams, MapSet.new(stream_ids))
 
     put_in(new_state.disconnected_streams, new_disconnected_streams)
-  end
-
-  defp start_supervised_packet_handlers(stream_ids) do
-    start_supervised_packet_handlers(stream_ids, [])
-  end
-
-  defp start_supervised_packet_handlers([], acc) do
-    {:ok, acc}
-  end
-
-  defp start_supervised_packet_handlers([stream_id | rest], acc) do
-    if {:ok, stream_pid} =
-         DynamicSupervisor.start_child(PacketHandlerSupervisor, {PacketHandler, [stream_id: stream_id, register_global: true]}) do
-      start_supervised_packet_handlers(rest, [{stream_id, stream_pid} | acc])
-    else
-      {:error, acc}
-    end
   end
 
   defp reconnect_timeout_ms do

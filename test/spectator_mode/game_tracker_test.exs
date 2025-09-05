@@ -30,12 +30,12 @@ defmodule SpectatorMode.GameTrackerTest do
 
     # List tracked data
     assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) == [%{stream_id: stream_id, active_game: game_start}]
-    assert GameTracker.join_payload(stream_id) == event_payloads.binary <> game_start.binary <> fod_platform.binary
+    assert GameTracker.minimal_join_payload(stream_id) == event_payloads.binary <> game_start.binary <> fod_platform.binary
 
     # Delete and re-list
     GameTracker.delete(stream_id)
     assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) |> Enum.empty?()
-    assert GameTracker.join_payload(stream_id) == <<>>
+    assert GameTracker.minimal_join_payload(stream_id) == <<>>
 
     # Manually check that no keys remain
     assert :ets.select(:livestreams, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}]) |> length() == 0

@@ -2,7 +2,6 @@ defmodule SpectatorMode.Streams do
   @moduledoc """
   The Streams context provides a public API for stream management operations.
   """
-  alias SpectatorMode.PacketHandler
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
@@ -15,7 +14,7 @@ defmodule SpectatorMode.Streams do
   @type reconnect_token() :: String.t()
   @type bridge_connect_result() ::
           {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
-  @type viewer_connect_result() :: {:ok, binary()} | {:error, :stream_not_found}
+  @type viewer_connect_result() :: {:ok, binary()} | {:error, term()}
 
   @doc """
   Subscribe to PubSub notifications about the state
@@ -65,7 +64,12 @@ defmodule SpectatorMode.Streams do
   @spec register_viewer(stream_id(), boolean()) :: viewer_connect_result()
   def register_viewer(stream_id, return_full_replay \\ false) do
     # only the correct instance of GameTracker will know about the stream
-    join_result = call_stream_node(stream_id, fn -> GameTracker.join_payload(stream_id, return_full_replay) end) do
+    join_result =
+      if return_full_replay do
+        call_stream_node(stream_id, fn -> GameTracker.full_join_payload(stream_id) end)
+      else
+        call_stream_node(stream_id, fn -> GameTracker.minimal_join_payload(stream_id) end)
+      end
 
     if {:ok, _binary} = join_result do
       Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
@@ -75,16 +79,19 @@ defmodule SpectatorMode.Streams do
   end
 
   # Execute a function on the node hosting the given stream, and return the result.
-  # TODO: Getting into weird layering territory. Figure out what layers want to be in charge of what
   defp call_stream_node(stream_id, fun) do
-    packet_handler_pid = GenServer.whereis({:global, {PacketHandler, stream_id}})
+    # TODO: Figure out new implementation
 
-    if is_nil(packet_handler_pid) do
-      {:error, :stream_not_found}
-    else
-      packet_handler_node = node(packet_handler_pid)
-      {:ok, :erpc.call(packet_handler_node, fun)}
-    end
+    # packet_handler_pid = GenServer.whereis({:global, {PacketHandler, stream_id}})
+
+    # if is_nil(packet_handler_pid) do
+    #   {:error, :stream_not_found}
+    # else
+    #   packet_handler_node = node(packet_handler_pid)
+    #   {:ok, :erpc.call(packet_handler_node, fun)}
+    # end
+
+    {:ok, fun.()}
   end
 
   @doc """

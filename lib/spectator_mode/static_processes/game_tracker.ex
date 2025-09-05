@@ -41,22 +41,19 @@ defmodule SpectatorMode.GameTracker do
     # Since this happens in a GenServer call, it is the only message being
     # served at the moment, so there is no risk of the same stream_id being
     # handed out again before the first recipient inserts their keys.
-
-    # TODO: With this no longer being a global process, the stream ID could be
-    # defined in a different GameTracker instance. But also not because of :global
-    # on PacketHandler. Look into the flow here and refine it.
     stream_id = generate_stream_id()
 
     insert_helper(stream_id, :event_payloads, nil)
     insert_helper(stream_id, :game_start, nil)
     insert_helper(stream_id, :game_state, @initial_game_state)
     insert_helper(stream_id, :leftover_buffer, <<>>)
+    insert_helper(stream_id, :replay, <<>>)
 
     stream_id
   end
 
-  @spec join_payload(Streams.stream_id(), boolean()) :: binary()
-  def join_payload(stream_id, return_full_replay) do
+  @spec minimal_join_payload(Streams.stream_id()) :: binary()
+  def minimal_join_payload(stream_id) do
     stream_objects =
       :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}])
 
@@ -77,6 +74,12 @@ defmodule SpectatorMode.GameTracker do
     binary_to_send
   end
 
+  @spec full_join_payload(Streams.stream_id()) :: binary()
+  def full_join_payload(stream_id) do
+    {:ok, replay} = fetch_helper(stream_id, :replay)
+    replay
+  end
+
   @doc """
   Asynchronously parse a section of a Slippi stream and execute appropriate
   side-effects. These side effects are specifically (1) updating game state
@@ -92,8 +95,8 @@ defmodule SpectatorMode.GameTracker do
       {:ok, previous_leftover} = fetch_leftover_buffer(stream_id)
 
       {events, leftover} = Slp.Parser.parse_packet(previous_leftover <> data, maybe_payload_sizes)
-      set_leftover_buffer(stream_id, leftover_buffer)
-      execute_side_effects(events, stream_id)
+      set_leftover_buffer(stream_id, leftover)
+      execute_side_effects(stream_id, events)
     end)
 
     :ok
@@ -170,7 +173,7 @@ defmodule SpectatorMode.GameTracker do
     :ok
   end
 
-  defp add_to_replay(Streams.stream_id(), event) do
+  defp add_to_replay(stream_id, event) do
     {:ok, current_replay} = fetch_helper(stream_id, :replay)
     insert_helper(stream_id, :replay, current_replay <> event.binary)
     :ok
@@ -187,6 +190,8 @@ defmodule SpectatorMode.GameTracker do
     :ets.insert(@current_games_table_name, {{stream_id, event_type}, value})
   end
 
+  # TODO: With this no longer being a global process, the stream ID could be
+  # defined in a different GameTracker instance.
   defp generate_stream_id do
     # random u32
     test_id = Enum.random(0..(2 ** 32 - 1))
@@ -214,6 +219,10 @@ defmodule SpectatorMode.GameTracker do
     :ok
   end
 
+  defp execute_event_side_effects(stream_id, %Slp.Events.EventPayloads{} = event) do
+    set_event_payloads(stream_id, event)
+  end
+
   defp execute_event_side_effects(stream_id, %Slp.Events.GameStart{} = event) do
     set_game_start(stream_id, event)
     # Broadcast parsed event the data; the binary is not needed
@@ -221,15 +230,16 @@ defmodule SpectatorMode.GameTracker do
     Streams.notify_subscribers(:game_update, {stream_id, game_settings})
   end
 
-  defp execute_event_side_effects(stream_id, %Slp.Events.GameEnd{} = event) do
+  defp execute_event_side_effects(stream_id, %Slp.Events.GameEnd{}) do
     set_game_start(stream_id, nil)
     set_event_payloads(stream_id, nil)
-    Streams.notify_subscribers(:game_update, {state.stream_id, nil})
+    insert_helper(stream_id, :replay, <<>>)
+    Streams.notify_subscribers(:game_update, {stream_id, nil})
   end
 
   defp execute_event_side_effects(stream_id, %Slp.Events.FodPlatforms{platform: platform} = event) do
     set_fod_platform(stream_id, platform, event)
   end
 
-  defp execute_side_effects(_stream_id, _other_event), do: nil
+  defp execute_event_side_effects(_stream_id, _other_event), do: nil
 end

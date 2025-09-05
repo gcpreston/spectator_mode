@@ -19,7 +19,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
   end
 
   describe "registration" do
-    test "spawns a PacketHandler process for each livestream; sends created notification" do
+    test "sends created notification" do
       Streams.subscribe()
       test_pid = self()
 
@@ -30,10 +30,6 @@ defmodule SpectatorMode.BridgeTrackerTest do
 
       assert_receive {:registered, _bridge_id, stream_ids, _reconnect_token}
       assert_receive {:livestreams_created, ^stream_ids}
-
-      for stream_id <- stream_ids do
-        refute is_nil(GenServer.whereis({:global, {SpectatorMode.PacketHandler, stream_id}}))
-      end
     end
   end
 
@@ -195,9 +191,5 @@ defmodule SpectatorMode.BridgeTrackerTest do
     # Assert cleanup of other resources
     assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: stream_id} -> stream_id in stream_ids end) |> Enum.empty?()
     assert BridgeTracker.reconnect(reconnect_token) == {:error, :unknown_reconnect_token}
-
-    for stream_id <- stream_ids do
-      assert is_nil(GenServer.whereis({:global, {PacketHandler, stream_id}}))
-    end
   end
 end
