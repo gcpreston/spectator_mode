@@ -15,7 +15,7 @@ defmodule SpectatorMode.Application do
       # Start the Finch HTTP client for sending emails
       {Finch, name: SpectatorMode.Finch},
       # SpectatorMode workers
-      {DynamicSupervisor, name: SpectatorMode.PacketHandlerSupervisor, strategy: :one_for_one},
+      {Task.Supervisor, name: SpectatorMode.PacketHandleTaskSupervisor},
       SpectatorMode.BridgeTracker,
       SpectatorMode.GameTracker,
       SpectatorModeWeb.Presence,

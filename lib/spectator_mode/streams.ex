@@ -64,15 +64,14 @@ defmodule SpectatorMode.Streams do
   """
   @spec register_viewer(stream_id(), boolean()) :: viewer_connect_result()
   def register_viewer(stream_id, return_full_replay \\ false) do
-    Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
+    # only the correct instance of GameTracker will know about the stream
+    join_result = call_stream_node(stream_id, fn -> GameTracker.join_payload(stream_id, return_full_replay) end) do
 
-    if return_full_replay do
-      # TODO: Store in GameTracker
-      PacketHandler.get_replay({:global, {PacketHandler, stream_id}})
-    else
-      # only the correct instance of GameTracker will know about the stream
-      call_stream_node(stream_id, fn -> GameTracker.join_payload(stream_id) end)
+    if {:ok, _binary} = join_result do
+      Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
     end
+
+    join_result
   end
 
   # Execute a function on the node hosting the given stream, and return the result.
@@ -103,7 +102,7 @@ defmodule SpectatorMode.Streams do
     )
 
     # Asynchronously parse and update tracked game info as needed
-    PacketHandler.handle_packet({:global, {PacketHandler, stream_id}}, data)
+    GameTracker.handle_packet(stream_id, data)
   end
 
   @doc """
