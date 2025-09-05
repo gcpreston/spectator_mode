@@ -4,6 +4,9 @@ defmodule SpectatorMode.BridgeTracker do
   exits (via cleanup) and non-normal exits (via a reconnect time window, and
   cleanup if the time window expires) of bridge processes, as well as sending
   pubsub messages to notify subscribers of bridge status changes.
+
+  This is the process that keeps the Mnesia table mapping stream ID to node
+  name up to date.
   """
   use GenServer
 
@@ -84,6 +87,17 @@ defmodule SpectatorMode.BridgeTracker do
 
   @impl true
   def init(_) do
+    nodes_list = Node.list() ++ [self()]
+    Logger.info("Creating Mnesia schema with nodes #{inspect(nodes_list)}")
+    :mnesia.create_schema(nodes_list)
+    :ok = :mnesia.start()
+
+    case :mnesia.create_table(SpectatorMode.Mnesia.StreamNodes, [attributes: [:stream_id, :node_name]]) do
+      {:atomic, :ok} -> Logger.info("StreamNodes Mnesia table created")
+      {:aborted, {:already_exists, SpectatorMode.Mnesia.StreamNodes}} -> Logger.info("StreamNodes Mnesia table already exists")
+      {:aborted, reason} -> raise "Error creating StreamNodes Mnesia table: #{inspect(reason)}"
+    end
+
     {:ok, %__MODULE__{}}
   end
 
@@ -93,6 +107,15 @@ defmodule SpectatorMode.BridgeTracker do
     stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
 
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
+
+    # Register the current node as the location of the new livestreams
+    # TODO: Error case
+    {:atomic, [:ok]} = :mnesia.transaction(fn ->
+      for stream_id <- stream_ids do
+        :mnesia.write({SpectatorMode.Mnesia.StreamNodes, stream_id, node()})
+      end
+    end)
+
     Streams.notify_subscribers(:livestreams_created, stream_ids)
     {:reply, {bridge_id, stream_ids, reconnect_token}, new_state}
   end
@@ -203,6 +226,13 @@ defmodule SpectatorMode.BridgeTracker do
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
     end
+
+    # TODO: error case
+    {:atomic, [:ok]} = :mnesia.transaction(fn ->
+      for stream_id <- stream_ids do
+        :mnesia.delete({SpectatorMode.Mnesia.StreamNodes, stream_id})
+      end
+    end)
 
     Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
 

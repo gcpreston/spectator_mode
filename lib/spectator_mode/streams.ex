@@ -80,18 +80,16 @@ defmodule SpectatorMode.Streams do
 
   # Execute a function on the node hosting the given stream, and return the result.
   defp call_stream_node(stream_id, fun) do
-    # TODO: Figure out new implementation
+    case :mnesia.transaction(fn -> :mnesia.read({SpectatorMode.Mnesia.StreamNodes, stream_id}) end) do
+      {:atomic, [{SpectatorMode.Mnesia.StreamNodes, ^stream_id, node_name}]} ->
+        {:ok, :erpc.call(node_name, fun)}
 
-    # packet_handler_pid = GenServer.whereis({:global, {PacketHandler, stream_id}})
+      {:atomic, []} ->
+        {:error, :stream_not_found}
 
-    # if is_nil(packet_handler_pid) do
-    #   {:error, :stream_not_found}
-    # else
-    #   packet_handler_node = node(packet_handler_pid)
-    #   {:ok, :erpc.call(packet_handler_node, fun)}
-    # end
-
-    {:ok, fun.()}
+      {:aborted, reason} ->
+        {:error, reason}
+    end
   end
 
   @doc """
