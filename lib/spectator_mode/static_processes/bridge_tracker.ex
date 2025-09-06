@@ -174,6 +174,14 @@ defmodule SpectatorMode.BridgeTracker do
     {:noreply, bridge_cleanup(state, monitor_ref)}
   end
 
+  # IDEAS
+  # 1. Move mnesia interaction logic to some kind of Store module API that
+  #    abstracts away the use of mnesia specifically.
+  # 2. Remove the need to double-call for bridge info: store active game start
+  #    and disconnected status in Store so that it can be looked up globally
+  #    in one request.
+  # 3. Figure out the minimum + cleanest :nodeup/:nodedown logic needed
+
   def handle_info({:nodeup, node_name}, state) do
     Logger.info("Got nodeup #{inspect(node_name)} from node #{inspect(node())}, starting Mnesia")
 
