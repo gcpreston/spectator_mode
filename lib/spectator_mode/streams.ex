@@ -5,6 +5,7 @@ defmodule SpectatorMode.Streams do
   alias SpectatorMode.Slp.Events.GameStart
   alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
+  alias SpectatorMode.StreamsIndexStore
 
   @pubsub_topic "streams"
   @index_subtopic "#{@pubsub_topic}:index"
@@ -113,17 +114,20 @@ defmodule SpectatorMode.Streams do
   @doc """
   Fetch the stream IDs of all currently active streams, and their metadata.
   """
-  @spec list_streams() :: [
-          %{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}
-        ]
-  def list_streams do
-    local_streams = list_local_streams()
 
-    Enum.reduce(Node.list(), local_streams, fn node, acc ->
-      remote_streams = :erpc.call(node, fn -> SpectatorMode.Streams.list_local_streams() end)
-      acc ++ remote_streams
-    end)
-  end
+  defdelegate list_streams, to: StreamsIndexStore, as: :list_all_streams
+
+  # @spec list_streams() :: [
+  #       %{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}
+  #     ]
+  # def list_streams do
+  #   local_streams = list_local_streams()
+
+  #   Enum.reduce(Node.list(), local_streams, fn node, acc ->
+  #     remote_streams = :erpc.call(node, fn -> SpectatorMode.Streams.list_local_streams() end)
+  #     acc ++ remote_streams
+  #   end)
+  # end
 
   @doc """
   Like list_streams/0, but only for streams running on this node.

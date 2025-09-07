@@ -14,6 +14,7 @@ defmodule SpectatorMode.BridgeTracker do
 
   alias SpectatorMode.Streams
   alias SpectatorMode.GameTracker
+  alias SpectatorMode.StreamsIndexStore
 
   @type t :: %__MODULE__{
           token_to_bridge_info: %{
@@ -87,8 +88,13 @@ defmodule SpectatorMode.BridgeTracker do
 
   @impl true
   def init(_) do
-    Logger.info("WHAT DOES Node.list() RETURN ON STARTUP: #{inspect(Node.list())} FOR NODE #{inspect(Node.self())}")
-    :net_kernel.monitor_nodes(true)
+    # TODO: Really ugly solution
+    # - upon startup, Node.list() returns nothing, but after some time it is populated, so try
+    #   to connect when we actually see the cluster
+    # - this would cause problems with any kind of interaction within the time frame before the
+    #   store is initialized
+    # Process.send_after(self(), :initialize_store, 10_000)
+    StreamsIndexStore.initialize_store()
     {:ok, %__MODULE__{}}
   end
 
@@ -100,12 +106,7 @@ defmodule SpectatorMode.BridgeTracker do
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
 
     # Register the current node as the location of the new livestreams
-    # TODO: Error case
-    {:atomic, [:ok]} = :mnesia.transaction(fn ->
-      for stream_id <- stream_ids do
-        :mnesia.write({:sm_stream_nodes, stream_id, node()})
-      end
-    end)
+    StreamsIndexStore.add_streams(stream_ids)
 
     Streams.notify_subscribers(:livestreams_created, stream_ids)
     {:reply, {bridge_id, stream_ids, reconnect_token}, new_state}
@@ -161,6 +162,10 @@ defmodule SpectatorMode.BridgeTracker do
       # TODO: Would it be cleaner to separate the state cleaning logic from the side-effect cleaning logic?
       {:noreply, bridge_cleanup(state, monitor_ref)}
     else
+      for stream_id <- stream_ids do
+        StreamsIndexStore.replace_stream_metadata(stream_id, :disconnected, true)
+      end
+
       Streams.notify_subscribers(:livestreams_disconnected, stream_ids)
 
       reconnect_timeout_ref =
@@ -182,58 +187,12 @@ defmodule SpectatorMode.BridgeTracker do
   #    in one request.
   # 3. Figure out the minimum + cleanest :nodeup/:nodedown logic needed
 
-  def handle_info({:nodeup, node_name}, state) do
-    Logger.info("Got nodeup #{inspect(node_name)} from node #{inspect(node())}, starting Mnesia")
-
-    nodes_list = Node.list() ++ [node()]
-
-    nodes_list
-    |> setup_mnesia()
-    |> create_stream_nodes_table()
-
-    :mnesia.wait_for_tables([:sm_stream_nodes], 5000)
-
-    {:noreply, state}
-  end
-
-  def handle_info({:nodedown, node_name}, state) do
-    Logger.info("Got nodedown #{inspect(node_name)} from node #{inspect(node())}")
+  def handle_info(:initialize_store, state) do
+    StreamsIndexStore.initialize_store()
     {:noreply, state}
   end
 
   ## Helpers
-
-  # https://www.joekoski.com/blog/2024/05/20/mnesia-cluster.html
-  defp setup_mnesia(nodes) do
-    :mnesia.create_schema([Node.self()])
-    :mnesia.start()
-    :mnesia.change_config(:extra_db_nodes, nodes)
-    Logger.info("Mnesia configured with nodes: #{inspect(nodes)}")
-    nodes
-  end
-
-  defp create_stream_nodes_table(nodes) do
-    Logger.info("Creating sm_stream_nodes table on #{Node.self()}.")
-
-    case :mnesia.create_table(:sm_stream_nodes, stream_nodes_table_opts(nodes)) do
-      {:atomic, :ok} ->
-        Logger.info("sm_stream_nodes table created successfully.")
-
-      {:aborted, {:already_exists, table}} ->
-        Logger.info("#{table} table already exists.")
-    end
-
-    nodes
-  end
-
-  defp stream_nodes_table_opts(nodes) do
-    [
-      {:attributes,
-       [:stream_id, :node_name]},
-      {:ram_copies, nodes},
-      {:type, :set}
-    ]
-  end
 
   # TODO: The state operations for this module feel like a state machine (aptly named...)
   #   There are a few atomic operations that happen to state, and the high-level functions
@@ -277,12 +236,7 @@ defmodule SpectatorMode.BridgeTracker do
       GameTracker.delete(stream_id)
     end
 
-    # TODO: error case
-    {:atomic, [:ok]} = :mnesia.transaction(fn ->
-      for stream_id <- stream_ids do
-        :mnesia.delete({:sm_stream_nodes, stream_id})
-      end
-    end)
+    StreamsIndexStore.drop_streams(stream_ids)
 
     Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
 
