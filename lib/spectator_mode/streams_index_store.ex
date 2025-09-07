@@ -7,20 +7,19 @@ defmodule SpectatorMode.StreamsIndexStore do
   alias SpectatorMode.Streams
   alias SpectatorMode.Slp.Events
 
-  @type stream_record() :: %{stream_id: Streams.stream_id(), game_start: %Events.GameStart{}, disconnected: boolean()}
+  @type stream_metadata() :: %{game_start: %Events.GameStart{}, disconnected: boolean()}
 
   @doc """
   Dump all currently registered stream IDs and their metadata.
   """
-  @spec list_all_streams() :: [stream_record()]
+  @spec list_all_streams() :: %{Streams.stream_id() => stream_metadata()}
   def list_all_streams do
     # TODO
   end
 
   @doc """
-  Bulk-insert stream IDs with default metadata to the store.
-
-  TODO: Error cases OR behavior in edge cases
+  Synchronously bulk-insert stream IDs with default metadata to the store.
+  If the stream ID is already present, its metadata is reset to the default.
   """
   @spec add_streams([Streams.stream_id()]) :: :ok
   def add_streams(stream_ids) when is_list(stream_ids) do
@@ -28,21 +27,22 @@ defmodule SpectatorMode.StreamsIndexStore do
   end
 
   @doc """
-  Bulk-delete stream IDs from the store.
-
-  TODO: Error cases OR behavior in edge cases
+  Bulk-delete stream IDs from the store. If a given stream ID is not already
+  present, it is ignored.
   """
-  @spec remove_streams([Streams.stream_id()]) :: :ok
-  def remove_streams(stream_ids) when is_list(stream_ids) do
+  @spec drop_streams([Streams.stream_id()]) :: :ok
+  def drop_streams(stream_ids) when is_list(stream_ids) do
     # TODO
   end
 
   @doc """
-  Change a piece of stored metadata for a stream ID.
+  Change a metadata key-value pair for a stream ID.
 
-  TODO: Error cases OR behavior in edge cases
+  If the stream ID is not present, or if the key is unknown, the store is
+  left unchanged.
   """
-  def put_stream_metadata(stream_id, key, value) do
+  @spec replace_stream_metadata(Streams.stream_id(), atom(), term()) :: :ok
+  def replace_stream_metadata(stream_id, key, value) do
     # TODO
   end
 end
