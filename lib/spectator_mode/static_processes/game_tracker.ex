@@ -222,9 +222,7 @@ defmodule SpectatorMode.GameTracker do
 
   defp execute_event_side_effects(stream_id, %Slp.Events.GameStart{} = event) do
     set_game_start(stream_id, event)
-    # Broadcast parsed event the data; the binary is not needed
-    game_settings = Map.put(event, :binary, nil)
-    Streams.notify_subscribers(:game_update, {stream_id, game_settings})
+    Streams.notify_subscribers(:game_update, {stream_id, event})
   end
 
   defp execute_event_side_effects(stream_id, %Slp.Events.GameEnd{}) do
