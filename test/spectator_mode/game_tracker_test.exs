@@ -29,7 +29,7 @@ defmodule SpectatorMode.GameTrackerTest do
     GameTracker.set_fod_platform(stream_id, fod_platform.platform, fod_platform)
 
     # List tracked data
-    assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) == [%{stream_id: stream_id, active_game: game_start}]
+    assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) == [%{stream_id: stream_id, game_start: game_start}]
     assert GameTracker.minimal_join_payload(stream_id) == event_payloads.binary <> game_start.binary <> fod_platform.binary
 
     # Delete and re-list

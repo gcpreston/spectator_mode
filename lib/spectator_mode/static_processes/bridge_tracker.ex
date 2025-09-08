@@ -88,12 +88,6 @@ defmodule SpectatorMode.BridgeTracker do
 
   @impl true
   def init(_) do
-    # TODO: Really ugly solution
-    # - upon startup, Node.list() returns nothing, but after some time it is populated, so try
-    #   to connect when we actually see the cluster
-    # - this would cause problems with any kind of interaction within the time frame before the
-    #   store is initialized
-    # Process.send_after(self(), :initialize_store, 10_000)
     StreamsIndexStore.initialize_store()
     {:ok, %__MODULE__{}}
   end
@@ -186,11 +180,6 @@ defmodule SpectatorMode.BridgeTracker do
   #    and disconnected status in Store so that it can be looked up globally
   #    in one request.
   # 3. Figure out the minimum + cleanest :nodeup/:nodedown logic needed
-
-  def handle_info(:initialize_store, state) do
-    StreamsIndexStore.initialize_store()
-    {:noreply, state}
-  end
 
   ## Helpers
 

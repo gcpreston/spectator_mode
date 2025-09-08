@@ -28,7 +28,7 @@ defmodule SpectatorMode.StreamsTest do
       assert MapSet.new(stream_ids) |> MapSet.size() == 5
 
       # Check that PubSub notifications are received
-      assert_receive {:livestreams_created, ^stream_ids}
+      assert_receive {:livestreams_created, ^stream_ids, _node_name}
     end
 
     test "sends notification if the monitored process dies" do
@@ -41,7 +41,7 @@ defmodule SpectatorMode.StreamsTest do
       end)
 
       assert_receive {:registered, _bridge_id, stream_ids, _reconnect_token}
-      assert_receive {:livestreams_created, ^stream_ids}
+      assert_receive {:livestreams_created, ^stream_ids, _node_name}
 
       send(source_pid, :crash)
 
@@ -49,7 +49,7 @@ defmodule SpectatorMode.StreamsTest do
       assert_receive {:livestreams_disconnected, ^stream_ids}
       # After timeout, destroyed event is received
       reconnect_timeout_ms = Application.get_env(:spectator_mode, :reconnect_timeout_ms)
-      assert_receive {:livestreams_destroyed, ^stream_ids}, reconnect_timeout_ms + 20
+      assert_receive {:livestreams_destroyed, ^stream_ids, _node_name}, reconnect_timeout_ms + 20
     end
   end
 

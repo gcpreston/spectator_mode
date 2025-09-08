@@ -18,6 +18,7 @@ defmodule SpectatorMode.Application do
       {Task.Supervisor, name: SpectatorMode.PacketHandleTaskSupervisor},
       SpectatorMode.BridgeTracker,
       SpectatorMode.GameTracker,
+      SpectatorMode.StreamsStore,
       SpectatorModeWeb.Presence,
       # Start to serve requests, typically the last entry
       SpectatorModeWeb.Endpoint

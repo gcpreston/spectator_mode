@@ -29,7 +29,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
       end)
 
       assert_receive {:registered, _bridge_id, stream_ids, _reconnect_token}
-      assert_receive {:livestreams_created, ^stream_ids}
+      assert_receive {:livestreams_created, ^stream_ids, _node_name}
     end
   end
 
@@ -56,7 +56,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
       Streams.subscribe()
       send(source_pid, {:exit, {:shutdown, :bridge_quit}})
 
-      assert_receive {:livestreams_destroyed, ^stream_ids}
+      assert_receive {:livestreams_destroyed, ^stream_ids, _node_name}
       refute_received {:livestreams_disconnected, ^stream_ids}
     end
 
@@ -66,7 +66,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
 
       assert_receive {:livestreams_disconnected, ^stream_ids}
       reconnect_timeout_ms = Application.get_env(:spectator_mode, :reconnect_timeout_ms)
-      assert_receive {:livestreams_destroyed, ^stream_ids}, reconnect_timeout_ms + 20
+      assert_receive {:livestreams_destroyed, ^stream_ids, _node_name}, reconnect_timeout_ms + 20
     end
 
     test "allows for reconnect when source dies", %{source_pid: source_pid, bridge_id: bridge_id, stream_ids: stream_ids, reconnect_token: reconnect_token} do
@@ -93,7 +93,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
       |> crash_and_assert_reconnect.()
       |> crash_and_assert_reconnect.()
 
-      refute_received {:livestreams_destroyed, ^stream_ids}
+      refute_received {:livestreams_destroyed, ^stream_ids, _node_name}
     end
 
     test "does not allow reconnect if source hasn't exited", %{reconnect_token: reconnect_token} do
@@ -186,7 +186,7 @@ defmodule SpectatorMode.BridgeTrackerTest do
 
   defp assert_processes_cleaned(stream_ids, reconnect_token, destroy_event_wait_time) do
     # Assert destroyed event is sent
-    assert_receive {:livestreams_destroyed, ^stream_ids}, destroy_event_wait_time
+    assert_receive {:livestreams_destroyed, ^stream_ids, _node_name}, destroy_event_wait_time
 
     # Assert cleanup of other resources
     assert GameTracker.list_streams() |> Enum.filter(fn %{stream_id: stream_id} -> stream_id in stream_ids end) |> Enum.empty?()

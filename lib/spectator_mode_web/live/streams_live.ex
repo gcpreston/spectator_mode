@@ -233,7 +233,7 @@ defmodule SpectatorModeWeb.StreamsLive do
   end
 
   @impl true
-  def handle_info({:livestreams_created, stream_ids}, socket) do
+  def handle_info({:livestreams_created, stream_ids, _node_name}, socket) do
     {:noreply,
      update(socket, :livestreams, fn livestreams ->
       Enum.reduce(stream_ids, livestreams, fn stream_id, acc ->
@@ -242,7 +242,7 @@ defmodule SpectatorModeWeb.StreamsLive do
      end)}
   end
 
-  def handle_info({:livestreams_destroyed, stream_ids}, socket) do
+  def handle_info({:livestreams_destroyed, stream_ids, _node_name}, socket) do
     socket =
       if socket.assigns.selected_stream_id in stream_ids do
         socket
@@ -260,7 +260,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     }
   end
 
-  def handle_info({:livestreams_disconnected, stream_ids}, socket) do
+  def handle_info({:livestreams_disconnected, stream_ids, _node_name}, socket) do
     socket =
       if socket.assigns.selected_stream_id in stream_ids do
         socket
@@ -279,7 +279,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     }
   end
 
-  def handle_info({:livestreams_reconnected, stream_ids}, socket) do
+  def handle_info({:livestreams_reconnected, stream_ids, _node_name}, socket) do
     socket =
       if socket.assigns.selected_stream_id in stream_ids do
         socket
@@ -298,7 +298,7 @@ defmodule SpectatorModeWeb.StreamsLive do
     }
   end
 
-  def handle_info({:game_update, {stream_id, maybe_event}}, socket) do
+  def handle_info({:game_update, {stream_id, maybe_event}, _node_name}, socket) do
     {:noreply,
      update(socket, :livestreams, fn livestreams -> put_in(livestreams[stream_id].game_start, maybe_event) end)}
   end
