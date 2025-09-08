@@ -1,4 +1,13 @@
 defmodule SpectatorMode.StreamsStore do
+  @moduledoc """
+  A global store for active stream info. This module acts as a place to ask
+  the application about which streams are happening throughout the cluster,
+  and on which node they are located.
+
+  This global store is made up of a local process on each node to replicate
+  the entirety of the data. It is kept up-to-date by messages broadcasted
+  by the Streams context.
+  """
   use GenServer
   require Logger
 
