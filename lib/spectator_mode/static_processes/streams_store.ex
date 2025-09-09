@@ -205,14 +205,6 @@ defmodule SpectatorMode.StreamsStore do
     updated_stream_metadata = Map.merge(state.stream_metadata, new_metadata)
 
     # Local broadcast newly available streams
-    # TODO: Considerations for node name in pubsub events
-    # - feels like a "different layer, different abstraction" type of problem
-    # - StreamsStore cares about this, but StreamsLive does not
-    # - does it really make sense for StreamsStore to update itself based on
-    #   the same events as the frontend?
-    # - Would probably make sense to broadcast the whole metadata info for a
-    #   newly created stream always, because that can hide the weirdness we
-    #   see for key initialization in StreamsLive
     local_events = Enum.map(new_metadata, fn {stream_id, stream_meta} ->
       %Events.LivestreamCreated{
         stream_id: stream_id,
