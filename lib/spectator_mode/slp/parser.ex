@@ -15,7 +15,7 @@ defmodule SpectatorMode.Slp.Parser do
   # or
   #   <event payloads>, event size # bytes, event size # bytes, ...
 
-  alias SpectatorMode.Slp.Events
+  alias SpectatorMode.Slp.SlpEvents
 
   @display_name_max_length 31
   @connect_code_max_length 10
@@ -36,7 +36,7 @@ defmodule SpectatorMode.Slp.Parser do
   Returns an array of parsed events, and any leftover binary that did not fit
   the size given by Event Payloads.
   """
-  @spec parse_packet(binary(), Events.payload_sizes() | nil) :: {[Events.t()], binary()}
+  @spec parse_packet(binary(), SlpEvents.payload_sizes() | nil) :: {[SlpEvents.t()], binary()}
   def parse_packet(data, payload_sizes) do
     <<first_command::8, _rest::binary>> = data
 
@@ -82,7 +82,7 @@ defmodule SpectatorMode.Slp.Parser do
   defp parse_event_payloads(<<0x35::8, payload_size::8, rest::binary>>) do
     <<ep_data::binary-size(payload_size - 1), rest::binary>> = rest
     binary = <<0x35::8, payload_size::8, ep_data::binary>>
-    {%Events.EventPayloads{payload_sizes: parse_payload_sizes(ep_data, %{}), binary: binary}, rest}
+    {%SlpEvents.EventPayloads{payload_sizes: parse_payload_sizes(ep_data, %{}), binary: binary}, rest}
   end
 
   defp parse_payload_sizes(<<>>, acc), do: acc
@@ -115,13 +115,13 @@ defmodule SpectatorMode.Slp.Parser do
 
     stage_id = read_uint16(data, 0x5 + 0xe)
 
-    {%Events.GameStart{players: player_settings, stage_id: stage_id, binary: gs_data}, rest}
+    {%SlpEvents.GameStart{players: player_settings, stage_id: stage_id, binary: gs_data}, rest}
   end
 
   defp parse_game_end(data, payload_size) do
     event_size = 1 + payload_size
     <<ge_data::binary-size(event_size), rest::binary>> = data
-    {%Events.GameEnd{binary: ge_data}, rest}
+    {%SlpEvents.GameEnd{binary: ge_data}, rest}
   end
 
   defp parse_fod_platforms(data, payload_size) do
@@ -129,7 +129,7 @@ defmodule SpectatorMode.Slp.Parser do
     <<ge_data::binary-size(event_size), rest::binary>> = data
 
     {
-      %Events.FodPlatforms{
+      %SlpEvents.FodPlatforms{
         binary: ge_data,
         frame_number: read_int32(data, 0x1) + 123,
         platform: (if read_uint8(data, 0x5) == 1, do: :left, else: :right),

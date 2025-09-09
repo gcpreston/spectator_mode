@@ -709,7 +709,7 @@ defmodule SpectatorModeWeb.CoreComponents do
     """
   end
 
-  defp active_game_text(%{event: %Slp.Events.GameStart{}} = assigns) do
+  defp active_game_text(%{event: %Slp.SlpEvents.GameStart{}} = assigns) do
     filtered_players =
       assigns.event.players
       |> Tuple.to_list()

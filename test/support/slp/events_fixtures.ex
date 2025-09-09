@@ -1,6 +1,6 @@
 defmodule SpectatorMode.Slp.EventsFixtures do
   def event_payloads_fixture do
-    %SpectatorMode.Slp.Events.EventPayloads{
+    %SpectatorMode.Slp.SlpEvents.EventPayloads{
       payload_sizes: %{
         16 => 516,
         54 => 760,
@@ -21,7 +21,7 @@ defmodule SpectatorMode.Slp.EventsFixtures do
   end
 
   def game_start_fixture do
-    %SpectatorMode.Slp.Events.GameStart{
+    %SpectatorMode.Slp.SlpEvents.GameStart{
       binary: <<54, 3, 19, 0, 0, 50, 1, 134, 76, 195, 0, 0, 0, 0, 0, 0, 255, 255,
         110, 0, 2, 0, 0, 1, 224, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255,
         255, 255, 255, 255, 255, 0, 0, 0, 0>>,
@@ -58,7 +58,7 @@ defmodule SpectatorMode.Slp.EventsFixtures do
   end
 
   def fod_platforms_fixture do
-    %SpectatorMode.Slp.Events.FodPlatforms{
+    %SpectatorMode.Slp.SlpEvents.FodPlatforms{
       binary: <<63, 0, 0, 3, 220, 1, 65, 59, 51, 18>>,
       frame_number: 1111,
       platform: :left,

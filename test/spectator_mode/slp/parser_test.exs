@@ -2,7 +2,7 @@ defmodule SpectatorMode.Slp.ParserTest do
   use ExUnit.Case, async: true
 
   alias SpectatorMode.Slp.Parser
-  alias SpectatorMode.Slp.Events
+  alias SpectatorMode.Slp.SlpEvents
 
   @event_payloads <<53, 37, 54, 2, 248, 55, 0, 66, 56, 0, 84, 57, 0, 6, 58, 0, 12, 59, 0, 44, 60,
   0, 8, 61, 225, 32, 16, 2, 4, 63, 0, 9, 64, 0, 5, 65, 0, 8>>
@@ -46,12 +46,12 @@ defmodule SpectatorMode.Slp.ParserTest do
   describe "split events" do
     test "returns no leftover for sequential full events" do
       assert {events, <<>>} = Parser.parse_packet(@event_payloads <> @game_start <> @game_end_part_1 <> @game_end_part_2, nil)
-      assert [%Events.EventPayloads{}, %Events.GameStart{}, %Events.GameEnd{}] = events
+      assert [%SlpEvents.EventPayloads{}, %SlpEvents.GameStart{}, %SlpEvents.GameEnd{}] = events
     end
 
     test "returns leftover for split event" do
       assert {events, <<57, 2, 255>>} = Parser.parse_packet(@event_payloads <> @game_start <> @game_end_part_1, nil)
-      assert [%Events.EventPayloads{}, %Events.GameStart{}] = events
+      assert [%SlpEvents.EventPayloads{}, %SlpEvents.GameStart{}] = events
     end
   end
 end

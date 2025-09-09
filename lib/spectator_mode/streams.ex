@@ -2,7 +2,7 @@ defmodule SpectatorMode.Streams do
   @moduledoc """
   The Streams context provides a public API for stream management operations.
   """
-  alias SpectatorMode.Slp.Events.GameStart
+  alias SpectatorMode.Slp.SlpEvents.GameStart
   alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
 

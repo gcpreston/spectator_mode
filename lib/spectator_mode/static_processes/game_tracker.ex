@@ -13,9 +13,9 @@ defmodule SpectatorMode.GameTracker do
   @initial_game_state %{fod_platforms: %{left: nil, right: nil}}
 
   # ETS schema
-  # {stream_id(), :event_payloads} => Slp.Events.EventPayloads.t() | nil
-  # {stream_id(), :game_start} => Slp.Events.GameStart.t() | nil
-  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.Events.FodPlatforms.t() | nil, right: Slp.Events.FodPlatforms.t() | nil}}
+  # {stream_id(), :event_payloads} => Slp.SlpEvents.EventPayloads.t() | nil
+  # {stream_id(), :game_start} => Slp.SlpEvents.GameStart.t() | nil
+  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.SlpEvents.FodPlatforms.t() | nil, right: Slp.SlpEvents.FodPlatforms.t() | nil}}
   # {stream_id(), :leftover_buffer} => binary()
   # {stream_id(), :replay} => binary()
 
@@ -57,8 +57,8 @@ defmodule SpectatorMode.GameTracker do
     stream_objects =
       :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}])
 
-    event_payloads = Enum.find(stream_objects, fn o -> match?(%Slp.Events.EventPayloads{}, o) end)
-    game_start = Enum.find(stream_objects, fn o -> match?(%Slp.Events.GameStart{}, o) end)
+    event_payloads = Enum.find(stream_objects, fn o -> match?(%Slp.SlpEvents.EventPayloads{}, o) end)
+    game_start = Enum.find(stream_objects, fn o -> match?(%Slp.SlpEvents.GameStart{}, o) end)
     game_state = Enum.find(stream_objects, fn o -> match?(%{fod_platforms: _}, o) end)
     state_stages = if is_nil(game_state), do: [], else: Map.values(game_state[:fod_platforms])
 
@@ -113,7 +113,7 @@ defmodule SpectatorMode.GameTracker do
   end
 
   @spec list_local_streams() :: [
-          %{stream_id: Streams.stream_id(), game_start: Slp.Events.GameStart.t()}
+          %{stream_id: Streams.stream_id(), game_start: Slp.SlpEvents.GameStart.t()}
         ]
   def list_local_streams do
     :ets.select(
@@ -216,23 +216,23 @@ defmodule SpectatorMode.GameTracker do
     :ok
   end
 
-  defp execute_event_side_effects(stream_id, %Slp.Events.EventPayloads{} = event) do
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.EventPayloads{} = event) do
     set_event_payloads(stream_id, event)
   end
 
-  defp execute_event_side_effects(stream_id, %Slp.Events.GameStart{} = event) do
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.GameStart{} = event) do
     set_game_start(stream_id, event)
     Streams.notify_subscribers(:game_update, {stream_id, event})
   end
 
-  defp execute_event_side_effects(stream_id, %Slp.Events.GameEnd{}) do
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.GameEnd{}) do
     set_game_start(stream_id, nil)
     set_event_payloads(stream_id, nil)
     insert_helper(stream_id, :replay, <<>>)
     Streams.notify_subscribers(:game_update, {stream_id, nil})
   end
 
-  defp execute_event_side_effects(stream_id, %Slp.Events.FodPlatforms{platform: platform} = event) do
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.FodPlatforms{platform: platform} = event) do
     set_fod_platform(stream_id, platform, event)
   end
 
