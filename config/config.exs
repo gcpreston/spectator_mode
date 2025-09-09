@@ -7,9 +7,9 @@
 # General application configuration
 import Config
 
-config :spectator_mode,
-  ecto_repos: [SpectatorMode.Repo],
-  generators: [timestamp_type: :utc_datetime]
+# config :spectator_mode,
+#   ecto_repos: [],
+#   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint
 config :spectator_mode, SpectatorModeWeb.Endpoint,
