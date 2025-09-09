@@ -140,8 +140,6 @@ defmodule SpectatorMode.StreamsStore do
 
   ## Private Functions
 
-  # TODO: Upon node connect, liveviews don't auto-show newly visible streams
-
   @spec sync_with_nodes([node()], %__MODULE__{}) :: %__MODULE__{}
   defp sync_with_nodes([], state), do: state
   defp sync_with_nodes(nodes, state) do
@@ -188,6 +186,18 @@ defmodule SpectatorMode.StreamsStore do
     updated_streams_by_node = Map.put(state.streams_by_node, node_name, stream_ids)
     updated_stream_metadata = Map.merge(state.stream_metadata, new_metadata)
 
+    # Local broadcast newly available streams
+    # TODO: Considerations for node name in pubsub events
+    # - feels like a "different layer, different abstraction" type of problem
+    # - StreamsStore cares about this, but StreamsLive does not
+    # - does it really make sense for StreamsStore to update itself based on
+    #   the same events as the frontend?
+    # - Would probably make sense to broadcast the whole metadata info for a
+    #   newly created stream always, because that can hide the weirdness we
+    #   see for key initialization in StreamsLive
+    new_stream_ids = Map.keys(new_metadata)
+    Streams.notify_local_subscribers(:livestreams_created, new_stream_ids)
+
     %{state |
       streams_by_node: updated_streams_by_node,
       stream_metadata: updated_stream_metadata
@@ -204,6 +214,9 @@ defmodule SpectatorMode.StreamsStore do
 
     # Remove stream metadata for those streams
     updated_stream_metadata = Map.drop(state.stream_metadata, stream_ids_to_remove)
+
+    # Local broadcast streams which are no longer available
+    Streams.notify_local_subscribers(:livestreams_destroyed, stream_ids_to_remove)
 
     Logger.debug("Removed #{length(stream_ids_to_remove)} streams for node #{node_name}")
 

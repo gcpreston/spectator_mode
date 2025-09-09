@@ -135,4 +135,13 @@ defmodule SpectatorMode.Streams do
       {event, result, Node.self()}
     )
   end
+
+  @spec notify_local_subscribers(atom(), term()) :: nil
+  def notify_local_subscribers(event, result) do
+    Phoenix.PubSub.local_broadcast(
+      SpectatorMode.PubSub,
+      @index_subtopic,
+      {event, result, Node.self()}
+    )
+  end
 end
