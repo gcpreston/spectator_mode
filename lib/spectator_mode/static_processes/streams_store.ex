@@ -1,0 +1,288 @@
+defmodule SpectatorMode.StreamsStore do
+  @moduledoc """
+  A global store for active streams across a multi-node cluster.
+
+  This module maintains a singleton GenServer on each node that tracks all active
+  streams across the entire cluster. It automatically synchronizes state by:
+
+  - Querying all connected nodes on startup for their local streams
+  - Subscribing to stream events to stay up-to-date with changes
+  - Monitoring node connections to handle nodes joining/leaving the cluster
+
+  The state is replicated on each node for fast local access while staying
+  synchronized across the cluster.
+  """
+  use GenServer
+  require Logger
+
+  alias SpectatorMode.Streams
+  alias SpectatorMode.Events
+
+  @type stream_metadata :: %{
+    stream_id: Streams.stream_id(),
+    node_name: node(),
+    game_start: term(),
+    disconnected: boolean(),
+    viewer_count: non_neg_integer()
+  }
+
+  defstruct streams_by_node: %{}, stream_metadata: %{}
+
+  ## Public API
+
+  @doc """
+  Starts the global streams store GenServer.
+  """
+  def start_link(opts) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, [], name: name)
+  end
+
+  @doc """
+  Returns all active streams across the cluster.
+  """
+  @spec list_all_streams(GenServer.server()) :: [stream_metadata()]
+  def list_all_streams(server \\ __MODULE__) do
+    GenServer.call(server, :list_all_streams)
+  end
+
+  @doc """
+  Returns the node hosting the specified stream.
+  """
+  @spec get_stream_node(GenServer.server(), Streams.stream_id()) :: {:ok, node()} | {:error, :not_found}
+  def get_stream_node(server \\ __MODULE__, stream_id) do
+    GenServer.call(server, {:get_stream_node, stream_id})
+  end
+
+  ## GenServer Callbacks
+
+  @impl GenServer
+  def init(_opts) do
+    # Monitor node connections to track cluster changes
+    :net_kernel.monitor_nodes(true)
+
+    # Subscribe to stream events to stay up-to-date
+    SpectatorMode.Streams.subscribe()
+
+    # Initialize state with current node
+    initial_state = %__MODULE__{
+      streams_by_node: %{Node.self() => []},
+      stream_metadata: %{}
+    }
+
+    # Sync with all currently connected nodes
+    connected_nodes = Node.list()
+    Logger.info("StreamsStore initializing, syncing with nodes: #{inspect(connected_nodes)}")
+
+    updated_state = sync_with_nodes(connected_nodes, initial_state)
+
+    {:ok, updated_state}
+  end
+
+  @impl GenServer
+  def handle_call(:list_all_streams, _from, state) do
+    streams = Map.values(state.stream_metadata)
+    {:reply, streams, state}
+  end
+
+  def handle_call({:get_stream_node, stream_id}, _from, state) do
+    case Map.get(state.stream_metadata, stream_id) do
+      %{node_name: node_name} -> {:reply, {:ok, node_name}, state}
+      nil -> {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  # Handle node disconnect and reconnect events
+
+  @impl GenServer
+  def handle_info({:nodeup, node_name}, state) do
+    Logger.info("Node joined cluster: #{inspect(node_name)}, syncing streams")
+    updated_state = sync_with_nodes([node_name], state)
+    {:noreply, updated_state}
+  end
+
+  def handle_info({:nodedown, node_name}, state) do
+    Logger.info("Node left cluster: #{inspect(node_name)}, removing streams")
+    updated_state = remove_node_streams(node_name, state)
+    {:noreply, updated_state}
+  end
+
+  # Handle normal stream events
+
+  def handle_info(%Events.LivestreamCreated{} = event, state) do
+    Logger.debug("Stream created on #{event.node_name}: #{inspect(event.stream_id)}")
+    stream_meta = %{
+      stream_id: event.stream_id,
+      node_name: event.node_name,
+      game_start: event.game_start,
+      disconnected: event.disconnected
+    }
+    updated_state = add_stream_for_node(stream_meta, state)
+    {:noreply, updated_state}
+  end
+
+  def handle_info(%Events.LivestreamDestroyed{stream_id: stream_id}, state) do
+    Logger.debug("Stream destroyed: #{inspect(stream_id)}")
+    updated_state = remove_stream(stream_id, state)
+    {:noreply, updated_state}
+  end
+
+  def handle_info(%Events.LivestreamDisconnected{stream_id: stream_id}, state) do
+    Logger.debug("Stream disconnected: #{inspect(stream_id)}")
+    updated_state = update_stream_metadata(stream_id, :disconnected, :true, state)
+    {:noreply, updated_state}
+  end
+
+  def handle_info(%Events.LivestreamReconnected{stream_id: stream_id}, state) do
+    Logger.debug("Stream reconnected: #{inspect(stream_id)}")
+    updated_state = update_stream_metadata(stream_id, :disconnected, :false, state)
+    {:noreply, updated_state}
+  end
+
+  def handle_info(%Events.GameStart{stream_id: stream_id, game_start: game_start}, state) do
+    Logger.debug("Game started for stream: #{inspect(stream_id)}")
+    updated_state = update_stream_metadata(stream_id, :game_start, game_start, state)
+    {:noreply, updated_state}
+  end
+
+  def handle_info(%Events.GameEnd{stream_id: stream_id}, state) do
+    Logger.debug("Game ended for stream: #{inspect(stream_id)}")
+    updated_state = update_stream_metadata(stream_id, :game_start, nil, state)
+    {:noreply, updated_state}
+  end
+
+  # Ignore other messages
+  def handle_info(_message, state) do
+    {:noreply, state}
+  end
+
+  ## Private Functions
+
+  @spec sync_with_nodes([node()], %__MODULE__{}) :: %__MODULE__{}
+  defp sync_with_nodes([], state), do: state
+  defp sync_with_nodes(nodes, state) do
+    Logger.debug("Syncing streams from nodes: #{inspect(nodes)}")
+
+    # Use :erpc.multicall for efficient parallel RPC calls
+    results = :erpc.multicall(nodes, SpectatorMode.Streams, :list_local_streams, [])
+    nodes_and_results = Enum.zip(nodes, results)
+
+    # Process results and update state
+    Enum.reduce(nodes_and_results, state, fn {node_name, result}, acc_state ->
+      case result do
+        {:ok, local_streams} ->
+          process_node_streams(node_name, local_streams, acc_state)
+
+        {:error, reason} ->
+          Logger.warning("Failed to sync streams from #{node_name}: #{inspect(reason)}")
+          acc_state
+
+        {:throw, reason} ->
+          Logger.warning("RPC threw error for #{node_name}: #{inspect(reason)}")
+          acc_state
+
+        {:exit, reason} ->
+          Logger.warning("RPC exited for #{node_name}: #{inspect(reason)}")
+          acc_state
+      end
+    end)
+  end
+
+  @spec process_node_streams(node(), [map()], %__MODULE__{}) :: %__MODULE__{}
+  defp process_node_streams(node_name, local_streams, state) do
+    # Extract stream IDs
+    stream_ids = Enum.map(local_streams, & &1.stream_id)
+
+    # Create metadata map with node information
+    new_metadata =
+      local_streams
+      |> Enum.map(&Map.put(&1, :node_name, node_name))
+      |> Enum.map(&Map.put_new(&1, :viewer_count, 0))
+      |> Enum.into(%{}, &{&1.stream_id, &1})
+
+    # Update state
+    updated_streams_by_node = Map.put(state.streams_by_node, node_name, stream_ids)
+    updated_stream_metadata = Map.merge(state.stream_metadata, new_metadata)
+
+    # Local broadcast newly available streams
+    local_events = Enum.map(new_metadata, fn {stream_id, stream_meta} ->
+      %Events.LivestreamCreated{
+        stream_id: stream_id,
+        node_name: stream_meta.node_name,
+        game_start: stream_meta.game_start,
+        disconnected: stream_meta.disconnected
+      }
+    end)
+    Streams.notify_local_subscribers(local_events)
+
+    %{state |
+      streams_by_node: updated_streams_by_node,
+      stream_metadata: updated_stream_metadata
+    }
+  end
+
+  @spec remove_node_streams(node(), %__MODULE__{}) :: %__MODULE__{}
+  defp remove_node_streams(node_name, state) do
+    # Get stream IDs for the node that's going down
+    stream_ids_to_remove = Map.get(state.streams_by_node, node_name, [])
+
+    # Remove node from streams_by_node
+    updated_streams_by_node = Map.delete(state.streams_by_node, node_name)
+
+    # Remove stream metadata for those streams
+    updated_stream_metadata = Map.drop(state.stream_metadata, stream_ids_to_remove)
+
+    # Local broadcast streams which are no longer available
+    local_events = Enum.map(stream_ids_to_remove, fn stream_id -> %Events.LivestreamDestroyed{stream_id: stream_id} end)
+    Streams.notify_local_subscribers(local_events)
+
+    Logger.debug("Removed #{length(stream_ids_to_remove)} streams for node #{node_name}")
+
+    %{state |
+      streams_by_node: updated_streams_by_node,
+      stream_metadata: updated_stream_metadata
+    }
+  end
+
+  @spec add_stream_for_node(stream_metadata(), %__MODULE__{}) :: %__MODULE__{}
+  defp add_stream_for_node(%{stream_id: stream_id, node_name: node_name} = stream_meta, state) do
+    # Get current streams for the node
+    current_stream_ids = Map.get(state.streams_by_node, node_name, [])
+
+    # Add new stream ID
+    updated_stream_ids = Enum.uniq(current_stream_ids ++ [stream_id])
+    updated_streams_by_node = Map.put(state.streams_by_node, node_name, updated_stream_ids)
+
+    # Add initial metadata for new stream
+    updated_stream_metadata = Map.put(state.stream_metadata, stream_id, stream_meta)
+
+    %{state |
+      streams_by_node: updated_streams_by_node,
+      stream_metadata: updated_stream_metadata
+    }
+  end
+
+  @spec remove_stream(Streams.stream_id(), %__MODULE__{}) :: %__MODULE__{}
+  defp remove_stream(stream_id_to_remove, state) do
+    # Get current streams for the node
+    node_name = get_in(state.stream_metadata[stream_id_to_remove].node_name)
+    current_stream_ids = Map.get(state.streams_by_node, node_name, [])
+
+    # Remove specified stream IDs
+    updated_stream_ids = current_stream_ids -- [stream_id_to_remove]
+    updated_streams_by_node = Map.put(state.streams_by_node, node_name, updated_stream_ids)
+
+    # Remove metadata for removed streams
+    updated_stream_metadata = Map.delete(state.stream_metadata, stream_id_to_remove)
+
+    %{state |
+      streams_by_node: updated_streams_by_node,
+      stream_metadata: updated_stream_metadata
+    }
+  end
+
+  @spec update_stream_metadata(Streams.stream_id(), atom(), term(), %__MODULE__{}) :: %__MODULE__{}
+  defp update_stream_metadata(stream_id, key, value, state) do
+    put_in(state.stream_metadata[stream_id][key], value)
+  end
+end

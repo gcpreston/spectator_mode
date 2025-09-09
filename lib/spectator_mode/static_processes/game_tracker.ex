@@ -7,15 +7,18 @@ defmodule SpectatorMode.GameTracker do
   use GenServer
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.Events
   alias SpectatorMode.Slp
 
   @current_games_table_name :livestreams
   @initial_game_state %{fod_platforms: %{left: nil, right: nil}}
 
   # ETS schema
-  # {stream_id(), :event_payloads} => Slp.Events.EventPayloads.t() | nil
-  # {stream_id(), :game_start} => Slp.Events.GameStart.t() | nil
-  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.Events.FodPlatforms.t() | nil, right: Slp.Events.FodPlatforms.t() | nil}}
+  # {stream_id(), :event_payloads} => Slp.SlpEvents.EventPayloads.t() | nil
+  # {stream_id(), :game_start} => Slp.SlpEvents.GameStart.t() | nil
+  # {stream_id(), :game_state} =>  %{fod_platforms: %{left: Slp.SlpEvents.FodPlatforms.t() | nil, right: Slp.SlpEvents.FodPlatforms.t() | nil}}
+  # {stream_id(), :leftover_buffer} => binary()
+  # {stream_id(), :replay} => binary()
 
   ## API
 
@@ -35,37 +38,28 @@ defmodule SpectatorMode.GameTracker do
 
   @spec initialize_stream() :: Streams.stream_id()
   def initialize_stream do
-    GenServer.call(__MODULE__, :initialize_stream)
+    # Generate an unused stream ID.
+    # Since this happens in a GenServer call, it is the only message being
+    # served at the moment, so there is no risk of the same stream_id being
+    # handed out again before the first recipient inserts their keys.
+    stream_id = generate_stream_id()
+
+    insert_helper(stream_id, :event_payloads, nil)
+    insert_helper(stream_id, :game_start, nil)
+    insert_helper(stream_id, :game_state, @initial_game_state)
+    insert_helper(stream_id, :leftover_buffer, <<>>)
+    insert_helper(stream_id, :replay, <<>>)
+
+    stream_id
   end
 
-  @spec get_event_payloads(Streams.stream_id()) ::
-          {:ok, Slp.Events.EventPayloads.t() | nil} | :error
-  def get_event_payloads(stream_id) do
-    lookup_helper(stream_id, :event_payloads)
-  end
-
-  @spec set_event_payloads(Streams.stream_id(), Slp.Events.EventPayloads.t()) :: :ok
-  def set_event_payloads(stream_id, event_payloads) do
-    GenServer.call(__MODULE__, {:set_event_payloads, stream_id, event_payloads})
-  end
-
-  @spec set_game_start(Streams.stream_id(), Slp.Events.GameStart.t() | nil) :: :ok
-  def set_game_start(stream_id, game_start) do
-    GenServer.call(__MODULE__, {:set_game_start, stream_id, game_start})
-  end
-
-  @spec set_fod_platform(Streams.stream_id(), :left | :right, Slp.Events.FodPlatforms.t()) :: :ok
-  def set_fod_platform(stream_id, side, event) do
-    GenServer.call(__MODULE__, {:set_fod_platform, stream_id, side, event})
-  end
-
-  @spec join_payload(Streams.stream_id()) :: binary()
-  def join_payload(stream_id) do
+  @spec minimal_join_payload(Streams.stream_id()) :: binary()
+  def minimal_join_payload(stream_id) do
     stream_objects =
       :ets.select(@current_games_table_name, [{{{stream_id, :_}, :"$1"}, [], [:"$1"]}])
 
-    event_payloads = Enum.find(stream_objects, fn o -> match?(%Slp.Events.EventPayloads{}, o) end)
-    game_start = Enum.find(stream_objects, fn o -> match?(%Slp.Events.GameStart{}, o) end)
+    event_payloads = Enum.find(stream_objects, fn o -> match?(%Slp.SlpEvents.EventPayloads{}, o) end)
+    game_start = Enum.find(stream_objects, fn o -> match?(%Slp.SlpEvents.GameStart{}, o) end)
     game_state = Enum.find(stream_objects, fn o -> match?(%{fod_platforms: _}, o) end)
     state_stages = if is_nil(game_state), do: [], else: Map.values(game_state[:fod_platforms])
 
@@ -81,19 +75,50 @@ defmodule SpectatorMode.GameTracker do
     binary_to_send
   end
 
-  @spec delete(Streams.stream_id()) :: :ok
-  def delete(stream_id) do
-    GenServer.call(__MODULE__, {:delete, stream_id})
+  @spec full_join_payload(Streams.stream_id()) :: binary()
+  def full_join_payload(stream_id) do
+    {:ok, replay} = fetch_helper(stream_id, :replay)
+    replay
   end
 
-  @spec list_streams() :: [
-          %{stream_id: Streams.stream_id(), active_game: Slp.Events.GameStart.t()}
+  @doc """
+  Asynchronously parse a section of a Slippi stream and execute appropriate
+  side-effects. These side effects are specifically (1) updating game state
+  being tracked, and (2) sending pubsub notifications about game state changes.
+
+  See the module-level documentation for what information is tracked notified for.
+  """
+  @spec handle_packet(Streams.stream_id(), binary()) :: :ok
+  def handle_packet(stream_id, data) do
+    {:ok, maybe_event_payloads} = fetch_event_payloads(stream_id)
+    maybe_payload_sizes = get_in(maybe_event_payloads.payload_sizes)
+    {:ok, previous_leftover} = fetch_leftover_buffer(stream_id)
+
+    {events, leftover} = Slp.Parser.parse_packet(previous_leftover <> data, maybe_payload_sizes)
+    add_to_replay(stream_id, data)
+    set_leftover_buffer(stream_id, leftover)
+    execute_side_effects(stream_id, events)
+
+    :ok
+  end
+
+  @spec delete(Streams.stream_id()) :: :ok
+  def delete(stream_id) do
+    for event_type <- [:event_payloads, :game_start, :game_state, :leftover_buffer, :replay] do
+      :ets.delete(@current_games_table_name, {stream_id, event_type})
+    end
+
+    :ok
+  end
+
+  @spec list_local_streams() :: [
+          %{stream_id: Streams.stream_id(), game_start: Slp.SlpEvents.GameStart.t()}
         ]
-  def list_streams do
+  def list_local_streams do
     :ets.select(
       @current_games_table_name,
       [
-        {{{:"$1", :game_start}, :"$2"}, [], [%{stream_id: :"$1", active_game: :"$2"}]}
+        {{{:"$1", :game_start}, :"$2"}, [], [%{stream_id: :"$1", game_start: :"$2"}]}
       ]
     )
   end
@@ -102,65 +127,71 @@ defmodule SpectatorMode.GameTracker do
 
   @impl true
   def init(_) do
-    :ets.new(@current_games_table_name, [:set, :protected, :named_table, read_concurrency: true])
+    :ets.new(@current_games_table_name, [
+      :set,
+      :public,
+      :named_table,
+      read_concurrency: true,
+      write_concurrency: true
+    ])
+
     {:ok, nil}
   end
 
-  @impl true
-  def handle_call(:initialize_stream, _from, state) do
-    # Generate an unused stream ID.
-    # Since this happens in a GenServer call, it is the only message being
-    # served at the moment, so there is no risk of the same stream_id being
-    # handed out again before the first recipient inserts their keys.
-    stream_id = generate_stream_id()
+  ## Helpers
 
-    :ets.insert(@current_games_table_name, {{stream_id, :event_payloads}, nil})
-    :ets.insert(@current_games_table_name, {{stream_id, :game_start}, nil})
-    :ets.insert(@current_games_table_name, {{stream_id, :game_state}, @initial_game_state})
-
-    {:reply, stream_id, state}
+  defp fetch_event_payloads(stream_id) do
+    fetch_helper(stream_id, :event_payloads)
   end
 
-  def handle_call({:set_event_payloads, stream_id, event_payloads}, _from, state) do
+  defp fetch_leftover_buffer(stream_id) do
+    fetch_helper(stream_id, :leftover_buffer)
+  end
+
+  defp set_leftover_buffer(stream_id, leftover_buffer) do
+    insert_helper(stream_id, :leftover_buffer, leftover_buffer)
+    :ok
+  end
+
+  defp set_event_payloads(stream_id, event_payloads) do
     # TODO: Protect against inserting for invalid stream?
-    :ets.insert(@current_games_table_name, {{stream_id, :event_payloads}, event_payloads})
-    {:reply, :ok, state}
+    insert_helper(stream_id, :event_payloads, event_payloads)
+    :ok
   end
 
-  def handle_call({:set_game_start, stream_id, game_start}, _from, state) do
+  defp set_game_start(stream_id, game_start) do
     # TODO: Protect against inserting for invalid stream?
-    :ets.insert(@current_games_table_name, {{stream_id, :game_start}, game_start})
-    :ets.insert(@current_games_table_name, {{stream_id, :game_state}, @initial_game_state})
-    {:reply, :ok, state}
+    insert_helper(stream_id, :game_start, game_start)
+    insert_helper(stream_id, :game_state, @initial_game_state)
+    :ok
   end
 
-  def handle_call({:set_fod_platform, stream_id, side, event}, _from, state) do
+  defp set_fod_platform(stream_id, side, event) do
     # TODO: Protect against inserting for invalid stream?
-    {:ok, current_game_state} = lookup_helper(stream_id, :game_state)
-
-    :ets.insert(
-      @current_games_table_name,
-      {{stream_id, :game_state}, put_in(current_game_state, [:fod_platforms, side], event)}
-    )
-
-    {:reply, :ok, state}
+    {:ok, current_game_state} = fetch_helper(stream_id, :game_state)
+    insert_helper(stream_id, :game_state, put_in(current_game_state, [:fod_platforms, side], event))
+    :ok
   end
 
-  def handle_call({:delete, stream_id}, _from, state) do
-    for event_type <- [:event_payloads, :game_start, :game_state] do
-      :ets.delete(@current_games_table_name, {stream_id, event_type})
-    end
-
-    {:reply, :ok, state}
+  defp add_to_replay(stream_id, data) do
+    {:ok, current_replay} = fetch_helper(stream_id, :replay)
+    insert_helper(stream_id, :replay, current_replay <> data)
+    :ok
   end
 
-  defp lookup_helper(stream_id, event_type) do
+  defp fetch_helper(stream_id, event_type) do
     case :ets.lookup(@current_games_table_name, {stream_id, event_type}) do
       [] -> :error
       [{{^stream_id, ^event_type}, object}] -> {:ok, object}
     end
   end
 
+  defp insert_helper(stream_id, event_type, value) do
+    :ets.insert(@current_games_table_name, {{stream_id, event_type}, value})
+  end
+
+  # TODO: With this no longer being a global process, the stream ID could be
+  # defined in a different GameTracker instance.
   defp generate_stream_id do
     # random u32
     test_id = Enum.random(0..(2 ** 32 - 1))
@@ -178,4 +209,31 @@ defmodule SpectatorMode.GameTracker do
       _ -> true
     end
   end
+
+  defp execute_side_effects(stream_id, events) do
+    Enum.map(events, &(execute_event_side_effects(stream_id, &1)))
+    :ok
+  end
+
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.EventPayloads{} = event) do
+    set_event_payloads(stream_id, event)
+  end
+
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.GameStart{} = event) do
+    set_game_start(stream_id, event)
+    Streams.notify_subscribers(%Events.GameStart{stream_id: stream_id, game_start: event})
+  end
+
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.GameEnd{}) do
+    set_game_start(stream_id, nil)
+    set_event_payloads(stream_id, nil)
+    insert_helper(stream_id, :replay, <<>>)
+    Streams.notify_subscribers(%Events.GameEnd{stream_id: stream_id})
+  end
+
+  defp execute_event_side_effects(stream_id, %Slp.SlpEvents.FodPlatforms{platform: platform} = event) do
+    set_fod_platform(stream_id, platform, event)
+  end
+
+  defp execute_event_side_effects(_stream_id, _other_event), do: nil
 end

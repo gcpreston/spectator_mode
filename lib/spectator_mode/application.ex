@@ -9,16 +9,15 @@ defmodule SpectatorMode.Application do
   def start(_type, _args) do
     children = [
       SpectatorModeWeb.Telemetry,
-      SpectatorMode.Repo,
+      # SpectatorMode.Repo,
       {DNSCluster, query: Application.get_env(:spectator_mode, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: SpectatorMode.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: SpectatorMode.Finch},
       # SpectatorMode workers
-      {Registry, name: SpectatorMode.PacketHandlerRegistry, keys: :unique},
-      {DynamicSupervisor, name: SpectatorMode.PacketHandlerSupervisor, strategy: :one_for_one},
       SpectatorMode.BridgeTracker,
       SpectatorMode.GameTracker,
+      SpectatorMode.StreamsStore,
       SpectatorModeWeb.Presence,
       # Start to serve requests, typically the last entry
       SpectatorModeWeb.Endpoint

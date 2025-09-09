@@ -10,10 +10,8 @@ defmodule SpectatorMode.BridgeTracker do
   require Logger
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.Events
   alias SpectatorMode.GameTracker
-  alias SpectatorMode.PacketHandler
-  alias SpectatorMode.PacketHandlerSupervisor
-  alias SpectatorMode.PacketHandlerRegistry
 
   @type t :: %__MODULE__{
           token_to_bridge_info: %{
@@ -96,8 +94,17 @@ defmodule SpectatorMode.BridgeTracker do
     stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
 
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
-    {:ok, _result} = start_supervised_packet_handlers(stream_ids)
-    Streams.notify_subscribers(:livestreams_created, stream_ids)
+
+    events = Enum.map(stream_ids, fn stream_id ->
+      %Events.LivestreamCreated{
+        stream_id: stream_id,
+        node_name: Node.self(),
+        game_start: nil,
+        disconnected: false
+      }
+    end)
+    Streams.notify_subscribers(events)
+
     {:reply, {bridge_id, stream_ids, reconnect_token}, new_state}
   end
 
@@ -130,7 +137,8 @@ defmodule SpectatorMode.BridgeTracker do
         {new_reconnect_token, new_state} =
           register_to_state(new_state, pid, bridge_id, stream_ids)
 
-        Streams.notify_subscribers(:livestreams_reconnected, stream_ids)
+        events = Enum.map(stream_ids, fn stream_id -> %Events.LivestreamReconnected{stream_id: stream_id} end)
+        Streams.notify_subscribers(events)
 
         {:reply, {:ok, new_reconnect_token, bridge_id, stream_ids}, new_state}
     end
@@ -148,9 +156,11 @@ defmodule SpectatorMode.BridgeTracker do
 
     if reason in [{:shutdown, :bridge_quit}, {:shutdown, :local_closed}] do
       Logger.info("Bridge #{bridge_id} terminated, reason: #{inspect(reason)}")
-      {:noreply, bridge_cleanup(state, monitor_ref, reason)}
+      # TODO: Would it be cleaner to separate the state cleaning logic from the side-effect cleaning logic?
+      {:noreply, bridge_cleanup(state, monitor_ref)}
     else
-      Streams.notify_subscribers(:livestreams_disconnected, stream_ids)
+      events = Enum.map(stream_ids, fn stream_id -> %Events.LivestreamDisconnected{stream_id: stream_id} end)
+      Streams.notify_subscribers(events)
 
       reconnect_timeout_ref =
         Process.send_after(self(), {:reconnect_timeout, monitor_ref}, reconnect_timeout_ms())
@@ -160,7 +170,7 @@ defmodule SpectatorMode.BridgeTracker do
   end
 
   def handle_info({:reconnect_timeout, monitor_ref}, state) do
-    {:noreply, bridge_cleanup(state, monitor_ref, {:shutdown, :reconnect_timeout})}
+    {:noreply, bridge_cleanup(state, monitor_ref)}
   end
 
   ## Helpers
@@ -199,20 +209,16 @@ defmodule SpectatorMode.BridgeTracker do
   end
 
   # Run side-effects for bridge termination and remove it from state.
-  defp bridge_cleanup(state, down_ref, stop_reason) do
+  defp bridge_cleanup(state, down_ref) do
     %{reconnect_token: reconnect_token} = state.monitor_ref_to_reconnect_info[down_ref]
     stream_ids = state.token_to_bridge_info[reconnect_token].stream_ids
 
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
-      livestream_name = {:via, Registry, {PacketHandlerRegistry, stream_id}}
-
-      if GenServer.whereis({:via, Registry, {PacketHandlerRegistry, stream_id}}) != nil do
-        GenServer.stop(livestream_name, stop_reason)
-      end
     end
 
-    Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
+    events = Enum.map(stream_ids, fn stream_id -> %Events.LivestreamDestroyed{stream_id: stream_id} end)
+    Streams.notify_subscribers(events)
 
     state
     |> delete_monitor_ref(down_ref)
@@ -245,23 +251,6 @@ defmodule SpectatorMode.BridgeTracker do
       MapSet.union(new_state.disconnected_streams, MapSet.new(stream_ids))
 
     put_in(new_state.disconnected_streams, new_disconnected_streams)
-  end
-
-  defp start_supervised_packet_handlers(stream_ids) do
-    start_supervised_packet_handlers(stream_ids, [])
-  end
-
-  defp start_supervised_packet_handlers([], acc) do
-    {:ok, acc}
-  end
-
-  defp start_supervised_packet_handlers([stream_id | rest], acc) do
-    if {:ok, stream_pid} =
-         DynamicSupervisor.start_child(PacketHandlerSupervisor, {PacketHandler, stream_id}) do
-      start_supervised_packet_handlers(rest, [{stream_id, stream_pid} | acc])
-    else
-      {:error, acc}
-    end
   end
 
   defp reconnect_timeout_ms do

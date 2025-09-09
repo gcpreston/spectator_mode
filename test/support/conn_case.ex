@@ -31,8 +31,8 @@ defmodule SpectatorModeWeb.ConnCase do
     end
   end
 
-  setup tags do
-    SpectatorMode.DataCase.setup_sandbox(tags)
+  setup _tags do
+    # SpectatorMode.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

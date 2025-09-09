@@ -31,8 +31,8 @@ defmodule SpectatorModeWeb.ViewerSocket do
 
         {:ok, state}
 
-      {:error, :stream_not_found} ->
-        {:error, :stream_not_found}
+      {:error, message} ->
+        {:error, message}
     end
   end
 

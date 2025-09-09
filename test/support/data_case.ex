@@ -18,7 +18,7 @@ defmodule SpectatorMode.DataCase do
 
   using do
     quote do
-      alias SpectatorMode.Repo
+      # alias SpectatorMode.Repo
 
       import Ecto
       import Ecto.Changeset
@@ -27,8 +27,8 @@ defmodule SpectatorMode.DataCase do
     end
   end
 
-  setup tags do
-    SpectatorMode.DataCase.setup_sandbox(tags)
+  setup _tags do
+    # SpectatorMode.DataCase.setup_sandbox(tags)
     :ok
   end
 

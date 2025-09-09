@@ -1,11 +1,11 @@
-defmodule SpectatorMode.Slp.Events do
+defmodule SpectatorMode.Slp.SlpEvents do
   @type t :: EventPayloads.t() | GameStart.t() | GameEnd.t() | FodPlatforms.t()
   @type payload_sizes :: %{integer() => integer()}
 
   defmodule EventPayloads do
     @type t :: %__MODULE__{
       binary: binary(),
-      payload_sizes: Events.payload_sizes()
+      payload_sizes: SlpEvents.payload_sizes()
     }
     @enforce_keys [:payload_sizes, :binary]
     defstruct [:payload_sizes, :binary]

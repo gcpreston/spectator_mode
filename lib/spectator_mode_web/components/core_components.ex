@@ -672,7 +672,7 @@ defmodule SpectatorModeWeb.CoreComponents do
   Renders a card to show information about a stream.
   """
   attr :stream_id, :string, required: true
-  attr :active_game, :any, required: true
+  attr :game_start, :any, required: true
   attr :selected, :boolean, required: true
   attr :disconnected, :boolean, required: true
   attr :viewer_count, :integer, required: true
@@ -690,7 +690,7 @@ defmodule SpectatorModeWeb.CoreComponents do
         <.icon name="hero-signal-slash" class="h-5 w-5" />
       </div>
       <div class="text-center">
-        <.active_game_text event={@active_game} />
+        <.active_game_text event={@game_start} />
         <div><span class="text-xs font-extralight">Stream ID: {@stream_id}</span></div>
       </div>
       <div :if={@has_viewers} class="absolute top-2 right-2">
@@ -709,7 +709,7 @@ defmodule SpectatorModeWeb.CoreComponents do
     """
   end
 
-  defp active_game_text(%{event: %Slp.Events.GameStart{}} = assigns) do
+  defp active_game_text(%{event: %Slp.SlpEvents.GameStart{}} = assigns) do
     filtered_players =
       assigns.event.players
       |> Tuple.to_list()

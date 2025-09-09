@@ -2,6 +2,7 @@ defmodule SpectatorModeWeb.StreamsLive do
   use SpectatorModeWeb, :live_view
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.Events
   alias SpectatorModeWeb.Presence
 
   @impl true
@@ -17,11 +18,11 @@ defmodule SpectatorModeWeb.StreamsLive do
           <%= if map_size(@livestreams) == 0 do %>
             <p class="text-center">No current streams.</p>
           <% else %>
-            <%= for {stream_id, %{active_game: active_game, viewer_count: viewer_count, disconnected: disconnected}} <- @livestreams do %>
+            <%= for {stream_id, %{game_start: game_start, viewer_count: viewer_count, disconnected: disconnected}} <- @livestreams do %>
               <button phx-click="watch" phx-value-streamid={stream_id}>
                 <.stream_card
                   stream_id={stream_id}
-                  active_game={active_game}
+                  game_start={game_start}
                   selected={stream_id == @selected_stream_id}
                   disconnected={disconnected}
                   viewer_count={viewer_count}
@@ -189,8 +190,8 @@ defmodule SpectatorModeWeb.StreamsLive do
     viewer_counts = Presence.get_viewer_counts()
 
     stream_id_to_metadata =
-      for %{stream_id: stream_id, active_game: game_start, disconnected: disconnected} <- Streams.list_streams(), into: %{} do
-        {stream_id, %{active_game: game_start, disconnected: disconnected, viewer_count: Map.get(viewer_counts, stream_id, 0)}}
+      for %{stream_id: stream_id, game_start: game_start, disconnected: disconnected} <- Streams.list_streams(), into: %{} do
+        {stream_id, %{game_start: game_start, disconnected: disconnected, viewer_count: Map.get(viewer_counts, stream_id, 0)}}
       end
 
     {
@@ -233,18 +234,16 @@ defmodule SpectatorModeWeb.StreamsLive do
   end
 
   @impl true
-  def handle_info({:livestreams_created, stream_ids}, socket) do
+  def handle_info(%Events.LivestreamCreated{} = event, socket) do
     {:noreply,
      update(socket, :livestreams, fn livestreams ->
-      Enum.reduce(stream_ids, livestreams, fn stream_id, acc ->
-        Map.put(acc, stream_id, %{active_game: nil, disconnected: false, viewer_count: 0})
-      end)
+       Map.put(livestreams, event.stream_id, %{game_start: event.game_start, disconnected: event.disconnected, viewer_count: 0})
      end)}
   end
 
-  def handle_info({:livestreams_destroyed, stream_ids}, socket) do
+  def handle_info(%Events.LivestreamDestroyed{stream_id: stream_id}, socket) do
     socket =
-      if socket.assigns.selected_stream_id in stream_ids do
+      if socket.assigns.selected_stream_id == stream_id do
         socket
         |> clear_watch()
         |> put_flash(:info, "This stream has ended.")
@@ -255,14 +254,14 @@ defmodule SpectatorModeWeb.StreamsLive do
     {
       :noreply,
       update(socket, :livestreams, fn livestreams ->
-        Map.drop(livestreams, stream_ids)
+        Map.delete(livestreams, stream_id)
       end)
     }
   end
 
-  def handle_info({:livestreams_disconnected, stream_ids}, socket) do
+  def handle_info(%Events.LivestreamDisconnected{stream_id: stream_id}, socket) do
     socket =
-      if socket.assigns.selected_stream_id in stream_ids do
+      if socket.assigns.selected_stream_id == stream_id do
         socket
         |> put_flash(:info, "Stream source reconnecting...")
       else
@@ -272,16 +271,14 @@ defmodule SpectatorModeWeb.StreamsLive do
     {
       :noreply,
       update(socket, :livestreams, fn livestreams ->
-        Enum.reduce(stream_ids, livestreams, fn stream_id, acc ->
-          put_in(acc[stream_id].disconnected, true)
-        end)
+        put_in(livestreams[stream_id].disconnected, true)
       end)
     }
   end
 
-  def handle_info({:livestreams_reconnected, stream_ids}, socket) do
+  def handle_info(%Events.LivestreamReconnected{stream_id: stream_id}, socket) do
     socket =
-      if socket.assigns.selected_stream_id in stream_ids do
+      if socket.assigns.selected_stream_id == stream_id do
         socket
         |> clear_flash()
       else
@@ -291,16 +288,19 @@ defmodule SpectatorModeWeb.StreamsLive do
     {
       :noreply,
       update(socket, :livestreams, fn livestreams ->
-        Enum.reduce(stream_ids, livestreams, fn stream_id, acc ->
-          put_in(acc[stream_id].disconnected, false)
-        end)
+        put_in(livestreams[stream_id].disconnected, false)
       end)
     }
   end
 
-  def handle_info({:game_update, {stream_id, maybe_event}}, socket) do
+  def handle_info(%Events.GameStart{stream_id: stream_id, game_start: game_start}, socket) do
     {:noreply,
-     update(socket, :livestreams, fn livestreams -> put_in(livestreams[stream_id].active_game, maybe_event) end)}
+     update(socket, :livestreams, fn livestreams -> put_in(livestreams[stream_id].game_start, game_start) end)}
+  end
+
+  def handle_info(%Events.GameEnd{stream_id: stream_id}, socket) do
+    {:noreply,
+     update(socket, :livestreams, fn livestreams -> put_in(livestreams[stream_id].game_start, nil) end)}
   end
 
   def handle_info({SpectatorModeWeb.Presence, {:join, %{stream_id: stream_id}}}, socket) do

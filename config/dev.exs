@@ -19,7 +19,7 @@ config :spectator_mode, SpectatorMode.Repo,
 # Binding to loopback ipv4 address prevents access from other machines.
 config :spectator_mode, SpectatorModeWeb.Endpoint,
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 4000],
+  http: [ip: {127, 0, 0, 1}, port: System.get_env("PORT") || 4000],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

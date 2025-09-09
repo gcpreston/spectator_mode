@@ -2,9 +2,7 @@ defmodule SpectatorMode.Streams do
   @moduledoc """
   The Streams context provides a public API for stream management operations.
   """
-  alias SpectatorMode.PacketHandlerRegistry
-  alias SpectatorMode.PacketHandler
-  alias SpectatorMode.Slp.Events.GameStart
+  alias SpectatorMode.Slp.SlpEvents.GameStart
   alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
 
@@ -16,7 +14,7 @@ defmodule SpectatorMode.Streams do
   @type reconnect_token() :: String.t()
   @type bridge_connect_result() ::
           {:ok, bridge_id(), [stream_id()], reconnect_token()} | {:error, term()}
-  @type viewer_connect_result() :: {:ok, binary()} | {:error, :stream_not_found}
+  @type viewer_connect_result() :: {:ok, binary()} | {:error, term()}
 
   @doc """
   Subscribe to PubSub notifications about the state
@@ -65,19 +63,29 @@ defmodule SpectatorMode.Streams do
   """
   @spec register_viewer(stream_id(), boolean()) :: viewer_connect_result()
   def register_viewer(stream_id, return_full_replay \\ false) do
-    if Registry.lookup(PacketHandlerRegistry, stream_id) == [] do
-      {:error, :stream_not_found}
-    else
+    # only the correct instance of GameTracker will know about the stream
+    join_result =
+      if return_full_replay do
+        call_stream_node(stream_id, fn -> GameTracker.full_join_payload(stream_id) end)
+      else
+        call_stream_node(stream_id, fn -> GameTracker.minimal_join_payload(stream_id) end)
+      end
+
+    if match?({:ok, _binary}, join_result) do
       Phoenix.PubSub.subscribe(SpectatorMode.PubSub, stream_subtopic(stream_id))
+    end
 
-      join_binary =
-        if return_full_replay do
-          PacketHandler.get_replay({:via, Registry, {PacketHandlerRegistry, stream_id}})
-        else
-          GameTracker.join_payload(stream_id)
-        end
+    join_result
+  end
 
-      {:ok, join_binary}
+  # Execute a function on the node hosting the given stream, and return the result.
+  defp call_stream_node(stream_id, fun) do
+    case SpectatorMode.StreamsStore.get_stream_node(stream_id) do
+      {:ok, node_name} ->
+        {:ok, :erpc.call(node_name, fun)}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -96,31 +104,60 @@ defmodule SpectatorMode.Streams do
     )
 
     # Asynchronously parse and update tracked game info as needed
-    PacketHandler.handle_packet({:via, Registry, {PacketHandlerRegistry, stream_id}}, data)
+    GameTracker.handle_packet(stream_id, data)
   end
 
   @doc """
   Fetch the stream IDs of all currently active streams, and their metadata.
   """
-  @spec list_streams() :: [
-          %{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}
-        ]
-  def list_streams do
-    game_tracker_streams = GameTracker.list_streams()
+  # TODO: Spec (return type)
+  defdelegate list_streams, to: SpectatorMode.StreamsStore, as: :list_all_streams
+
+  @doc """
+  Like list_streams/0, but only for streams running on this node.
+  """
+  @spec list_local_streams() :: [ %{stream_id: stream_id(), game_start: GameStart.t(), disconnected: boolean()}]
+  def list_local_streams do
+    game_tracker_streams = GameTracker.list_local_streams()
     disconnected_streams = BridgeTracker.disconnected_streams()
 
-    Enum.map(game_tracker_streams, fn %{stream_id: stream_id, active_game: game} ->
+    Enum.map(game_tracker_streams, fn %{stream_id: stream_id, game_start: game} ->
       disconnected = MapSet.member?(disconnected_streams, stream_id)
-      %{stream_id: stream_id, active_game: game, disconnected: disconnected}
+      %{stream_id: stream_id, game_start: game, disconnected: disconnected}
     end)
   end
 
-  @spec notify_subscribers(atom(), term()) :: nil
-  def notify_subscribers(event, result) do
+  # Broadcast events from the SpectatorMode.Events module
+
+  @spec notify_subscribers(term() | [term()]) :: nil
+
+  def notify_subscribers(events) when is_list(events) do
+    for event <- events do
+      notify_subscribers(event)
+    end
+  end
+
+  def notify_subscribers(event) do
     Phoenix.PubSub.broadcast(
       SpectatorMode.PubSub,
       @index_subtopic,
-      {event, result}
+      event
+    )
+  end
+
+  @spec notify_local_subscribers(term() | [term()]) :: nil
+
+  def notify_local_subscribers(events) when is_list(events) do
+    for event <- events do
+      notify_local_subscribers(event)
+    end
+  end
+
+  def notify_local_subscribers(event) do
+    Phoenix.PubSub.local_broadcast(
+      SpectatorMode.PubSub,
+      @index_subtopic,
+      event
     )
   end
 end
