@@ -7,6 +7,7 @@ defmodule SpectatorMode.GameTracker do
   use GenServer
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.Events
   alias SpectatorMode.Slp
 
   @current_games_table_name :livestreams
@@ -222,14 +223,14 @@ defmodule SpectatorMode.GameTracker do
 
   defp execute_event_side_effects(stream_id, %Slp.SlpEvents.GameStart{} = event) do
     set_game_start(stream_id, event)
-    Streams.notify_subscribers(:game_update, {stream_id, event})
+    Streams.notify_subscribers(%Events.GameStart{stream_id: stream_id, game_start: event})
   end
 
   defp execute_event_side_effects(stream_id, %Slp.SlpEvents.GameEnd{}) do
     set_game_start(stream_id, nil)
     set_event_payloads(stream_id, nil)
     insert_helper(stream_id, :replay, <<>>)
-    Streams.notify_subscribers(:game_update, {stream_id, nil})
+    Streams.notify_subscribers(%Events.GameEnd{stream_id: stream_id})
   end
 
   defp execute_event_side_effects(stream_id, %Slp.SlpEvents.FodPlatforms{platform: platform} = event) do

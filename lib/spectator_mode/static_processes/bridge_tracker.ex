@@ -10,6 +10,7 @@ defmodule SpectatorMode.BridgeTracker do
   require Logger
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.Events
   alias SpectatorMode.GameTracker
 
   @type t :: %__MODULE__{
@@ -94,7 +95,16 @@ defmodule SpectatorMode.BridgeTracker do
 
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
 
-    Streams.notify_subscribers(:livestreams_created, stream_ids)
+    events = Enum.map(stream_ids, fn stream_id ->
+      %Events.LivestreamCreated{
+        stream_id: stream_id,
+        node_name: Node.self(),
+        game_start: nil,
+        disconnected: false
+      }
+    end)
+    Streams.notify_subscribers(events)
+
     {:reply, {bridge_id, stream_ids, reconnect_token}, new_state}
   end
 
@@ -127,7 +137,8 @@ defmodule SpectatorMode.BridgeTracker do
         {new_reconnect_token, new_state} =
           register_to_state(new_state, pid, bridge_id, stream_ids)
 
-        Streams.notify_subscribers(:livestreams_reconnected, stream_ids)
+        events = Enum.map(stream_ids, fn stream_id -> %Events.LivestreamReconnected{stream_id: stream_id} end)
+        Streams.notify_subscribers(events)
 
         {:reply, {:ok, new_reconnect_token, bridge_id, stream_ids}, new_state}
     end
@@ -148,7 +159,8 @@ defmodule SpectatorMode.BridgeTracker do
       # TODO: Would it be cleaner to separate the state cleaning logic from the side-effect cleaning logic?
       {:noreply, bridge_cleanup(state, monitor_ref)}
     else
-      Streams.notify_subscribers(:livestreams_disconnected, stream_ids)
+      events = Enum.map(stream_ids, fn stream_id -> %Events.LivestreamDisconnected{stream_id: stream_id} end)
+      Streams.notify_subscribers(events)
 
       reconnect_timeout_ref =
         Process.send_after(self(), {:reconnect_timeout, monitor_ref}, reconnect_timeout_ms())
@@ -205,7 +217,8 @@ defmodule SpectatorMode.BridgeTracker do
       GameTracker.delete(stream_id)
     end
 
-    Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
+    events = Enum.map(stream_ids, fn stream_id -> %Events.LivestreamDestroyed{stream_id: stream_id} end)
+    Streams.notify_subscribers(events)
 
     state
     |> delete_monitor_ref(down_ref)

@@ -127,21 +127,37 @@ defmodule SpectatorMode.Streams do
     end)
   end
 
-  @spec notify_subscribers(atom(), term()) :: nil
-  def notify_subscribers(event, result) do
+  # Broadcast events from the SpectatorMode.Events module
+
+  @spec notify_subscribers(term() | [term()]) :: nil
+
+  def notify_subscribers(events) when is_list(events) do
+    for event <- events do
+      notify_subscribers(event)
+    end
+  end
+
+  def notify_subscribers(event) do
     Phoenix.PubSub.broadcast(
       SpectatorMode.PubSub,
       @index_subtopic,
-      {event, result, Node.self()}
+      event
     )
   end
 
-  @spec notify_local_subscribers(atom(), term()) :: nil
-  def notify_local_subscribers(event, result) do
+  @spec notify_local_subscribers(term() | [term()]) :: nil
+
+  def notify_local_subscribers(events) when is_list(events) do
+    for event <- events do
+      notify_local_subscribers(event)
+    end
+  end
+
+  def notify_local_subscribers(event) do
     Phoenix.PubSub.local_broadcast(
       SpectatorMode.PubSub,
       @index_subtopic,
-      {event, result, Node.self()}
+      event
     )
   end
 end
