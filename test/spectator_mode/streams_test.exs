@@ -2,6 +2,7 @@ defmodule SpectatorMode.StreamsTest do
   use ExUnit.Case, async: false
 
   alias SpectatorMode.Streams
+  alias SpectatorMode.Events
 
   defp spawn_source_pid(body) do
     source_pid = spawn(fn ->
@@ -28,7 +29,10 @@ defmodule SpectatorMode.StreamsTest do
       assert MapSet.new(stream_ids) |> MapSet.size() == 5
 
       # Check that PubSub notifications are received
-      assert_receive {:livestreams_created, ^stream_ids, _node_name}
+      self_node_name = Node.self()
+      for stream_id <- stream_ids do
+        assert_receive %Events.LivestreamCreated{stream_id: ^stream_id, node_name: ^self_node_name, game_start: nil, disconnected: false}
+      end
     end
 
     test "sends notification if the monitored process dies" do
@@ -41,15 +45,21 @@ defmodule SpectatorMode.StreamsTest do
       end)
 
       assert_receive {:registered, _bridge_id, stream_ids, _reconnect_token}
-      assert_receive {:livestreams_created, ^stream_ids, _node_name}
+      for stream_id <- stream_ids do
+        assert_receive %Events.LivestreamCreated{stream_id: ^stream_id}
+      end
 
       send(source_pid, :crash)
 
       # First disconnected event is received
-      assert_receive {:livestreams_disconnected, ^stream_ids}
+      for stream_id <- stream_ids do
+        assert_receive %Events.LivestreamDisconnected{stream_id: ^stream_id}
+      end
       # After timeout, destroyed event is received
       reconnect_timeout_ms = Application.get_env(:spectator_mode, :reconnect_timeout_ms)
-      assert_receive {:livestreams_destroyed, ^stream_ids, _node_name}, reconnect_timeout_ms + 20
+      for stream_id <- stream_ids do
+        assert_receive %Events.LivestreamDestroyed{stream_id: ^stream_id}, reconnect_timeout_ms + 20
+      end
     end
   end
 
@@ -67,7 +77,9 @@ defmodule SpectatorMode.StreamsTest do
       # Crash bridge
       send(source_pid, :crash)
       assert_receive {:registered, bridge_id, stream_ids, reconnect_token}
-      assert_receive {:livestreams_disconnected, ^stream_ids}
+      for stream_id <- stream_ids do
+        assert_receive %Events.LivestreamDisconnected{stream_id: ^stream_id}
+      end
 
       # Reconnect a new bridge process
       spawn_source_pid(fn ->
@@ -78,7 +90,9 @@ defmodule SpectatorMode.StreamsTest do
       # Reconnect assertions
       assert_receive {:reconnected, new_reconnect_token}
       assert reconnect_token != new_reconnect_token
-      assert_receive {:livestreams_reconnected, ^stream_ids}
+      for stream_id <- stream_ids do
+        assert_receive %Events.LivestreamReconnected{stream_id: ^stream_id}
+      end
     end
   end
 end

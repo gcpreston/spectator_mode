@@ -13,7 +13,7 @@ defmodule SpectatorMode.Events do
       disconnected: boolean()
     }
     @enforce_keys [:stream_id]
-    defstruct stream_id: nil, node_name: nil, game_start: nil, disconnected: false
+    defstruct stream_id: nil, node_name: Node.self(), game_start: nil, disconnected: false
   end
 
   defmodule LivestreamDestroyed do

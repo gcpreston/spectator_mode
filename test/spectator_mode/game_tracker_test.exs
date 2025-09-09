@@ -29,10 +29,17 @@ defmodule SpectatorMode.GameTrackerTest do
     assert GameTracker.minimal_join_payload(stream_id) == <<>>
 
     # Check data after processing packets
+    # TODO: handle_packet sends out events about the game, which StreamsStore receives
+    #   But this will cause an error in the test unless StreamsStore first receives LivestreamCreated
+    #   This feels like unwanted coupling
+    send(SpectatorMode.StreamsStore, %Events.LivestreamCreated{stream_id: stream_id})
+
+    SpectatorMode.Streams.subscribe()
     GameTracker.handle_packet(stream_id, event_payloads.binary)
     GameTracker.handle_packet(stream_id, game_start.binary)
     GameTracker.handle_packet(stream_id, fod_platform.binary)
-    assert_receive %Events.GameStart{stream_id: ^stream_id, game_start: ^game_start}
+    assert_receive %Events.GameStart{stream_id: ^stream_id, game_start: game_start_received}
+    assert game_start_received.binary == game_start.binary
     assert GameTracker.list_local_streams() |> Enum.filter(fn %{stream_id: test_stream_id} -> test_stream_id == stream_id end) == [%{stream_id: stream_id, game_start: game_start}]
     assert GameTracker.minimal_join_payload(stream_id) == event_payloads.binary <> game_start.binary <> fod_platform.binary
 

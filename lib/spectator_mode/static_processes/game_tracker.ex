@@ -90,23 +90,21 @@ defmodule SpectatorMode.GameTracker do
   """
   @spec handle_packet(Streams.stream_id(), binary()) :: :ok
   def handle_packet(stream_id, data) do
-    Task.Supervisor.start_child(SpectatorMode.PacketHandleTaskSupervisor, fn ->
-      {:ok, maybe_event_payloads} = fetch_event_payloads(stream_id)
-      maybe_payload_sizes = get_in(maybe_event_payloads.payload_sizes)
-      {:ok, previous_leftover} = fetch_leftover_buffer(stream_id)
+    {:ok, maybe_event_payloads} = fetch_event_payloads(stream_id)
+    maybe_payload_sizes = get_in(maybe_event_payloads.payload_sizes)
+    {:ok, previous_leftover} = fetch_leftover_buffer(stream_id)
 
-      {events, leftover} = Slp.Parser.parse_packet(previous_leftover <> data, maybe_payload_sizes)
-      add_to_replay(stream_id, data)
-      set_leftover_buffer(stream_id, leftover)
-      execute_side_effects(stream_id, events)
-    end)
+    {events, leftover} = Slp.Parser.parse_packet(previous_leftover <> data, maybe_payload_sizes)
+    add_to_replay(stream_id, data)
+    set_leftover_buffer(stream_id, leftover)
+    execute_side_effects(stream_id, events)
 
     :ok
   end
 
   @spec delete(Streams.stream_id()) :: :ok
   def delete(stream_id) do
-    for event_type <- [:event_payloads, :game_start, :game_state] do
+    for event_type <- [:event_payloads, :game_start, :game_state, :leftover_buffer, :replay] do
       :ets.delete(@current_games_table_name, {stream_id, event_type})
     end
 

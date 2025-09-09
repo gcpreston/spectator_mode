@@ -2,6 +2,7 @@ defmodule SpectatorMode.StreamsStoreTest do
   use ExUnit.Case, async: false
 
   alias SpectatorMode.StreamsStore
+  alias SpectatorMode.Events
 
   setup do
     # Start the GenServer for testing
@@ -19,10 +20,12 @@ defmodule SpectatorMode.StreamsStoreTest do
   describe "stream management" do
     test "handles stream creation events" do
       node_name = Node.self()
-      stream_ids = [1, 2, 3]
 
       # Simulate stream creation event
-      send(StreamsStoreTest, {:livestreams_created, stream_ids, node_name})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: 1})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: 2, game_start: "some dummy value"})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: 3})
+
 
       # Give the GenServer time to process
       :timer.sleep(10)
@@ -37,15 +40,16 @@ defmodule SpectatorMode.StreamsStoreTest do
       Enum.each(streams, fn stream ->
         assert stream.node_name == node_name
         assert stream.disconnected == false
-        assert stream.viewer_count == 0
+
+        if stream.stream_id == 2, do: assert stream.game_start == "some dummy value"
       end)
     end
 
     test "handles stream destruction events" do
-      node_name = Node.self()
-
       # Create some streams first
-      send(StreamsStoreTest, {:livestreams_created, [1, 2, 3], node_name})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: 1})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: 2})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: 3})
       :timer.sleep(10)
 
       # Verify they exist
@@ -53,7 +57,8 @@ defmodule SpectatorMode.StreamsStoreTest do
       assert length(streams) == 3
 
       # Destroy some streams
-      send(StreamsStoreTest, {:livestreams_destroyed, [1, 3], node_name})
+      send(StreamsStoreTest, %Events.LivestreamDestroyed{stream_id: 1})
+      send(StreamsStoreTest, %Events.LivestreamDestroyed{stream_id: 3})
       :timer.sleep(10)
 
       # Verify only stream 2 remains
@@ -70,7 +75,7 @@ defmodule SpectatorMode.StreamsStoreTest do
       assert StreamsStore.get_stream_node(StreamsStoreTest, stream_id) == {:error, :not_found}
 
       # Create the stream
-      send(StreamsStoreTest, {:livestreams_created, [stream_id], node_name})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: stream_id})
       :timer.sleep(10)
 
       # Now it should be found
@@ -78,12 +83,11 @@ defmodule SpectatorMode.StreamsStoreTest do
     end
 
     test "handles duplicate stream creation gracefully" do
-      node_name = Node.self()
       stream_id = 100
 
       # Create stream twice
-      send(StreamsStoreTest, {:livestreams_created, [stream_id], node_name})
-      send(StreamsStoreTest, {:livestreams_created, [stream_id], node_name})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: stream_id})
+      send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: stream_id})
       :timer.sleep(10)
 
       # Should only have one stream
@@ -99,7 +103,9 @@ defmodule SpectatorMode.StreamsStoreTest do
       stream_ids = [10, 20, 30]
 
       # Simulate streams on a fake node
-      send(StreamsStoreTest, {:livestreams_created, stream_ids, fake_node})
+      for stream_id <- stream_ids do
+        send(StreamsStoreTest, %Events.LivestreamCreated{stream_id: stream_id, node_name: fake_node})
+      end
       :timer.sleep(10)
 
       # Verify streams exist
