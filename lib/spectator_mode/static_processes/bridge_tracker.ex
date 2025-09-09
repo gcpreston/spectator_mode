@@ -4,9 +4,6 @@ defmodule SpectatorMode.BridgeTracker do
   exits (via cleanup) and non-normal exits (via a reconnect time window, and
   cleanup if the time window expires) of bridge processes, as well as sending
   pubsub messages to notify subscribers of bridge status changes.
-
-  This is the process that keeps the Mnesia table mapping stream ID to node
-  name up to date.
   """
   use GenServer
 
@@ -14,7 +11,6 @@ defmodule SpectatorMode.BridgeTracker do
 
   alias SpectatorMode.Streams
   alias SpectatorMode.GameTracker
-  alias SpectatorMode.StreamsIndexStore
 
   @type t :: %__MODULE__{
           token_to_bridge_info: %{
@@ -88,7 +84,6 @@ defmodule SpectatorMode.BridgeTracker do
 
   @impl true
   def init(_) do
-    StreamsIndexStore.initialize_store()
     {:ok, %__MODULE__{}}
   end
 
@@ -98,9 +93,6 @@ defmodule SpectatorMode.BridgeTracker do
     stream_ids = Enum.map(1..stream_count, fn _ -> GameTracker.initialize_stream() end)
 
     {reconnect_token, new_state} = register_to_state(state, pid, bridge_id, stream_ids)
-
-    # Register the current node as the location of the new livestreams
-    StreamsIndexStore.add_streams(stream_ids)
 
     Streams.notify_subscribers(:livestreams_created, stream_ids)
     {:reply, {bridge_id, stream_ids, reconnect_token}, new_state}
@@ -156,10 +148,6 @@ defmodule SpectatorMode.BridgeTracker do
       # TODO: Would it be cleaner to separate the state cleaning logic from the side-effect cleaning logic?
       {:noreply, bridge_cleanup(state, monitor_ref)}
     else
-      for stream_id <- stream_ids do
-        StreamsIndexStore.replace_stream_metadata(stream_id, :disconnected, true)
-      end
-
       Streams.notify_subscribers(:livestreams_disconnected, stream_ids)
 
       reconnect_timeout_ref =
@@ -172,14 +160,6 @@ defmodule SpectatorMode.BridgeTracker do
   def handle_info({:reconnect_timeout, monitor_ref}, state) do
     {:noreply, bridge_cleanup(state, monitor_ref)}
   end
-
-  # IDEAS
-  # 1. Move mnesia interaction logic to some kind of Store module API that
-  #    abstracts away the use of mnesia specifically.
-  # 2. Remove the need to double-call for bridge info: store active game start
-  #    and disconnected status in Store so that it can be looked up globally
-  #    in one request.
-  # 3. Figure out the minimum + cleanest :nodeup/:nodedown logic needed
 
   ## Helpers
 
@@ -224,8 +204,6 @@ defmodule SpectatorMode.BridgeTracker do
     for stream_id <- stream_ids do
       GameTracker.delete(stream_id)
     end
-
-    StreamsIndexStore.drop_streams(stream_ids)
 
     Streams.notify_subscribers(:livestreams_destroyed, stream_ids)
 

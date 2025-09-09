@@ -8,7 +8,6 @@ defmodule SpectatorMode.GameTracker do
 
   alias SpectatorMode.Streams
   alias SpectatorMode.Slp
-  alias SpectatorMode.StreamsIndexStore
 
   @current_games_table_name :livestreams
   @initial_game_state %{fod_platforms: %{left: nil, right: nil}}
@@ -223,7 +222,6 @@ defmodule SpectatorMode.GameTracker do
 
   defp execute_event_side_effects(stream_id, %Slp.Events.GameStart{} = event) do
     set_game_start(stream_id, event)
-    StreamsIndexStore.replace_stream_metadata(stream_id, :game_start, event)
     Streams.notify_subscribers(:game_update, {stream_id, event})
   end
 
@@ -231,7 +229,6 @@ defmodule SpectatorMode.GameTracker do
     set_game_start(stream_id, nil)
     set_event_payloads(stream_id, nil)
     insert_helper(stream_id, :replay, <<>>)
-    StreamsIndexStore.replace_stream_metadata(stream_id, :game_start, nil)
     Streams.notify_subscribers(:game_update, {stream_id, nil})
   end
 

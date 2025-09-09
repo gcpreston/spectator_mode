@@ -80,18 +80,13 @@ defmodule SpectatorMode.Streams do
 
   # Execute a function on the node hosting the given stream, and return the result.
   defp call_stream_node(stream_id, fun) do
-    # case :mnesia.transaction(fn -> :mnesia.read({:sm_stream_nodes, stream_id}) end) do
-    #   {:atomic, [{:sm_stream_nodes, ^stream_id, node_name}]} ->
-    #     {:ok, :erpc.call(node_name, fun)}
+    case SpectatorMode.StreamsStore.get_stream_node(stream_id) do
+      {:ok, node_name} ->
+        {:ok, :erpc.call(node_name, fun)}
 
-    #   {:atomic, []} ->
-    #     {:error, :stream_not_found}
-
-    #   {:aborted, reason} ->
-    #     {:error, reason}
-    # end
-    stream_node = SpectatorMode.StreamsStore.get_stream_node(stream_id)
-    {:ok, :erpc.call(stream_node, fun)}
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   @doc """
@@ -115,20 +110,8 @@ defmodule SpectatorMode.Streams do
   @doc """
   Fetch the stream IDs of all currently active streams, and their metadata.
   """
-
+  # TODO: Spec (return type)
   defdelegate list_streams, to: SpectatorMode.StreamsStore, as: :list_all_streams
-
-  # @spec list_streams() :: [
-  #       %{stream_id: stream_id(), active_game: GameStart.t(), disconnected: boolean()}
-  #     ]
-  # def list_streams do
-  #   local_streams = list_local_streams()
-
-  #   Enum.reduce(Node.list(), local_streams, fn node, acc ->
-  #     remote_streams = :erpc.call(node, fn -> SpectatorMode.Streams.list_local_streams() end)
-  #     acc ++ remote_streams
-  #   end)
-  # end
 
   @doc """
   Like list_streams/0, but only for streams running on this node.
