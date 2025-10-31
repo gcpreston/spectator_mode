@@ -3,6 +3,7 @@ defmodule SpectatorMode.Streams do
   The Streams context provides a public API for stream management operations.
   """
   alias SpectatorMode.Slp.SlpEvents.GameStart
+  alias SpectatorMode.Events.LivestreamDestroyed
   alias SpectatorMode.BridgeTracker
   alias SpectatorMode.GameTracker
 
@@ -97,11 +98,7 @@ defmodule SpectatorMode.Streams do
   @spec forward(stream_id(), binary()) :: nil
   def forward(stream_id, data) do
     # Send binary to pubsub subscribers
-    Phoenix.PubSub.broadcast(
-      SpectatorMode.PubSub,
-      stream_subtopic(stream_id),
-      {:game_data, data}
-    )
+    send_to_stream_subscribers(stream_id, {:game_data, data})
 
     # Asynchronously parse and update tracked game info as needed
     GameTracker.handle_packet(stream_id, data)
@@ -127,6 +124,14 @@ defmodule SpectatorMode.Streams do
     end)
   end
 
+  defp send_to_stream_subscribers(stream_id, message) do
+    Phoenix.PubSub.broadcast(
+      SpectatorMode.PubSub,
+      stream_subtopic(stream_id),
+      message
+    )
+  end
+
   # Broadcast events from the SpectatorMode.Events module
 
   @spec notify_subscribers(term() | [term()]) :: nil
@@ -137,7 +142,16 @@ defmodule SpectatorMode.Streams do
     end
   end
 
-  def notify_subscribers(event) do
+  def notify_subscribers(%LivestreamDestroyed{stream_id: stream_id} = event) do
+    # For LivestreamDestroyed events, we need to additionally disconnect
+    # viewer sockets which would no longer be receiving data.
+    send_to_stream_subscribers(stream_id, {:disconnect, :livestream_destroyed})
+    notify_index_subscribers(event)
+  end
+
+  def notify_subscribers(event), do: notify_index_subscribers(event)
+
+  defp notify_index_subscribers(event) do
     Phoenix.PubSub.broadcast(
       SpectatorMode.PubSub,
       @index_subtopic,

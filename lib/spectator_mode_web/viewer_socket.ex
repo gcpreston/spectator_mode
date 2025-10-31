@@ -1,7 +1,6 @@
 defmodule SpectatorModeWeb.ViewerSocket do
   @behaviour Phoenix.Socket.Transport
 
-  require Logger
   alias SpectatorMode.Streams
   alias SpectatorModeWeb.Presence
 
@@ -29,7 +28,7 @@ defmodule SpectatorModeWeb.ViewerSocket do
         viewer_id = Ecto.UUID.generate()
         Presence.track_viewer(viewer_id, stream_id)
 
-        {:ok, state}
+        {:ok, state |> Map.put(:stream_id, stream_id)}
 
       {:error, message} ->
         {:error, message}
@@ -53,6 +52,10 @@ defmodule SpectatorModeWeb.ViewerSocket do
 
   def handle_info({:game_data, payload}, state) do
     {:push, {:binary, payload}, state}
+  end
+
+  def handle_info({:disconnect, reason}, state) do
+    {:stop, {:shutdown, reason}, state}
   end
 
   def handle_info(_, state) do
